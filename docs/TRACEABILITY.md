@@ -23,7 +23,7 @@ Legend — Status: **PA** = Approved-initial decision; **PR** = Provisional (req
 
 | Requirement | Primary document(s) | Status | Complete | Remaining gap |
 |---|---|---|---|---|
-| Commercial V1.0 is the initial product release | `GDD.md` §1/§29, `DECISIONS.md` D-028/D-030, Charter §10 | PA | ✅ | Owner sign-off OQ-08 (gates Phase 2) |
+| Commercial V1.0 is the initial product release | `GDD.md` §1/§29, `DECISIONS.md` D-028/D-030, Charter §10 | PA | ✅ | None — baseline sign-off (OQ-08) resolved 2026-11-05; final release acceptance criteria remain open (OQ-13) |
 | Scope model: Development Prototype / Vertical Slice / Commercial V1.0 | `GDD.md` §§30–31, `DECISIONS.md` D-030, `production/ROADMAP.md`/`MILESTONES.md` | PA | ✅ | Vertical-slice composition to be defined with owner |
 | 10 playable vehicles (Starter 2 / Sport 3 / Drift 2 / Supercar 3) | `GDD.md` §§9–10, `DECISIONS.md` D-010 (PA), D-014 (PR), `design/vehicles/README.md` | 10-vehicle PA; distribution PR | 🟡 | Roster identities/stats (OQ-14/OQ-06); asset quality criteria (OQ-A09) |
 | Vehicle systems: selection, stats, garage, upgrades, classes, unlocking, differentiation | `GDD.md` §§9–12/§23, `design/ui-ux/README.md`, `design/vehicles/README.md` | PA direction / open detail | 🟡 | Garage + upgrade + unlock specs (OQ-A03/OQ-07/OQ-17) |
@@ -48,7 +48,7 @@ Legend — Status: **PA** = Approved-initial decision; **PR** = Provisional (req
 | 14-phase commercial roadmap with measurable milestones | `production/ROADMAP.md`, `production/MILESTONES.md` (M0–M12) | Proposed/merged | ✅ | Calendar dates deferred by policy |
 | AI agent governance incl. scope discipline & quality rules | `docs/AI_AGENT_GUIDELINES.md` (§3a, §4a, §6–§9), `ai/MASTER_AGENT_PROMPT.md`, `ai/WORKFLOW.md`, `ai/prompts/README.md` | — | ✅ | — |
 | Repository organization stays accurate | `docs/PROJECT_STRUCTURE.md` | — | ✅ | Future Assets/ layout at Unity setup |
-| Formal scope/documentation sign-off (gates environment setup) | `docs/OPEN_QUESTIONS.md` OQ-08, `production/MILESTONES.md` M0 | Pending owner | 🟡 | OQ-08 Resolution |
+| Formal scope/documentation sign-off (gated environment setup; now resolved) | `docs/OPEN_QUESTIONS.md` OQ-08, `production/MILESTONES.md` M0 | **RESOLVED — APPROVED 2026-11-05** | ✅ | None — resolution recorded in `OPEN_QUESTIONS.md` (Resolved questions), `DECISIONS.md` change history v0.3.1, `MILESTONES.md` M0 |
 | Unity setup pending statement + no implementation yet | `README.md`, `production/ROADMAP.md` Phase 2 | Current state | ✅ | Becomes obsolete when Phase 2 starts |
 | Playgama platform constraints preserved & re-verify ritual | `PLAYGAMA_CONSTRAINTS.md` §§1–2, `TDD.md` §3/§22 | Re-verify | ✅ | Re-verification vs official docs before integration/submission |
 
