@@ -23,6 +23,8 @@ sysinfo.txt
 .vscode/
 .idea/
 *.sln
+*.slnx
+*.slnx.meta
 *.csproj
 *.user
 *.suo
