@@ -12,13 +12,13 @@ Measurable milestones for the **Commercial V1.0** target (D-028). A milestone is
 **Acceptance criteria:** documentation cross-checked per `docs/TRACEABILITY.md`, no unresolved critical gaps, no contradictions; the owner explicitly approves (a) this documentation set and (b) the Commercial V1.0 scope (D-028: 10 vehicles, ≥3 championships, 5 environments, high-quality realistic-inspired presentation) as the release target. Final release acceptance criteria remain open (OQ-13). *Status: sign-off recorded 2026-11-05 (OQ-08 resolved) — two administrative confirmations (repository name/visibility, branching approach) remain open before M0 closes fully.*
 
 ## M1 — Development Environment Ready
-- [ ] Confirm compatible Unity Editor version: suitable stable **LTS**, verified for WebGL Build Support (OQ-T01).
-- [ ] Install Unity Hub and required modules (including WebGL Build Support).
-- [ ] Install/configure C# tooling.
-- [ ] Verify a clean Unity project builds for the web target.
-- [ ] Document the actually installed Unity version and modules.
+- [x] Confirm and document the owner-approved Unity Editor version and verify its installed WebGL Build Support module (OQ-T01). *(Deviation from the original wording, owner-directed: the owner explicitly approved Unity **6000.6.8f1** (Unity 6.6 **Supported Update release, not LTS**; build `237b6593792b`) on 2026-11-05 instead of an LTS — evidence: batch-mode launch exited cleanly, `Editor.log` confirmed version, WebGL Build Support module present, UnityPersonal entitlement granted. Unity guidance treats Supported Updates as production-ready for new projects.)*
+- [x] Install Unity Hub and required modules (including WebGL Build Support). *(Evidence: Unity Hub 3.22.5 installed (`/usr/bin/unityhub`); Editor at `~/Unity/Hub/Editor/6000.6.8f1/` with `PlaybackEngines/WebGLSupport/` present — verified 2026-11-05.)*
+- [ ] Install/configure C# tooling. *(VS Code 1.129.0 present; no standalone .NET SDK or C# extension detected — non-blocking because the Editor bundles its compilation toolchain, but the dedicated tooling remains to be configured.)*
+- [ ] Verify a clean Unity project builds for the web target. *(Not yet performed — requires the actual project; also pending: real WebGL build + Playgama Bridge v2.4.0 compatibility + runtime validation = the open scope of OQ-T01.)*
+- [x] Document the actually installed Unity version and modules. *(Recorded via this update + `DECISIONS.md` D-008 + `OPEN_QUESTIONS.md` OQ-T01 on 2026-11-05; module list documented: WebGL Build Support + LinuxStandaloneSupport.)*
 
-**Acceptance criteria:** documented Unity version + module list on the Ubuntu workstation; clean project builds successfully for WebGL; findings recorded (e.g., `docs/TDD.md` §2 update). Evidence: build log/screenshot. *No Unity version is silently approved in `DECISIONS.md`.*
+**Acceptance criteria:** documented Unity version + module list on the Ubuntu workstation; clean project builds successfully for WebGL; findings recorded (e.g., `docs/TDD.md` §2 update). Evidence: build log/screenshot. *No Unity version is silently approved in `DECISIONS.md`.* *Status: environment verification complete 2026-11-05 (3/5 items checked, per owner-approved version Unity 6000.6.8f1 — Unity 6.6 Supported Update, not LTS); remaining: C# tooling config and the first actual web-target build.*
 
 ## M2 — Unity Foundation & Architecture Ready
 - [ ] Confirm render pipeline with performance evidence (OQ-T02).

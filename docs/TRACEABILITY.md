@@ -10,7 +10,7 @@ Legend — Status: **PA** = Approved-initial decision; **PR** = Provisional (req
 |---|---|---|---|---|
 | Studio: GameCraft Studio | `PROJECT_CHARTER.md` §1, `design/brand/README.md` | PA | ✅ | — |
 | Working title/subtitle/tagline | `PROJECT_CHARTER.md` §1, `README.md`, `design/brand/README.md` | PR (trademark validation open OQ-P05) | ✅ | Trademark validation before release |
-| Engine Unity / language C# | `PROJECT_CHARTER.md` §7, `DECISIONS.md` D-008, `TDD.md` §2 | PA (version open OQ-T01) | 🟡 | Unity stable LTS + WebGL Build Support verification at environment setup |
+| Engine Unity / language C# | `PROJECT_CHARTER.md` §7, `DECISIONS.md` D-008, `TDD.md` §2 | PA (Unity 6000.6.8f1 — Unity 6.6 Supported Update, not LTS — owner-approved 2026-11-05; OQ-T01 environment portion complete) | 🟡 | Playgama integration validation pending: actual WebGL build, Bridge v2.4.0 compatibility, runtime validation (open scope of OQ-T01) |
 | Initial platform: Playgama Web | `PROJECT_CHARTER.md` §7, `DECISIONS.md` D-009, `TDD.md` | PA | ✅ | — |
 | Single-player initially | `PROJECT_CHARTER.md`, `DECISIONS.md` D-012 | PA | ✅ | — |
 | Landscape orientation | `PROJECT_CHARTER.md`, `DECISIONS.md` D-004 | PA | ✅ | — |

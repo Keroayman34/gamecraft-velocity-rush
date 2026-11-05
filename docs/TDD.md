@@ -10,7 +10,7 @@ Define how Commercial V1.0 — a high-quality, realistic-inspired 3D driving gam
 
 | Area | Decision | Source |
 |---|---|---|
-| Engine | Unity (final stable LTS version open — OQ-T01) with WebGL Build Support verified at setup | DECISIONS D-008, `OPEN_QUESTIONS.md` |
+| Engine | Unity **6000.6.8f1** (Unity 6.6 Supported Update release, **not LTS**; build `237b6593792b`) — owner-approved 2026-11-05, environment verified (Hub 3.22.5, WebGL Build Support present, licensing granted, clean batch-mode startup); runtime Playgama integration still pending (OQ-T01) | DECISIONS D-008, `OPEN_QUESTIONS.md` OQ-T01, `production/MILESTONES.md` M1 |
 | Language | C# | DECISIONS D-008 |
 | Product target | Commercial V1.0 (prototype/vertical-slice are development stages, D-030) | DECISIONS D-028/D-030 |
 | Visual quality bar | High-quality realistic-inspired 3D presentation, planned with WebGL performance limits | DECISIONS D-006 |
@@ -21,7 +21,7 @@ Define how Commercial V1.0 — a high-quality, realistic-inspired 3D driving gam
 
 ## 3. Unity Web platform & WebGL Build Support (constraints, not solutions)
 - Unity WebGL output must satisfy Playgama packaging rules: `index.html` at archive root, Latin filenames, no external asset hosting, archive-size and startup-memory limits (`PLAYGAMA_CONSTRAINTS.md` §§1, 6).
-- WebGL Build Support module compatibility verified **at environment setup** (OQ-T01) before architecture planning begins.
+- WebGL Build Support module: **verified present** for Unity 6000.6.8f1 at environment verification (2026-11-05, OQ-T01 — environment portion complete); compatibility with an actual project build and Playgama integration remains pending.
 - Avoid WebGL startup warnings; no YouTube embedding; no external analytics; shared browser keys (e.g., Escape) never critical to flow.
 - Loading time, mobile fullscreen/rotation, and touch quality are first-class requirements of a commercial web product.
 
@@ -134,7 +134,7 @@ Loop: local Unity WebGL build → archive structure per Playgama rules → Bridg
 For each major technical decision, document problem, options, trade-offs, chosen approach, consequences — recorded as ADR entries when the docs/architecture structure is introduced.
 
 **Explicitly deferred until Unity project creation + technical prototype/vertical slice evidence:**
-- Unity version & render pipeline (OQ-T01, OQ-T02)
+- Render pipeline (OQ-T02) — engine version already decided and verified (Unity 6000.6.8f1, owner-approved 2026-11-05; environment portion of OQ-T01 complete)
 - Vehicle physics strategy (OQ-T03)
 - Input abstraction details (OQ-T04)
 - Scene/content organization (OQ-T06)
