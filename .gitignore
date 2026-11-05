@@ -6,6 +6,18 @@
 [Bb]uilds/
 [Ll]ogs/
 [Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+[Aa]ssets/AssetStoreTools*
+[Aa]ssets/Plugins/Editor/JetBrains*
+
+# Unity truth / meta artifacts that should never be tracked
+*.broken
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+sysinfo.txt
+*.stackdump
 
 # IDE
 .vscode/
@@ -14,6 +26,10 @@
 *.csproj
 *.user
 *.suo
+*.pidb
+*.booproj
+*.sln.meta
+*.csproj.meta
 
 # OS
 .DS_Store
@@ -28,13 +44,19 @@ Desktop.ini
 *.wasm
 *.data
 *.framework
+*.unitypackage
+*.privacy
 
 # Temporary files
 *.tmp
 *.bak
 *.log
+*.blend1
 
 # Secrets
 .env
 .env.*
 !.env.example
+
+# IMPORTANT: documentation, design references, and C# source / source assets must
+# always remain tracked. Never extend these rules to hide project source of truth.

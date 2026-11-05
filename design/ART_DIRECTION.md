@@ -3,10 +3,12 @@
 **Studio:** GameCraft Studio  
 **Status:** Proposed visual direction — pending human approval  
 **Selected direction:** A — Cinematic Motorsport  
-**Realism target:** Balanced  
+**Realism target:** Balanced → **updated (owner-confirmed, 2026-11-03): High-quality realistic-inspired 3D presentation** (D-006). Quality ambition is stronger than the former "Balanced" wording; performance-aware constraints below are optimization strategies, not quality downgrades.  
 **Reference workflow:** Hybrid (visual references + written specifications)  
 **Project:** Velocity Rush  
-**Related concept:** Velocity Rush: Precision Trials
+**Related concept:** Velocity Rush: Precision Trials  
+
+**Reference board:** see [`design/references/art-direction-v0.1/`](references/art-direction-v0.1/README.md) (board image: `references/art-direction-v0.1/art-direction-board.png`). This document — not the board — is the authoritative written direction.
 
 ---
 
@@ -18,18 +20,19 @@ It is not a final production art bible. All values and examples remain provision
 
 ## 2. Art direction statement
 
-Velocity Rush should feel like a premium, high-energy global motorsport championship: cinematic, confident, modern, and readable.
+Velocity Rush must look and feel like a professionally produced commercial product: a premium, high-energy global motorsport championship that is cinematic, confident, modern, and readable.
 
-The game should use realistic-inspired 3D visuals with controlled complexity. Prioritize strong silhouettes, convincing materials, dramatic but legible lighting, and clear gameplay readability over expensive visual effects that harm WebGL performance.
+The game uses **high-quality realistic-inspired 3D visuals** (owner-upgraded quality target, D-006): high-quality vehicle models, convincing materials and surface details, professional lighting, believable environments, and high-quality visual effects — always within the real constraints of Unity WebGL delivery (browser performance, memory, archive size, loading time, device compatibility). Complexity is optimized through profiling and technique, never silently lowered below the quality bar.
 
 ### Design principles
 
-1. **Cinematic, not cluttered:** dramatic lighting and composition, while keeping gameplay information easy to read.
-2. **Motorsport credibility:** purposeful racing details, track markings, barriers, pit/garage elements, and believable vehicle proportions.
-3. **Performance-aware realism:** balanced geometry, textures, materials, lighting, and effects for browser delivery.
-4. **High contrast and hierarchy:** important buttons, event states, scores, and race feedback must be immediately recognizable.
-5. **Global identity:** avoid making the whole game visually dependent on one country or region.
-6. **Consistent system:** menus, garage, championship map, HUD, results, and settings must share one visual language.
+1. **Commercial quality bar:** features must be planned to a professional production standard; "good enough for a prototype" is not the acceptance bar for product content.
+2. **Cinematic, not cluttered:** dramatic lighting and composition, while keeping gameplay information easy to read.
+3. **Motorsport credibility:** purposeful racing details, track markings, barriers, pit/garage elements, and believable vehicle proportions.
+4. **Performance-aware high quality:** balanced complexity via measured optimization (texture atlases, LOD, baking), not reduced quality targets.
+5. **High contrast and hierarchy:** important buttons, event states, scores, and race feedback immediately recognizable.
+6. **Global identity:** varied environments without dependence on one country or region; all five Commercial V1.0 environments read as distinct experiences.
+7. **Consistent system:** menus, garage, championships, HUD, results, effects, and settings must share one visual language.
 
 ## 3. Provisional color system
 
@@ -107,9 +110,7 @@ All screens use dark motorsport surfaces, strong hierarchy, restrained red accen
 
 ## 7. Vehicle visual direction
 
-The initial roster target is **10 playable vehicles**.
-
-Provisional class distribution:
+The Commercial V1.0 roster target is **10 playable vehicles** (D-010) with the planning distribution:
 
 | Class | Count |
 |---|---:|
@@ -119,7 +120,7 @@ Provisional class distribution:
 | Supercar | 3 |
 | **Total** | **10** |
 
-The roster names and vehicles shown in early concept imagery are illustrative only. They are not final vehicle specifications, real-world licensed models, or approved production assets.
+All ten vehicles are Commercial V1.0 content; the roster names and vehicles shown in early concept imagery are illustrative only — not final vehicle specifications, licensed models, or approved assets. Temporary development prototypes may use fewer vehicles (D-030), which never reduces the product roster.
 
 ### Vehicle identity requirements
 Each vehicle needs:
@@ -143,23 +144,33 @@ Upgrades must visibly communicate improvement where practical, but gameplay effe
 
 ## 8. Environment direction
 
-Global identity is the selected direction. Initial environment concepts:
+Global identity is the selected direction. **All five environment themes are Commercial V1.0 content targets (D-028):**
 - Desert Circuit
 - Neon City
 - Mountain Pass
 - Coastal Circuit
 - World Arena
 
-These are long-term environment themes, not a commitment to build five complete environments in the MVP. The first playable milestone should use one optimized environment kit with multiple reusable track configurations.
+Each must have a distinct visual identity and distinct driving experience — reuse is a production technique, not an excuse for five copies of one environment. Per-environment art direction, lighting, materials, and atmosphere requirements: `design/environments/README.md`; detailed designs open (OQ-20/OQ-21). One shared technical/kit foundation may be used as a foundation, provided the five environments remain visibly distinct.
 
 Each environment package should specify:
 - Reference images and composition.
-- Track layout and gameplay purpose.
+- Track layout(s) and gameplay purpose.
 - Road surface and grip assumptions.
 - Barriers, signage, props, and hazards.
-- Lighting/time-of-day.
+- Lighting/time-of-day approach.
 - Landmark silhouettes.
 - Asset reuse plan and performance budget.
+
+## 8a. Visual quality acceptance criteria (direction)
+Before production asset approval, quality criteria are defined (OQ-A08/OQ-A09) covering at minimum:
+- Vehicle models: high-quality modeling/texturing appropriate to hero assets; believable materials and surface detail.
+- Materials/shaders: convincing paint, glass, rubber, asphalt, metal under the WebGL profiling gates (`TDD.md` §16).
+- Lighting: professional, cinematic presentation while preserving gameplay readability.
+- Environments: distinct identity per theme; coherent quality across all five.
+- VFX: quality that enhances readability, cost-measured.
+- UI: professionally produced layouts, consistent iconography/panels, full bilingual RTL/LTR correctness.
+Acceptance is against approved references and written criteria — not compilability.
 
 ## 9. Reference asset governance
 
@@ -167,7 +178,7 @@ Every visual reference must have:
 - A unique ID.
 - A descriptive filename.
 - A linked specification document.
-- A status: `DRAFT`, `APPROVED`, or `REJECTED`.
+- A status: `APPROVED`, `DRAFT`, `REJECTED`, or `ARCHIVED` (definitions in `design/references/README.md`).
 - A note explaining what the image is authoritative for.
 
 Generated images are visual targets, not automatically production-ready assets. They must not be treated as exact 3D models, UI source files, or validated technical specifications.
@@ -187,18 +198,20 @@ Before implementing a visual feature, the agent must:
 
 A feature is not visually complete merely because it compiles or runs.
 
-## 11. Performance guardrails
+## 11. Performance guardrails (quality-preserving optimization strategies)
 
-The target is Playgama Web using Unity WebGL. Final budgets must be established through profiling, but the art direction must assume:
-- Controlled polygon counts and draw calls.
-- Texture atlases and sensible texture resolutions.
-- Reuse of materials and environment props.
-- Limited transparent particles and overdraw.
-- Minimal expensive real-time shadows and post-processing.
+The target is Playgama Web using Unity WebGL, at the high-quality presentation bar (`D-006`). Final budgets must be established through profiling (OQ-T08), but the art direction plans for optimization **without lowering the quality target**:
+- Controlled polygon counts and draw calls via disciplined modeling and LOD strategy — not lower-detail products.
+- Texture atlases, compressed texture formats, and sensible resolutions.
+- Reuse of materials, kits, and environment props **while keeping the five environments visibly distinct**.
+- Limited transparent particles and overdraw via effect tuning; proof of cost before envelope expansion.
+- Expensive real-time shadows and post-processing adopted only where profiling proves their cost is acceptable (OQ-T02/OQ-A10); otherwise achieved look via baking and composition.
 - Compressed assets appropriate to target devices.
 - Loading and memory behavior tested on real target browsers/devices.
 
-Do not invent a final polygon, texture, draw-call, or frame-rate budget before the first representative prototype is profiled.
+These are delivery strategies for the quality bar, not justifications to downgrade it: a deliberate quality reduction is a decision requiring owner approval with profiling evidence.
+
+Do not invent final polygon, texture, draw-call, or frame-rate budgets before the first representative prototype is profiled.
 
 ## 12. Approval checklist
 
@@ -208,6 +221,7 @@ A visual package can be marked `APPROVED` only when:
 - Required states and responsive behavior are described for UI.
 - Asset ownership/licensing is understood.
 - Performance risks are identified.
+- The visual quality meets the written acceptance criteria (OQ-A08) — where defined.
 - The user has explicitly approved the direction.
 
 ## 13. Open decisions
@@ -216,8 +230,8 @@ A visual package can be marked `APPROVED` only when:
 - Exact font families and licenses.
 - Final color tokens and accessibility contrast.
 - Camera presentation style.
-- Vehicle-by-vehicle design and roster names.
-- First MVP environment.
-- Exact UI layouts and interaction states.
-- Target device performance budgets.
-- Whether mobile browser support is included in the first release.
+- Vehicle-by-vehicle design and roster names (all 10 Commercial V1.0 vehicles — OQ-14).
+- Environment production order and per-environment kit design (OQ-20/OQ-21).
+- Exact UI layouts and interaction states for the full commercial screen set.
+- Target device performance budgets for the high-quality presentation (OQ-T08).
+- Visual quality acceptance criteria details (OQ-A08/OQ-A09).
