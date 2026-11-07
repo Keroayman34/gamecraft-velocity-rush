@@ -1,7 +1,18 @@
 # Technical Design Document — Velocity Rush
 
-**Version:** 1.0-planning (Commercial V1.0)  
-**Status:** Technical planning for the Commercial V1.0 quality bar (DECISIONS D-006/D-028). **Architecture not yet approved.** Every architecture item is `Proposed` or `Open` unless explicitly approved in `DECISIONS.md`. Do not infer final architecture from this document.
+**Version:** 1.1-planning (Commercial V1.0; consolidated 2026-11-05)
+**Status:** Technical planning for the Commercial V1.0 quality bar (DECISIONS D-006/D-028). **Architecture not yet approved.** Every architecture item is `Proposed`, `Recommendation`, or `Open` unless explicitly approved in `DECISIONS.md`. Do not infer final architecture from this document. Documentation completion ≠ implementation validation: no code, scene, package, or build exists.
+
+**Consolidation note (2026-11-05, owner-approved):** the nine standalone Phase-3 root documents (technical architecture discovery, detailed game architecture, architecture audit, vehicle physics design, input & camera design, scene/data/save design, WebGL performance & build design, architecture integration review, final readiness report) were consolidated into this document (Part II, §§28–46) and retired from the repository root. Their unique content was migrated intact before deletion; decision statuses, open questions, and evaluation statuses are preserved untouched (§44/§45; see `CHANGELOG.md`). This document is now the single authoritative home for technical architecture.
+
+## Table of contents
+
+- **Part I — Baseline technical direction** (§§1–27): approved direction, platform constraints, Playgama plan, high-level boundaries, per-domain Open items (input/vehicle/camera/UI/loc/save/audio/assets/visual), performance gates, testing, deferred decisions, P1–P8 provisional directions.
+- **Part II — Phase-3 detailed architecture (consolidated)** (§§28–46): discovery synthesis & platform facts (§28) · architecture goals & 15-system responsibilities (§29) · GameFlow & state model (§30) · UI navigation (§31) · communication (§32) · assembly boundaries (§33) · data definitions & ownership (§34) · scene & runtime lifecycle (§35) · vehicle physics (§36) · input (§37) · camera/presentation (§38) · save (§39) · WebGL performance & build (§40) · error/recovery (§41) · testing & validation (§42) · integration review results (§43) · draft decision records & owner-gated register (§44) · risks (§45) · references (§46)
+
+Part I sections remain valid high-level statements; where they overlap Part II, **Part II is the more detailed authoritative treatment** of the same concept.
+
+# Part I — Baseline technical direction
 
 ## 1. Purpose
 Define how Commercial V1.0 — a high-quality, realistic-inspired 3D driving game — will be implemented in Unity/C# for Playgama Web, and the **planning process** by which unknown architecture will be decided. High visual quality must be planned together with browser performance: never assume an arbitrary desktop visual feature is deliverable in WebGL; document tradeoffs and enforce profiling gates.
@@ -10,7 +21,7 @@ Define how Commercial V1.0 — a high-quality, realistic-inspired 3D driving gam
 
 | Area | Decision | Source |
 |---|---|---|
-| Engine | Unity **6000.6.8f1** (Unity 6.6 Supported Update release, **not LTS**; build `237b6593792b`) — owner-approved 2026-11-05, environment verified (Hub 3.22.5, WebGL Build Support present, licensing granted, clean batch-mode startup); runtime Playgama integration still pending (OQ-T01) | DECISIONS D-008, `OPEN_QUESTIONS.md` OQ-T01, `production/MILESTONES.md` M1 |
+| Engine | Unity **6000.6.8f1** (Unity 6.6 Supported Update release, **not LTS**; build `237b6593792b`) — owner-approved 2026-11-05, environment verified (Hub 3.22.5, WebGL Build Support present, licensing granted, clean batch-mode startup); runtime Playgama integration still pending (OQ-T01) | DECISIONS D-008, `OPEN_QUESTIONS.md` OQ-T01, milestone register M1 (`production/ROADMAP.md`) |
 | Language | C# | DECISIONS D-008 |
 | Product target | Commercial V1.0 (prototype/vertical-slice are development stages, D-030) | DECISIONS D-028/D-030 |
 | Visual quality bar | High-quality realistic-inspired 3D presentation, planned with WebGL performance limits | DECISIONS D-006 |
@@ -32,7 +43,7 @@ Define how Commercial V1.0 — a high-quality, realistic-inspired 3D driving gam
   - Save: per the save API the current SDK provides (OQ-T05/OQ-09).
 - Verify current SDK capabilities from official documentation before integration (OQ-P02). SDK is not installed during documentation phases.
 
-## 5. High-level system boundaries (Proposed — subject to prototype validation)
+## 5. High-level system boundaries (Proposed — detailed treatment in §29)
 Planning frame, not an approved architecture:
 - **Vehicle / driving simulation** — control, physics, telemetry (speed, drift, contacts). Deepest iteration risk; owns the driving-feel milestone.
 - **Camera** — presentation and readability during driving; selection open (OQ-01/OQ-A06).
@@ -47,27 +58,27 @@ Planning frame, not an approved architecture:
 No class hierarchy, DI framework, or namespace plan is proposed or approved at this stage.
 
 ## 6. Proposed code organization (Proposed outline — open until validated)
-Organization is defined **inside the Unity project** after creation. Nothing here is approved: no namespace layout, no folder-level C# structure, no pattern (MVC/MVVM/ECS/service locator) has been chosen. Deciding inputs: input strategy (OQ-T04), vehicle-physics strategy (OQ-T03), UI/localization approach, and content-scaling needs for 10 vehicles / 5 environments.
+Organization is defined **inside the Unity project** after creation. Nothing here is approved: no namespace layout, no folder-level C# structure, no pattern (MVC/MVVM/ECS/service locator) has been chosen. Deciding inputs: input strategy (OQ-T04), vehicle-physics strategy (OQ-T03), UI/localization approach, and content-scaling needs for 10 vehicles / 5 environments. The assembly-boundary working candidate is §33; final names/organization are a Phase-4 owner-gated conventions task.
 
-## 7. Scene management and content scaling (Open)
+## 7. Scene management and content scaling (Open — candidates in §35)
 - Expected scenes include at minimum: driving/test scene(s), UI scene(s), platform bootstrap; a growing commercial content set raises additive-loading and memory questions (OQ-T06).
-- Fast-retry UX (`GDD.md` §6) may imply a low-friction scene reload path — validate early.
+- Fast-retry UX (`GDD.md` §6) may imply a low-friction scene reload path — validate early (§30.5 owns the retry-context rules).
 - Scene strategy must scale to five environments without five-fold loading costs — likely via shared runtime systems and environment content packages (proposed; unvalidated).
 
-## 8. Input abstraction (Open — OQ-T04)
+## 8. Input abstraction (Open — OQ-T04; detailed design §37)
 - Desktop: keyboard + mouse; mobile: touch (Playgama constraints 13/14/16/22).
 - Input must be abstracted from the vehicle controller so touch adaptation does not break keyboard tuning; device-detection and layout rules per `GDD.md` §27.
 
-## 9. Vehicle system and physics architecture considerations (Open — OQ-T02/OQ-T03/OQ-14)
+## 9. Vehicle system and physics architecture considerations (Open — detailed design §36)
 Expected responsibilities, not an implementation plan:
 - Steering, throttle/brake response, drift state, jump/landing state, contact/obstacle state; telemetry output for scoring.
 - Per-vehicle/per-class handling differentiation must be data-driven enough for 10 vehicles to tune without code forks (proposed rationale for a data-driven vehicle configuration approach; strategy itself open).
 - Strategy choice (native vs package-based simulation) deferred to technical discovery after the Unity project exists.
 
-## 10. Camera system responsibilities (Open — OQ-01/OQ-A06)
+## 10. Camera system responsibilities (Open — detailed design §38)
 - Readable driving first, cinematic presentation second; perspective default, FOV, smoothing/shake pending driving-feel validation.
 
-## 11. UI architecture (Open, constraint-driven)
+## 11. UI architecture (Open, constraint-driven; navigation rules §31)
 - Full commercial screen set (`design/ui-ux/README.md`): championship navigation for ≥3 championships, event selection, garage, upgrades, pre-event, HUD, pause, results, settings, and reward/unlock presentation.
 - Must support: safe-state orchestration for ads, pause/resume, popup closeability, responsive landscape layouts, RTL/LTR mirroring, persistent language preference. Restoration strategy after large UI flows must not leak state.
 
@@ -75,14 +86,14 @@ Expected responsibilities, not an implementation plan:
 - All UI strings localized from a catalog; never hard-coded.
 - RTL mirroring driven by language state; Arabic uses neutral copy.
 - Fonts verified for commercial license + Arabic/English coverage + size (OQ-A01; `design/brand/README.md`).
-- Concrete Unity localization strategy: open until the Unity project exists.
+- Concrete Unity localization strategy: open until the Unity project exists (package/tooling selection owner-gated; the §29 S13 catalog seam is package-agnostic).
 
-## 13. Save and progression architecture (Open — OQ-09/OQ-T05)
+## 13. Save and progression architecture (Open — OQ-09/OQ-T05; detailed design §39)
 - Expected shape: language/settings, best results, stars, unlocks, upgrade levels, championship progress — sized for the commercial save set, not a prototype subset.
 - Direct-file vs Bridge-backed persistence, versioning, migration defaults: decided against the actual Bridge API during Phase 13 planning.
 
 ## 14. Ads and analytics integration boundaries (Open, direction approved D-021/D-022)
-- Gameplay code must not depend on the SDK directly; platform integration is isolated in one layer (§5).
+- Gameplay code must not depend on the SDK directly; platform integration is isolated in one layer (§5/§29 S15).
 - Reward grants only after confirmed rewarded completion; never during driving (`PLAYGAMA_CONSTRAINTS.md`).
 
 ## 15. Asset management and pipeline (Open — OQ-A05/OQ-A09)
@@ -104,25 +115,25 @@ Expected responsibilities, not an implementation plan:
 
 ## 19. Audio system (Open — OQ-A11)
 - Separate audio boundary owning vehicle sound differentiation (engine sound per class/vehicle), surface feedback, UI feedback, and music.
-- Must pause/resume correctly with ads and browser tab behavior; license-clean sources only; acceptable memory footprint on web targets.
+- Must pause/resume correctly with ads and browser tab behavior; license-clean sources only; acceptable memory footprint on web targets. Prototype scope (§29 S12): engine hum + UI click, silent until first browser gesture.
 
 ## 20. Performance constraints, profiling gates, loading and memory management (binding, values open — OQ-T08)
 - Platform win conditions: archive ≤ 300 MB (re-verify), startup memory < 2 GB (re-verify), acceptable loading time, smooth driving on representative devices, no startup warnings — see `PLAYGAMA_CONSTRAINTS.md` and its performance risk register.
 - **Profiling gates rule:** no performance-sensitive feature (shader, lighting mode, VFX, uncompressed texture, audio stream) becomes standard before a representative WebGL profiling measurement documents its cost (recorded in `PLAYGAMA_CONSTRAINTS.md` performance evidence log).
 - Loading/memory management proposals (content streaming vs full-load, addressable strategies, texture compression) are validated only after the Unity project exists; no specific API final choices here.
-- Do not present untested values as achieved performance or as guarantees.
+- Do not present untested values as achieved performance or as guarantees. The measured-evidence ritual is §40.18/§40.23.
 
-## 21. Testing strategy (Open, expectations stated)
+## 21. Testing strategy (Open, expectations stated — detailed architecture §42)
 - Documentation phase: consistency/link review.
 - Prototype phase: editor playmode validation + profiling evidence.
 - Later phases: automated checks for scoring/progression rules; browser/device stability matrix per `PLAYGAMA_CONSTRAINTS.md`; visual quality gate reviews (OQ-A08); regression protection as content volume grows (OQ-T07).
-- CI/build automation: proposed after Unity setup.
+- CI/build automation: proposed after Unity setup (D-038 deferral, §40.21).
 
 ## 22. Browser compatibility (Open, requirement-driven)
 - Test stability across the supported browser/device matrix (Playgama constraint 23), covering desktop keyboard/mouse and mobile fullscreen/touch/orientation; mobile quality bar OQ-P01.
 - Startup warnings absence, memory ceiling, loading time, and orientation handling are release-blocking checks, re-verified per platform documentation.
 
-## 23. Build and deployment workflow (Proposed, pending Unity setup)
+## 23. Build and deployment workflow (Proposed, pending Unity setup — strategy §40)
 Loop: local Unity WebGL build → archive structure per Playgama rules → Bridge-level testing → submission rehearsal on Playgama. Automation level decided after the Unity project exists. Never built during documentation phase.
 
 ## 24. Security and platform compliance
@@ -142,5 +153,826 @@ For each major technical decision, document problem, options, trade-offs, chosen
 - Build/CI automation (OQ-T07)
 - Performance budgets (OQ-T08) and quality acceptance criteria (OQ-A08/OQ-A09)
 
+**Owner-reviewed provisional directions for every item above were recorded 2026-11-05 in `DECISIONS.md` D-032…D-038 (+ D-006 review note) and summarized in §27 below.** Each item remains deferred: a provisional direction is planning input, not a final decision, and resolution still requires the listed validation evidence.
+
 ## 26. Do not implement yet
 No final class diagrams, namespaces, service locators, dependency-injection frameworks, or manager hierarchy has been approved. Avoid creating them before technical discovery and the prototype validate them. Do not reduce product scope to prototype scope; the Commercial V1.0 target (D-028) always governs.
+
+## 27. Phase-3 architecture review — provisional directions (owner-reviewed 2026-11-05; NOT finalized architecture)
+The owner reviewed the Phase-3 Technical Architecture Discovery report (discovery synthesis preserved in §28) and provisionally agreed with the eight proposed directions (P1–P8). Recorded 2026-11-05 in `DECISIONS.md` v0.3.3 as PROVISIONAL entries D-032…D-038 plus a review-note update to D-006 (P8). **These are planning directions, not finalized architecture**; §25 and §26 remain in force, and every governing open question remains OPEN.
+
+| # | Provisional direction | Decision entry | Governing open question | Final decision requires |
+|---|---|---|---|---|
+| P1 | Controlled Built-in vs URP comparison before any pipeline selection; URP not installed now | D-032 | OQ-T02 | Same-scene A/B profiling evidence + explicit owner decision |
+| P2 | WheelCollider-first prototype physics; custom hybrid physics documented as fallback | D-033 | OQ-T03 | Driving-feel validation (D-023 gate) + WebGL profiling + owner decision |
+| P3 | Unity Input System preferred direction behind input-abstraction interfaces; **package installation NOT authorized by this review** | D-034 | OQ-T04 | Prototype input validation + explicit owner approval of the manifest change |
+| P4 | ScriptableObject definition assets; runtime mutable state kept separate from definition assets | D-035 | Data values remain owner-gated (OQ-06/07/14/15/16/17/18/19) | Architecture design detail: asset organization + loading strategy |
+| P5 | SaveModel + ISaveStore + SaveService layering; storage provider undecided; Bridge strictly deferred to Phase 13 | D-036 | OQ-09 / OQ-T05 | Browser-storage validation + Phase-13 Bridge reality check + owner policy approval |
+| P6 | Additive scene loading (bootstrap + additive content) as a candidate scene organization | D-037 | OQ-T06 | Practical loading/memory and vertical-slice validation |
+| P7 | Local batch build automation first; CI considered later when justified by release needs | D-038 | OQ-T07 | First empty-project batch build evidence; CI deferral recorded, not rejected |
+| P8 | Measurement-first performance planning; no invented numeric budgets; evidence from Empty Build → Prototype → Vertical Slice | D-006 review note (profiling-gate rule, §20 unchanged) | OQ-T08 | Measured evidence recorded at the three build stages |
+
+**Unresolved implementation details deliberately still open** (must not be invented now): final pipeline settings; WheelCollider tuning values and any assist code; input action maps / data layout; ScriptableObject loading strategy (Addressables vs Resources) and folder organization; scene names and organization; save payload format, versioning, and migrations; CI tooling choice; all numeric performance budgets. Architecture remains `Proposed`/`Open` unless `DECISIONS.md` records a final approval with evidence.
+
+**Phase-3 design package (2026-11-05):** the provisional directions above were expanded into implementation-facing design content — originally across nine standalone documents, now consolidated as Part II of this document (§§28–46) after audit corrections A1–A4 were applied. Their areas: detailed architecture (§§29–35), vehicle physics (§36, OQ-T03/D-033), input+camera (§§37–38, OQ-T04/D-034, OQ-01/OQ-A06), scene/data/save (§§34–35/§39, P6/D-037, D-035, D-036), WebGL performance/build (§40, P8 evidence ritual), integration review (§§41–43), draft decision records D-039…D-042 **proposed but NOT filed** (§44 — filing is owner-gated). All remain recommendations; no decision status was changed by that pass or by this consolidation.
+
+# Part II — Phase-3 detailed architecture (consolidated 2026-11-05)
+
+> Reading discipline: Part II carries the full technical content of the retired Phase-3 standalone documents. Sections marked 【Recommendation】 are this package's own engineering positions needing owner approval; 【Provisional】 = D-032…D-038 directions; 【Open】 = unresolved with the given OQ ID; 【Owner gate】 = explicit owner approval required; 【Approved】 = already-binding decision.
+
+## 28. Discovery synthesis, project assessment, and platform facts
+
+### 28.1 Discovery executive summary
+- The project started Roadmap Phase 3 at the documented starting point: clean minimal Unity 6000.6.8f1 bootstrap (built-in renderer baseline, zero gameplay/content packages) with an approved documentation baseline.
+- Eight architecture areas were investigated with evidence-based recommendations only, each mapped to a governing open question — nothing resolved.
+- Highest-consequence findings: (a) Web GC behavior documented by Unity materially shapes runtime architecture (no per-frame allocations, pooling/`NativeArray`); (b) WheelCollider (Vehicles module, already in the manifest) is the strongest Simcade baseline but must be proven on WebGL with profiling; (c) URP-vs-Built-in (OQ-T02) remains genuinely undecided — both viable; the prototype must measure before the owner commits.
+- Implementation order defers all mass content and Playgama Bridge integration behind a validated driving prototype (D-030, D-023, 14-phase roadmap).
+
+### 28.2 Project assessment (documented vs. actual, verified 2026-11-05)
+| Item | Documented state | Actual repository evidence | Match |
+|---|---|---|---|
+| Unity project at repo root, no invented Assets architecture | `PROJECT_STRUCTURE.md` §2 | `Assets/` empty (0 files); Unity folders at root | ✅ |
+| Engine version owner-approved, env verified | D-008, OQ-T01 (environment portion complete) | `ProjectSettings/ProjectVersion.txt` = `6000.6.8f1 (237b6593792b)` | ✅ |
+| Identity normalized | Task 0.2.5 | `companyName: GameCraft Studio`, `productName: Velocity Rush` | ✅ |
+| Render pipeline undecided (OQ-T02 open) | OQ-T02 row | `GraphicsSettings.asset`: `m_CustomRenderPipeline: {fileID: 0}`; no URP/HDRP in manifest | ✅ (built-in baseline) |
+| Playgama Bridge not installed | §4/§24; OQ-T01 pending scope; constraints #1 | Not in manifest/lock | ✅ |
+| Packages | Only IDE packs expected | `manifest.json`: `com.unity.ide.rider` 3.1.0, `com.unity.ide.visualstudio` 2.0.26 + 36 built-in modules; lock adds `ext.nunit`, `test-framework` (Editor infrastructure) | ✅ |
+| Baseline commit | Task 0.2.7 report | `637f952` on `main`; tree clean | ✅ |
+
+Minor observations: root `*.slnx` generated locally, correctly git-ignored (`.slnx` gitignore rule preserved), empty solution expected with no scripts; no test folder/assembly definitions/ADR folder yet — consistent with Phase-3 outputs.
+
+### 28.3 Official Unity Web facts (accessed 2026-11-05 【Official-doc fact】)
+| Topic | Fact |
+|---|---|
+| Unity heap | Contiguous WebAssembly `Memory` block; grows up to a configurable max (16 GB ceiling mentioned by docs), but growth may crash when a contiguous block fails; keep heap small; mobile browsers need manual Initial Memory Size tuning to typical usage |
+| Asset data | Build emits `.data` → virtual file system → kept uncompressed in browser memory while running; pack content into AssetBundles to control download/unload; Data Caching (IndexedDB/Cache API) avoids re-downloads |
+| Garbage collection | Web GC runs only between frames (cannot run mid-frame); per-frame high allocation can create quadratic pressure and OOM (e.g., string concatenation); recommended: `StringBuilder`, pre-allocated containers, `NativeArray<T>`, Burst/jobs for non-GC work |
+| AssetBundles | Downloaded directly into the Unity heap (no extra browser allocation); unload explicitly to free memory |
+| Data Caching | IndexedDB/Cache API; enabled in Build Profiles → Player Settings → Publishing |
+| Graphics | WebGL2 baseline context in Unity 6; renderer features limited vs native; validate per environment |
+| Audio | User-gesture unlock requirements and browser audio-context behavior documented |
+| Multithreading | Works but requires COOP/COEP host headers for cross-origin isolation — build/deployment constraint, needs verification on Playgama's host |
+| .NET API support | Documented subset; some BCL APIs (reflection/serialization) differ on Web |
+| WebAssembly 2023 | Unity 6 default feature set; affects `Memory64` etc. |
+| Debugging | Browser DevTools / debug-build paths documented |
+
+### 28.4 Engineering assumptions (measured in Phases 4–6, never assumed) & mandated C# runtime patterns
+- Actual upload sizes/shader cost measurable only by builds; test pipeline: iterate local WebGL builds in Chrome/Firefox on this workstation; measure load times, memory, FPS via Unity Profiler + browser DevTools.
+- Disable real-time GI (cheap to test baked-only), limit dynamic lights, test settings shape (over-quality is the largest mobile-GPU risk).
+- A concrete WebGL memory budget is decided in owner review (OQ-T08) — three-door measurement ritual: Empty build → Prototype build → Vertical-slice build, each recorded in the `PLAYGAMA_CONSTRAINTS.md` §5 evidence log.
+- Mandated patterns 【Recommendation, enforced §40.7】: no per-frame allocations in hot loops; pre-allocated `List` churn; no per-frame string concatenation; audio pools; strictly pooled particle/VFX recycling.
+
+### 28.5 OQ-T02 pipeline analysis (open; D-032 direction)
+- **Options:** (A) stay Built-in; (B) install URP 17.x — official prebuilt SRP "optimized across a range of platforms, from mobile to high-end"; (C) HDRP — excluded by WebGL/web restrictions and mobile-target focus.
+- **Evidence summary:** URP is the performance-oriented pipeline across mobile→desktop; Built-in is a smaller memory/engine footprint; URP adds pipeline asset/Global Settings and an extra package; URP on WebGL is supported since Unity 6; exact cost on the heap + D-006 quality (bloom, tonemapping, shadows) is measurable only by profiling.
+- **Recommended direction (needs evidence first):** prove both in Phases 4–6 by profiling the *same* prototype scene in both configurations (install requires owner approval; reversal before content production is nil-cost). Preliminary engineering lean: **URP** for the D-006 quality bar, *conditional on* acceptable measured WebGL memory/FPS impact. **Owner makes the final call.**
+- **Test before approval:** same-scene A/B profiling (memory, GPU capture, load time, shader compilation, bloom/tonemap cost, mobile-GPU worst case); feeds the OQ-T08 budget table.
+
+## 29. Architecture goals and 15-system responsibility design
+
+### 29.1 Binding constraints 【Approved】
+
+| Constraint | Source |
+|---|---|
+| Unity 6000.6.8f1, C#, Playgama Web (WebGL), single-player | D-008, D-009, D-012 |
+| Simcade driving; skill over speed; skill-preserving upgrades | D-002, D-011, GDD §3.1/§12 |
+| Commercial V1.0 scope: 10 vehicles (4 classes D-014 planning), ≥3 championships (D-029), 5 environments (Desert Circuit, Neon City, Mountain Pass, Coastal Circuit, World Arena), high-quality realistic-inspired 3D (D-006), Arabic(RTL)+English(LTR) (D-013), Bridge integration | D-028 (+ D-010/D-014/D-029/D-031) |
+| 8-type event planning basis with per-championship mix (not all 8 per championship) | D-031 【Provisional as planning】 |
+| Development Prototype → Vertical Slice → Commercial V1.0 scope model; prototype allowances never define the product | D-030 |
+| Product exclusions (multiplayer, PvP, open world, story, AI traffic, marketplace, real-money) | D-020 |
+| No ads during active driving; ads only via Bridge; Bridge-only analytics | D-021/D-022/D-027 |
+| Profiling-gate rule for every performance-sensitive feature; no invented numeric budgets | §20, D-006 note |
+| All UI strings localized, never hard-coded; language persists | §12, GDD §25 |
+| Escape never critical to flow; popups closeable; responsive landscape layouts | GDD §27, platform constraints |
+
+### 29.2 Design rules 【Recommendation】
+1. **One authoritative home per concept** — no parallel stores of the same fact (per `TRACEABILITY.md` principle).
+2. **Dependencies point downward only** across module layers; upward cross-layer calls happen only through interfaces defined in the lower layer's terms.
+3. **No per-frame allocations in hot paths** (Web GC runs only between frames — §28.3): events for *state changes*, polled interfaces for *continuous data*.
+4. **Testability through purity first**: transition rules, scoring math (when defined), progression/save logic written device-free and engine-light so EditMode tests can run without scenes.
+5. **No manager/service for a one-line feature; no framework without demonstrated need** (`AI_AGENT_GUIDELINES.md` §3).
+
+### 29.3 System decomposition (15 systems, 4 layers)
+```text
+┌───────────────────────────────────────────────────────────────────┐
+│  L1  Bootstrap (composition root) • GameFlow (app state machine)  │
+├───────────────────────────────────────────────────────────────────┤
+│  L2  UI/Navigation (screens, HUD) │ Localization │ Audio          │
+│  L2  Camera/Presentation (runtime, race-scoped)                   │
+├───────────────────────────────────────────────────────────────────┤
+│  L2  Vehicle (physics) │ Track & Event │ Race Rules │ Garage      │
+├───────────────────────────────────────────────────────────────────┤
+│  L3  Progression (unlocks, rewards, currency-state) │ Runtime State │
+├───────────────────────────────────────────────────────────────────┤
+│  L4  Data Definitions (SO templates) • Save • Platform Integration│
+│      (SaveModel/ISaveStore/SaveService; thin adapters, Bridge later)│
+└───────────────────────────────────────────────────────────────────┘
+```
+Reading rule: an upper system may reference a lower system; a lower system never references an upper one. Cross-layer notifications travel as events; continuous values as polled properties.
+
+### 29.4 Responsibility matrix (summary)
+| System | Owns | Must NOT own | Needed in prototype? |
+|---|---|---|---|
+| Bootstrap | Object graph construction, service lifetime | Game rules, UI | **Yes** (minimal) |
+| GameFlow | App-level state machine + transition rules + commands | Screen visuals, race rules, save schema | **Yes** |
+| Vehicle | Vehicle runtime physics/tuning consumption, telemetry | Scoring, roster unlock state | **Yes** (1 test vehicle, D-030) |
+| Track & Event | Runtime track/world interactions (checkpoints, hazards, surfaces as *gameplay inputs*) | Scoring formulas, event definitions data | Yes (1 test environment, D-030) |
+| Race Rules | Event-type judging, lap/clean-line rules, boundary conditions, result snapshot | Driving physics, UI, reward amounts | **Yes** (minimal Time-Trial-shaped judging) |
+| Progression | Player-facing unlock/reward/upgrade-level state transitions | Save storage mechanics, event rules | No (**defer** to first championship/content phase; interface reserved) |
+| Garage | Roster browsing, stat/upgrade presentation composition | Vehicle physics, progression mutation | No (defer Phase 8+) |
+| UI/Navigation | Screen lifecycle, navigation stack, HUD binding | Game state truth, data mutation | Minimal HUD only |
+| Data Definitions | Definition template assets; loading/indexing; pure lookups | Any runtime mutable state | Stub index only (pattern validation; values owner-gated) |
+| Runtime State | Live session state containers | Persistence, scoring | Yes (tiny) |
+| Save | SaveModel schema + versioning + SaveService orchestration + ISaveStore call site | Progression *rules*, currency definitions | No (defer; **interface reserved in Core**) |
+| Audio | Playback/mix routing, engine/UI/music boundaries | Gameplay rules | Engine hum/mute only |
+| Localization | Language state, string catalog lookups, RTL mirroring signals | Fonts (design/brand), UI layout | Language toggle + string-through from first UI |
+| Camera/Presentation | Chase rig readability, camera collision, FOV/drift presentation hooks | Vehicle physics inputs, path logic | **Yes** (temporary default per OQ-01) |
+| Platform Integration | Thin adapters: storage (future), Bridge SDK calls (Phase 13) | Gameplay decisions, business rules | **No** (Phase 13); adapter interfaces reserved |
+
+### 29.5 Per-system details
+
+**S1 — Bootstrap.** Responsibility: construct the service graph once, in dependency order; initiate first GameFlow transition; nothing else constructs services. Owns: composition root; service lifetimes (all singletons, resolved once). Must NOT own: rules, UI, data. Exposes `Initialize()` on a `StreamingAssets`-free fast path; handles passed by constructor/`Inject()` once, then discarded. Dependencies: constructs every system; referenced by no one afterward. No events; may log startup segment timings (profiling evidence). Testing: EditMode graph construction without a scene (proves no scene-dependency leak). Prototype: **Yes** from first editor play. 【Recommendation】 formal composition-root style; no DI container unless owner-approved (【Owner gate】).
+
+**S2 — GameFlow.** Responsibility: single owner of application-level state (`Boot → MainMenu → … → Results`); validates/executes transitions; translates requests into commands; coordinates loading of scene/content with the loading subsystem candidate (P6 additive) via async calls only — it never loads content itself. Owns: `AppState` enum/state machine; transition rule table (data-driven — not per-screen code); race-session lifetime scoping; app-level pause/resume policy. Must NOT own: race scoring, progression data, save schema, screens, language setting. Public: `TryTransition(AppState)`, `Request(AppCommand)`, `CurrentState`, events `StateChanged(AppState)`, `TransitionRejected(AppState, reason)`. Dependencies: Data (environment/scene keys), Runtime State (handoff context). Referenced as observer by UI/Navigation; Audio hooks pause events; language changes flow via Localization's own event. Events in: commands (UI/Platform/overlay). Events out: listed + `RaceInterrupted` (browser-tab visibility loss bridged by platform layer later). Testing: pure EditMode tests of the transition table; PlayMode integration of menu→results→menu circuit. Prototype: **Yes** — states exist from day one even where screens don't; prototype reaches MainMenu → PreEvent → Race → Results; placeholder transitions marked `NotProduced` fail closed loudly in editor, cleanly on web (visible in dev build).
+
+**S3 — Vehicle.** Responsibility: physics simulation of one vehicle instance per presentable car 【Recommendation: one active player vehicle in prototype; AI opponents target Phase 10 — no AI code now (OQ-T09 open)】. Consumes tuning definition data + live inputs + track surface readings → outputs chassis state (pose, speed, drift, grounded) + telemetry for scoring (clean-line counters as bytes per Race Rules needs). Owns: per-vehicle physics components and per-wheel rig state (WheelCollider-first candidate, D-033); assist code hooks (undecided, OQ-02). Must NOT own: definitions (reads), scoring (provides inputs), HUD (pure data), track rules. Public: `VehicleRuntime` struct snapshot read; `SetInput(IVehicleInputPorts)`; `ResetToSpawn()`; event-driven `Crashed/BecameAirborne` only as an evidence-gated mitigation for D-033 slip-model quirks. Dependencies: Data (VehicleDefinition), Track & Event (surface/collision channels by layer — no track object refs), input abstraction interfaces (in Core; implementation per D-034). Testing: EditMode tuning-data validation only; PlayMode lap-simulation repeatability harness; driving feel remains a human D-023 playtest. Prototype: **Yes** (1 test vehicle, D-030).
+
+**S4 — Track & Event.** Responsibility: runtime behavior of environment content needed by events: track surfaces (grip zones), checkpoints, hazards, boundaries, jump/obstacle setups, finish line; publishes collision/checkpoint signal stream (typed, allocation-free). Owns: track object runtime behaviors, layer/trigger configuration, track-key referencing. Must NOT own: race judging (reports events; Race Rules interprets), environment art, street/domain name data (definitions live in Data Definitions). Public: `TrackSession` handle per loaded environment (checkpoints array, start/finish handles); events `CheckpointPassed(index)`, `BoundaryHit(type)`, `SurfaceChanged(zone)`. Dependencies: Data (EnvironmentTheme, track config keys); Vehicle reacts via layer/collision setup only. Testing: PlayMode trigger correctness; checkpoint geometry is content → editor validation tooling deferred (【Owner gate】). Prototype: **Yes** (one test track for M3: closed loop with start/finish + gates, Time-Trial-shaped).
+
+**S5 — Race Rules.** Responsibility: per-event judging per event type (initially Time-Trial-shaped lap timing + boundary rules; later the 8-type basis per D-031 【Provisional as planning; per-type formulas Open OQ-03】). Inputs: vehicle telemetry + track signal stream + event rules from EventDefinition; output: **RaceResult** snapshot (uncomputed values stay `0`/none until formulas approved — no invented numbers). Owns: per-race session rules instance (timer, lap counters, violation counters); race sub-state machine (`Countdown → Running → Finished`, §30). Must NOT own: rewards/unlocks computation, results UI, physics. Public: `RaceController` per session (`Start(previewData)`, `FinishRace(reason)`); `RaceResult` read-only struct + `RaceFinished(RaceResult)` event. Dependencies: Vehicle (telemetry), Track & Event (signals), Data (EventDefinition rules incl. per-type config placeholder), Runtime State (spawn context). Testing: **pure logic core extracted** (timer/checkpoint math + violation accounting) → EditMode tests with synthetic signal streams (highest-value test asset); PlayMode scripted-lap integration asserting the result snapshot. Prototype: **Yes (minimal)**.
+
+**S6 — Progression.** Responsibility: apply race outcomes and unlocks to player-facing progression state: championship/event progress flags, stars (provisional model, GDD §20), unlock state, currency-like award bookkeeping 【all amounts Open OQ-17】, upgrade-level storage validated against UpgradeDefinition ranges. Owns: `PlayerProgress` aggregate — the single mutable store of progression facts at runtime. Must NOT own: save persistence (Save converts to SaveModel), event content, UI display of progress, ad reward rules. Public: `ApplyRaceResult(RaceResult)`, `ApplyManualReward(...)` (placeholder without consumer until OQ-17), `IsVehicleUnlocked(id)`, `GetChampionshipProgress(...)`; events `ProgressionUpdated(delta)`, `Unlocked(reward)`. Dependencies: Data (definition lookups), Save (pushes updated snapshot via SaveService). Testing: EditMode unit tests with synthetic definitions (highest coverage target); save round-trip integration. Prototype: **No** — prototype asserts direct vehicle access; the reserved interface location in Core prevents a later rewrite.
+
+**S7 — Garage.** Responsibility: roster browsing context — browse 10-vehicle definitions, filter by class (D-014 planning), inspect stats/unlock state (read from Progression), stage a vehicle selection, host the Upgrades screen flow composition (upgrade levels preview/apply via Progression). Owns: garage-session UI/interaction state; the Upgrades screen's data-binding context. **Upgrades state ownership (audit A4 pin):** the `Upgrades` AppState remains a navigation state for now (its content is a Garage-adjacent flow); whether it stays distinct or folds into Garage presentation is deferred to the OQ-A03 spec pass — the architecture works either way because the state only mounts the binding context. Must NOT own: definitions (reads), progression mutations (requests via Progression), physics. Public: `GarageController` (select/buy-preview), events `VehicleSelected(vehicleId)`, `UpgradeRequested(...)`. Dependencies: Data, Progression, Localization (labels). Testing: EditMode selection/upgrades-binding tests; visuals are OQ-A03-gated. Prototype: **No** (Phase 8+; API surface reserved).
+
+**S8 — UI / Navigation.** Responsibility: screen lifecycle (mount/unmount per AppState change), navigation stack for overlays (Pause, Settings entry points, reward popups), HUD binding (in-race continuous reads), RTL/LTR mirroring, safe-state presentation for ads (pause only outside active driving), retry/quit surfaces per GDD §6/§24. Owns: screen presentation components, overlay/back-stack, HUD display state — never the truth underneath; every displayed value is a projection of state owned elsewhere. Must NOT own: game state truth, progression mutation, save. Public: `IUIScreenRegistry` (mount/unmount), `NavigationStack` (push/pop with Escape-friendly close paths), HUD read interfaces. Dependencies: GameFlow (observer), Localization, Audio (UI feedback), Data (display strings), Runtime State (telemetry). Events: in `StateChanged` + overlay commands; out user intents surfaced **as commands only** (`AppCommand` to GameFlow; progression intents routed to the relevant service) — never direct mutations. Testing: navigation rules EditMode; every screen visual acceptance is OQ-A03/A02-gated (manual, not automated visual diffs). Prototype: minimal HUD only (speed + lap timer) 【Recommendation】. **HUD assembly placement (audit A4 pin, working recommendation pending Phase-4 owner authorization):** the minimal prototype HUD lives in the Core-owned UI-registry seam (presentation, not simulation — NOT a Gameplay adapter); when the `UI` assembly is created (first partial screens Phase 10–11), HUD code moves there unchanged because it only consumes read interfaces.
+
+**S9 — Data Definitions.** Responsibility: own, index, and validate **template assets** (ScriptableObject-based per D-035): `VehicleDefinition`, `UpgradeDefinition`, `ChampionshipDefinition`, `EventDefinition`, `EnvironmentTheme`, reward-rule entries; lookup indexes and structural validation (reference integrity, language-field completeness, key uniqueness). Owns: SO assets; catalog/index; schema-version marker; loaded once into an in-memory index at Boot. Must NOT own: runtime mutable state of any kind (D-035), gameplay decisions, any numeric value **as a design statement** — numbers are owner-gated (OQ-06/07/14–19), never engineering defaults. Public: typed read-only lookups (`GetVehicle(id)`, index/dictionary accessors), validation routine callable from editor tooling (Phase 8+, gated). Dependencies: none of the runtime systems (leaf layer; Unity core only). Testing: EditMode schema tests. Prototype: index pattern + stub `VehicleDefinition` for the 1 test vehicle; no roster values.
+
+**S10 — Runtime State.** Responsibility: hold *transient session* facts shared across one app or race session: the selected-vehicle context entering `PreEvent→Race`, current race-session handle, current environment/scene key, `AppErrorContext` of the last failure; avoids direct system-to-system references for session-scoped context. Owns: session-scope containers, cleared explicitly per lifecycle stage. **Mutation ownership (audit A4 pin):** GameFlow is the **sole writer** of `SelectionContext` (written exactly once per transition into PreEvent/race-scoped flows); Race Rules owns all race-session internals; every other system is a read-only consumer; no container is ever written from two systems. Must NOT own: progression facts, definitions, persistent settings. Public: strongly-typed context holders with clear reset points (`RaceSessionContext`, `SelectionContext`). Dependencies: nothing (structural pivot). Testing: integration flow tests. Prototype: **Yes, small**.
+
+**S11 — Save.** Responsibility: serialize a versioned `SaveModel` snapshot (per D-036 layered design): SaveModel DTOs (progression, unlocked vehicles, upgrade levels, championship state, settings incl. language) ⇄ `ISaveStore` (provider Open OQ-09/T05) ⇄ `SaveService` orchestration (load at boot, autosave on progression events + session end, write-failure policy Open). Owns: SaveModel schema + versioning/migration skeleton; save cadence policy as a boundary owner 【Recommendation; trigger list needs owner validation under OQ-09 — candidates §39.4】. Must NOT own: *deciding* progression values (reads its snapshot), where data comes from, Bridge cloud specifics. Public: `SaveService.Load()/.Save(reason)`, `ISaveStore` (interface defined in Core) — `BridgeSaveAdapter` arrives **Phase 13 only** behind this interface (D-036). Testing: pure DTO round-trip EditMode + PlayMode write→read→compare; browser storage behavior tests per Phase-13 planning reality. Prototype: **No** — nothing to persist; ISaveStore reserved in Core.
+
+**S12 — Audio.** Responsibility: playback + mixing for engine/surface/UI/music with pause/resume compliance and browser user-gesture startup 【Recommendation from §28.3; exact behavior validated at prototype】; no sound-content decisions (OQ-A11). Owns: audio mixers (playback layers), voice pools, silence/unlock state. Must NOT own: gameplay state inference — reacts to events only; no per-frame polling. Public: `IAudioRouter` (one-shot, engine tick by class/physics read interface, duck on pause). Dependencies: GameFlow (pause events), Vehicle (polled engine parameters), UI (feedback hooks). Testing: PlayMode pause-compliance/no-crash; content quality per playtests. Prototype: engine hum + UI click 【Recommendation】 to support feel playtests; full spec Phase 12 (OQ-A11).
+
+**S13 — Localization.** Responsibility: language state (`ar`/`en`), string catalog lookup (all strings from catalog — §12 binding), RTL direction signal driven by language, language persistence handoff (writes through Save's settings snapshot — preference per OQ-09). Owns: current language + catalog index; direction flag. Must NOT own: fonts (brand/design assets, OQ-A01), per-screen string decisions (OQ-A03), layout numbers. Public: `ILocalizationCatalog` (`tr("key")`), `LanguageChanged(lang, isRTL)` event (UI mirrors on it). Dependencies: Data (language key table — owned here rather than inside screen code), Save (persist handoff). Testing: catalog completeness EditMode (en↔ar key parity). Prototype: language toggle from the first UI 【Recommendation】 so RTL correctness is never retrofitted (GDD §33.5). *Language-default fallback (audit A4 cross-ref): if no save exists, default-language choice is an owner Open (OQ-09-related); a prototype may hard-default to English for engineering configuration with no design meaning attached — recorded here as the single origin of that rule; see also §39.3.*
+
+**S14 — Camera / Presentation.** Responsibility: readable chase rig (damped follow, look-ahead, drift framing), collision push-in (sphere-cast over track-collision layers only), FOV/drift presentation hooks consumed as parameters; vehicle-class values in a data-driven `CameraProfile` template (actual values prototype-tuned Phase 6). Owns: rig components + per-profile runtime values. Must NOT own: vehicle physics, gameplay events, HUD — presentation only (clean OQ-01/OQ-A06 surface). Public: none beyond scene-scoped behavior; debug free-cam behind `#if UNITY_EDITOR` 【Recommendation】. Dependencies: Vehicle (pose/state read), Track (collision layers), Data (profile template). Testing: PlayMode manual feel tests (D-023 gate); camera-collision PlayMode test for tunnel cases. Prototype: **Yes** — temporary default (OQ-01 explicitly requires one). Detailed rig design §38.
+
+**S15 — Platform Integration.** Responsibility: the only layer speaking to external SDK/platform APIs. Today: nothing installed — reserved boundaries: `ISaveStore` adapter (Bridge cloud save, Phase 13), ad/pause-safe adapter (Phase 13), analytics adapter (Phase 13, D-022); this section defines *where* it sits, not its design. Owns: SDK calls, capability probing, internet/feature gating, ad safe-state orchestration calls into GameFlow/UI. Must NOT own: reward calculation, progression logic, event flow, gameplay. Public: adapter interfaces from the Core/Platform seam 【Recommendation: not designed beyond the Save interface now — §14 forbids gameplay-to-SDK dependency】. Dependencies: Core (interfaces) only. Testing: mocked adapter tests when they exist (Phase 13; OQ-P02 re-verify ritual first). Prototype: **No** — install nothing 【Owner gate Phase 13】.
+
+## 30. GameFlow and state model
+
+### 30.1 Separation of concerns 【Recommendation — three distinct models】
+| Concern | Model | Owner | Why separate |
+|---|---|---|---|
+| Application lifecycle | `AppState` flat state machine (9 states, §30.2) | GameFlow | Whole-app transitions; one truth for screens to observe |
+| Race state | small nested race sub-state (`Countdown/Running/Suspended/ReadyForResult`) | Race Rules (Race Session) | Race logic is content-driven; racing runs without app-level requests; pause does not kill the session |
+| UI screen presentation | screen registry + overlay/back-stack mirror (Pause, Settings, rewards popup) | UI/Navigation | Overlays can exist *with* state; the stack handles overlay closing/back without moving `AppState` |
+| UI overlay visuals | standard Unity uGUI/EventSystem — domain of UI spec (OQ-A03), not architectural | — | — |
+
+Result: **one flat app FSM + one small nested race FSM + a UI stack.** A single mega-FSM would violate concern separation; a three-level hierarchy would be overengineering.
+
+### 30.2 `AppState` valid transition map (screen names from GDD §24 inventory ONLY — no invented screens)
+| # | State | Screen shown (GDD §24) | Entry from | Exit to (valid) |
+|---|---|---|---|---|
+| 0 | `Boot` | none (bootstrap; black/loading splash is presentation-only) | launch | `MainMenu` (after init) |
+| 1 | `MainMenu` | Main Menu | Boot, EventSelection(back), Upgrades(back), Garage(back), Results(final) | `Garage`, `ChampionshipSelection`, `Settings` (overlay; state unchanged) |
+| 2 | `Garage` | Garage | MainMenu, ChampionshipSelection (unlock/flow contexts per spec) | `MainMenu`, `Upgrades`, `ChampionshipSelection*`, `EventSelection*`, `PreEvent*` |
+| 3 | `Upgrades` | Upgrades | Garage | `Garage` (back) |
+| 4 | `ChampionshipSelection` | Championship selection | MainMenu, Garage | `EventSelection`, `MainMenu`, `Garage*` |
+| 5 | `EventSelection` | Event Selection | ChampionshipSelection, Results(next) | `PreEvent`, `ChampionshipSelection`, `Garage*` |
+| 6 | `PreEvent` | Pre-Event | EventSelection | `Race`, `EventSelection(back)`, `Garage*` |
+| 7 | `Race` | In-Game HUD (+ Pause/Settings overlays while race world is alive but sim paused) | PreEvent (via async load), Results(retry) | `Results`, (suspended internally by `Pause` overlay) |
+| 8 | `Results` | Results | Race(finished) | `EventSelection`, `Race(retry)`, `MainMenu`, plus the Rewards/Unlock presentation **overlay/flow** layered on Results (annotated overlay-flow placeholder awaiting its spec — not a distinct `AppState`; see OQ-A03/GDD §24.11) |
+
+- `*` = context-conditional edges 【Recommendation — GDD does not hard-specify these navigation details; they belong with OQ-A03 screen specs and must be validated there. Where GDD is silent, these rows are proposal-level, not rules】.
+- All 11 screens covered: HUD is the Race state's persistent layer (not a state); Settings is an overlay reachable from MainMenu (and from Pause inside race); Rewards/Unlock presentation is an overlay flow layered on Results/Garage/Championship moments (GDD §24.11 "across events/championships" — inherently a presentation, not a destination).
+- **No world-loading pseudo states** in the FSM: async load happens inside transition execution with the FSM already moved to the target state, presentation showing a loading veil — avoids async-in-FSM dead zones 【Recommendation】.
+
+### 30.3 Transition rules, ownership, rejection handling
+- Ownership: the FSM rule table is GameFlow's single truth; screens read/receive events but never compute state.
+- Rejected transitions (invalid from current state, or world not loadable): `TransitionRejected` event + `#if UNITY_EDITOR` dev-log warning; user-facing behavior = stay on current screen with a disabled/back action 【Recommendation: no crash path, no invented error screen — error presentation needs spec】.
+- Commands arriving during loading: queued until completion; `Cancel` honored for async scene-loading (P6 additive) 【Recommendation — only for to-menu back-outs; in-race cancel does not exist (§30.6 step 9 / audit A4)】.
+
+### 30.4 Pause/resume (ads-safe)
+- **Pause arbiter (audit A4):** Race Rules' race-session sub-state is the **sole arbiter** of race suspension/freeze. GameFlow observes (via `PauseLevelChanged`) and coordinates app-state presentation; UI renders; Audio ducks. No system pauses the race directly — pause requests enter as commands and Race Rules decides.
+- Race pause = BOTH engines (physics and rules) frozen and race sub-state `Suspended` (timer/rules frozen; chase camera & HUD stop updating), handled by the Race Rules sub-state + Audio duck + presentation veil.
+- Resume: strict request path only from UI back into the race FSM (no automatic resume on focus — final user-facing decision pending spec).
+- D-027 (ads never during driving): interstitials/rewarded only at non-driving points — menu/background states or explicit ad-break flow presentations; the platform layer asks UI to enter safe presentation *before* calling any ad SDK 【Recommendation; enforcement testing in §42】.
+
+### 30.5 Race completion, results, and exactly-once progression handoff
+1. Race Rules judges → builds `RaceResult` → emits `RaceFinished`. GameFlow moves race sub-state → `ReadyForResult` (UI frozen) and `AppState → Results`.
+2. Results screen reads the result projection; player accept (retry/next/back) are commands to GameFlow, not UI-side navigation.
+3. Progression handoff: `ApplyRaceResult` happens **once** — idempotency keyed by a session-unique race-instance ID in the result; the RaceCompletion path is the only progression trigger; the Progression service — not the Results UI — computes any unlock/reward side. 【Recommendation: locate `ApplyRaceResult` in the transition-into-Results step to guarantee exactly-once semantics even on retry.】 *(Formalization pending: when the RaceResult schema is designed (Phase 5), the race-instance ID becomes a mandatory first-class field so the exactly-once rule is EditMode-testable.)*
+4. Back-to-menu always re-enters menu-safe state with session runtime state cleared. **Retry-context distinction (audit A2 correction):** (a) *in-race retry* and (b) *Results→Race(retry)* re-use the still-alive race scene where additive loading already loaded it — the race scene is **not** unloaded on the retry path (fast-retry honoring GDD §6's low-friction retry); (c) every *final exit* (to EventSelection/MainMenu, or loading another event/environment) destroys the race-scoped Runtime State and unloads scenes (§30.6 step 16). Final retry UX remains spec-gated — GDD marks the exact retry flow open; do not finalize.
+
+### 30.6 Runtime lifecycle (16 steps)
+1. **Launch** → editor/web player starts; Unity engine invokes the scene-less `Boot` composition (`RuntimeInitializeOnLoadMethod` under the WebGL build spawn) 【Recommendation; a dedicated bootstrap scene is the P6/D-037 candidate alternative — owner review decides; both plans keep the `Boot` app state identical】.
+2. **Service graph construction** → Bootstrap S1 (order: Data indexes → Core services → Save/Localization/Audio routers → UI registry → Gameplay ready).
+3. **Locale + settings hydration** → Localization applies the persisted language (if a Save exists — SaveService rehydrates); the no-save default-language fallback is §29 S13 (single origin; OQ-09-related Open).
+4. **Definition index validation** → Data Definitions runs structural validation (fails closed: gameplay blocked with a clear dev-error if templates are missing — loud, not silent).
+5. **Audio unlock wait** (web only) → Audio subscribes to the first-user-gesture unlock as browser compliance requires.
+6. **`Boot → MainMenu`** → GameFlow transition completes after step 4/5 readiness (not a fixed timeout 【Recommendation】).
+7. **Menu/garage/championship navigation** → UI serves GDD §24 screens, one per state (§30.2); GameFlow validates every request.
+8. **Event preparation** (`PreEvent`) → Runtime State carries `SelectionContext` (vehicle id, event id, environment/theme key); assist/control confirmation values per spec OQ-A03 later.
+9. **Race loading** → GameFlow schedules additive environment/event scene load (P6/D-037 candidate) with a loading veil. **Cancellation scope (audit A4, aligned with §30.3):** cancellation is offered only for menu back-outs from the loading veil; no in-race cancellation exists (an active race exits only via pause→retry/quit commands per Race Rules authority); any richer cancel UX waits for specs (OQ-A03). Loads ONLY additive content; core systems never reload.
+10. **Race session create** → Race Rules constructs race instances per `EventDefinition` rules; Vehicle instances spawn from definitions; Camera rig + HUD mount.
+11. **Active race** → race FSM runs; commands validated; camera/HUD/audio consume state; no `Find`/tag scans, no per-frame allocations.
+12. **Pause/resume** → §30.4.
+13. **Failure inside race** → race may restart the current race or exit to menu via GameFlow commands; no silent recovery 【Recommendation; final UX needs spec】.
+14. **Completion** → Race Rules finalizes → `RaceFinished(RaceResult)` → GameFlow transitions to `Results` with exactly-once progression handoff (§30.5).
+15. **Progression update** → Progression `ApplyRaceResult` (idempotent), progress delta published; reward/unlock presentation overlays flow (Data-driven reward definitions only).
+16. **Next event/menu returns** → per §30.2 valid edges; every *final exit* from race/results destroys the race-scoped Runtime State and scenes unload additively (direct additive un-load discipline). **Exception (audit A2):** the retry edges (`Results→Race(retry)`, in-race retry) are not final exits — they re-use the still-alive race scene per §30.5.
+
+## 31. UI navigation separation 【Recommendation】
+
+- **Separate concerns:** state truth (GameFlow) — screen mounting (UI/Navigation) — overlays (stack) — presentation themes/fonts (UI spec OQ-A03).
+- Every GDD §24 screen is bound to exactly one `AppState` (§30.2) or is an overlay flow. HUD gets a dedicated always-mounted-on-Race channel that stops updating in all non-Race states.
+- Overlay stack rules: at most one blocking overlay; back/Escape always closeable (GDD §27 Escape-never-required rule); an overlay never transitions app state on its own — its actions go through commands.
+- Mirroring: RTL/LTR is driven by Localization `LanguageChanged`; layout mirroring happens at the navigation-contained presentation level, not per-screen hacks (binding to per-screen spec OQ-A03 later; no invented scalar layout rules now).
+- All screens require an approved reference and written spec before implementation — none built yet (GDD §24; `design/ui-ux/README.md` 【Approved discipline】).
+
+## 32. Inter-system communication 【Recommendation — prototype recommendation finalized in §32.4】
+
+### 32.1 Mechanism comparison
+| Option | Pros | Cons | Verdict for Velocity Rush |
+|---|---|---|---|
+| Direct construction-time references | Fastest, clearest, IDE-trackable; WebGC-friendly (no alloc) | Coupling grows: every new caller edits construction; breaks modularity if overused **without** layering (§29.3) | **Use for downward/reference-only paths (intra-layer)** — the backbone of L1–L4 |
+| C# events / interfaces | Decouples direction-inverting signals; interface hides device importance (input adapters per D-034) | Subscription lifecycle leaks; per-event delegate allocs; ordering hazards | **Use for bounded, low-frequency state-change notifications** where direction would invert layering |
+| Central event bus | Maximum decoupling; single dispatch point | Hidden global; type-name/string drift; debugging difficulty; unbounded subscriber sprawl; alloc pressure if misused | **Justified ONLY for a small, typed, pan-module ring** (§32.2 closed set); NO string/type-erased global bus |
+| Command-based messaging | Auditable single entry, decoupled UI intent | Extra indirection if applied everywhere | **Use exclusively for user-intent → GameFlow transitions** (validated, idempotent, queueable) |
+
+### 32.2 Where an event ring IS justified (exhaustive, closed set)
+Working name `GameEvents`, owned by Core, payload as `readonly struct` records. **Allocation characteristic (audit A3 correction — qualified, not unconditional):** dispatch itself does not allocate when payloads are structs passed to typed handlers (no boxing); however **subscription churn DOES allocate** — `+=` on a multi-handler delegate combines into a new delegate instance, closures allocate at registration, and `-=` rebuilds the delegate — so the required discipline is **subscribe once at Bootstrap, unsubscribe exactly once at teardown, never subscribe per frame/race**. This is static analysis of documented C# delegate behavior, **not a WebGL measurement**; it must be confirmed by profiler sampling at the first build (OQ-T08/P8 evidence ritual). Closed set:
+1. `StateChanged(AppState)` — the sole way everyone learns navigation.
+2. `LanguageChanged(lang, isRTL)`.
+3. `ProgressionUpdated(ProgressionDelta)` / `Unlocked(UnlockPayload)` — followers: UI, Audio, Platform (analytics hook).
+4. `RaceFinished(RaceResult)` — Results/Progression/analytics handoff.
+5. `PauseLevelChanged(...)` — audio + UI safe-state compliance.
+Topics beyond this list need a documented reason in a DECISIONS/ADR entry first — prevents bus sprawl (risk R-A2, §45.2).
+**Ring lifecycle rules (audit F-D2):** (1) idempotent unsubscribe guaranteed at teardown (no callbacks into destroyed objects); (2) copy-on-dispatch or an explicit prohibition of subscribe/unsubscribe during dispatch (no mid-dispatch list mutation); (3) a dev-mode duplicate-subscription assert; (4) subscription order documented as non-guaranteed.
+
+### 32.3 Where an event ring is NOT justified
+- Per-frame telemetry (vehicle pose, speed, HUD numbers): direct polled interface reads (alloc-free).
+- Asset/definition loading or any pull/value-return flows: plain method calls.
+- Inside one module (vehicle ↔ its own wheels/telemetry): plain fields/methods.
+- UI→progression display binding: projection interface per screen, not a bus topic.
+
+### 32.4 Prototype-simplicity recommendation (integration review R-3 response)
+**Recommended prototype model: direct calls + interfaces at seams + plain C# events per emitter.** No typed ring, no central bus in the prototype. Concretely: `StateChanged` as a plain C# event on GameFlow; `LanguageChanged` on Localization; `RaceFinished` on Race Rules; `ProgressionUpdated/Unlocked` added when Progression lands (Phase 10–11); `PauseLevelChanged` on Race Rules. No cross-layer topic discovery; no global static; consumers subscribe via injected emitter references at Bootstrap. (§32.2's closed set stands as the upper bound of future ring topics.)
+
+**Ring re-introduction requires all three evidence pieces (integration review §6.3):** (1) ≥3 distinct layers demonstrably listen to the same topic and duplicate subscription setup is recurring observed friction (from play-tested code, not prediction); (2) measured subscription-lifecycle defect rate in the prototype that a single choke point would actually reduce; (3) profiling evidence (P8 log) that dispatch ordering/batching matters for a WebGL budget.
+
+## 33. Assembly boundaries 【Recommendation — working candidate; final names Phase-4 owner-gated】
+
+### 33.1 Reference matrix (candidate set; do not auto-create all)
+| Candidate (names illustrative) | Include now? | Responsibility | May reference | Must NOT reference | Why | When |
+|---|---|---|---|---|---|---|
+| `VelocityRush.Core` | **Yes** | App lifecycle/FSM, command validation, event-ring types, cross-cutting interfaces (`IVehicleInput`, `ISaveStore`, `ILocalizationCatalog`, `IAudioRouter`), Runtime State containers, assert helpers | Engine only | `Gameplay`, `UI`, `Platform` | Testability of pure logic; cycle protection | Phase 4 |
+| `VelocityRush.Data` | **Yes** | SO definitions, indexes, schema validation | Engine + `Core` (key types) | `Gameplay`, `UI` | Modular data authoring; keeps templates pristine (D-035) | Phase 4 |
+| `VelocityRush.Gameplay` | **Yes** | Vehicle, Track runtime, Race Rules (state + scoring core), race-session composition | `Core`, `Data` | `UI`, `EditorTooling` | Largest test-pure winnings; keeps vehicle code UI-agnostic | Phase 4 (vehicle stubs Phase 5) |
+| `VelocityRush.UI` | Later | Screens, HUD, navigation stack, overlay presentation | `Core`, `Data`, `Gameplay` (read interfaces only) | — | Avoid UI dragging gameplay into one assembly; premature before specs (OQ-A03) | Phase 10–11; minimal HUD code lives in the Core UI-registry seam until then (§29 S8) |
+| `VelocityRush.Platform` | **No** | Adapter implementations (save/store, ads, analytics) | `Core` only | everything internal | SDK isolation per §14 | Phase 13 |
+| `VelocityRush.Tests.EditMode` (first) + `VelocityRush.Tests.PlayMode` | **Yes (EditMode first)** | EditMode unit tests (Core logic, Data schema, save DTO, race-rule math) | all production assemblies (test-runner allowed) | — | Regression protection per AI guidelines §5; supports OQ-T07 investigation while formally OPEN | Phase 4 EditMode; PlayMode tests with M3 vehicle |
+| editor-only tooling assembly | Later | Authoring validation tools for definition sets, trigger-geometry checks | Full | Runtime code kept separate, editor-guarded | Prevents editor-only helpers leaking into WebGL builds | Phase 7–8, 【Owner gate】 for tooling scope |
+
+### 33.2 Dependency diagram (target shape)
+```text
+            ┌─────────────────────────────┐
+            │  UI (later)                 │
+            │  Platform (later, Phase 13) │
+            ├── refs ──▶ Core ◀──constructs── Bootstrap (inside Core)
+            │               │   ▲
+            │ refs          │   │ implemented by
+            │               ▼   │
+            │     Gameplay ─▶ Data
+            │       │         (leaf)
+            └── Tests (EditMode/PlayMode) reference all
+```
+**Circular-dependency checklist (asmdef compiler enforces; violations fail the build, not review):** UI must not be referenced by Gameplay nor Platform; Platform depends only on Core; Data never references Gameplay (authoring-order discipline); Progression→Save is a single-direction push; UI↔Gameplay resolved by read-only interfaces owned by Gameplay consumed via Core seams.
+Notes (audit F-E1/E2): `Data → Core(key types)` is a deliberate, unusual inversion edge — assets carry IDs whose types live in Core to avoid data→gameplay inversion; no defect; flagged so nobody "simplifies" it into a cycle. Assembly names are illustrative; owner pins final names in the Phase-4 conventions task.
+
+**Implementation status (Part 4.1, owner-directed, 2026-11-05):** the "Yes now" set was created as files — `Assets/Scripts/Core/VelocityRush.Core.asmdef` (engine-only, no refs), `Assets/Scripts/Data/VelocityRush.Data.asmdef` (refs Core — the inversion edge above preserved), `Assets/Scripts/Gameplay/VelocityRush.Gameplay.asmdef` (refs Core + Data), and `Assets/Tests/EditMode/VelocityRush.Tests.EditMode.asmdef` (Editor platform only, `overrideReferences` + `nunit.framework.dll`, refs test-runner assemblies + all three production assemblies, `autoReferenced: false`). No C# scripts, scenes, or prefabs were created (no placeholder content); empty assemblies legitimately compile without scripts. The "Later"/"No" assemblies (UI, Platform, PlayMode tests, editor tooling) were deliberately NOT created. Skeleton asset folders created empty: `Assets/{Scenes,Prefabs,Art,Audio,Materials,Data,UI,Settings}`. Validated with the installed Unity 6000.6.8f1 (237b6593792b) in batch mode: import exit code 0, zero compilation errors, all four asmdefs imported by `AssemblyDefinitionImporter`; `Packages/` and `ProjectSettings/` untouched. **Naming update (2026-11-05, owner acceptance in the Part 4.2 assignment):** the root namespace `VelocityRush` (Core code in `VelocityRush.Core`) and the four assembly names above were accepted and are recorded as D-043 (APPROVED-INITIAL); renaming later remains cheap (see that entry). The "Later"/"No" assemblies stay excluded.
+
+## 34. Data definitions and runtime-state ownership 【Recommendation; containers per P4/D-035; D-039/040/042 drafts §44】
+
+### 34.1 Definition inventory & relationships (conceptual; no values, no assets)
+```text
+ChampionshipDefinition (≥3) ──ordered event list──▶ EventDefinition (8-type basis, D-031)
+EventDefinition ──track key + rules config──▶ EventRulesConfig (typed payload; per-type scoring fields, values OQ-03 Open)
+VehicleDefinition (×10, OQ-14 identities) ──class──▶ VehicleClass (Starter/Sport/Drift/Supercar, D-014)
+UpgradeDefinition (×6, D-011) ──curve points → UpgradeModifiers──▶ VehicleDefinition (runtime composition)
+EnvironmentTheme (×5, D-028) ──scene key──▶ SceneDescriptor (P6-candidate)
+RewardRule entries (OQ-17) ──awards──▶ applied by Progression at runtime
+```
+Justified additions 【Recommendation, mirroring existing GDD requirements only】: `EventRulesConfig` as a typed payload *within* EventDefinition (per-type rule placeholders, schema-only in V1 — formulas open OQ-03); `SceneDescriptor` mapping definitions→scene keys so scene names are never hard-coded (§30.6 discipline). `CameraProfile`, `VehiclePhysicsProfile`, `AudioProfile` are documented in their owning sections (§38, §36.6, §29 S12) under the same SO pattern per D-035.
+**Prohibition carried forward:** data values (car stats, reward points, thresholds) remain owner-gated (OQ-06/OQ-07/OQ-14…OQ-19) — proposed containers hold no numbers.
+
+### 34.2 Data ownership rules
+| Rule | Statement |
+|---|---|
+| Ownership | All definition assets owned by Data Definitions (Data assembly; no runtime writer exists — D-035) |
+| References between assets | Editor-authored **asset references** (SO-to-SO links + IDs for runtime-safe lookups); no brittle GUID/string references for intra-project assets |
+| Runtime instantiation | Definitions read **as-is** into runtime structs/values at load time (never mutated; never written back); consumers get indexed lookup handles (§29 S9) |
+| Missing/invalid definition | **Fail-closed** (§30.6 step 4): validation at Boot index; gameplay blocked with dev diagnostics naming the defect; release-build behavior per §41; presentation wording spec-gated (OQ-A03) — never silently patched |
+| Validation rules (schema) | Required-fields completeness; language fields (`en`/`ar`) present for every display string (D-013 binding); key uniqueness; reward-rule reference integrity; scene-key existence cross-check (against a generated key list, not filenames at runtime) |
+| Data versioning | Each asset family carries `schemaVersion`; migrations applied **in editor authoring**, never at runtime; the runtime rejects unknown versions loudly instead of guessing |
+| Editor authoring responsibilities | Authoring validation tooling (schema checker) is Phase 7–8 owner-gated editor tooling (§33.1 last row) |
+| Testing | EditMode schema-integrity tests over fixture samples; runtime index lookups via EditMode tests with stand-in data |
+
+### 34.3 Runtime-state single-mutator matrix (no duplicated sources of truth)
+| State entity | Sole mutator | Written when | Readers | Persisted via |
+|---|---|---|---|---|
+| `RuntimeVehicleState` | Vehicle physics (per race instance) | physics steps | Camera/HUD/Audio/Race Rules | never (session-scoped) |
+| Current race sub-state | Race Rules (race session) | race lifecycle | GameFlow/UI/Save | via RaceResult only |
+| `RaceResult` | Race Rules (once, then readonly) | finish | Progression/Results | consequences only (below) |
+| `PlayerProgress` | **Progression only** | ApplyRaceResult / manual reward (OQ-17 future) | Garage/Championship/Results/HUD | SaveService → SaveModel |
+| Garage state | Garage (UI context only) | garage interactions | Garage UI | no |
+| Upgrade state (levels) | Progression (applies upgrade purchase) | Upgrade screen actions → ProgressionService | Vehicle (via UpgradeModifiers) | SaveModel |
+| Championship progress | Progression | ApplyRaceResult | ChampionshipSelection UI | SaveModel |
+| Unlock state | Progression | ApplyRaceResult / rewards | Garage/race gate | SaveModel |
+| Language/settings state | Localization (language) / Settings UI (writes via the Settings persistence path into `SaveModel.settings`) | change events | UI mirroring | SaveModel.settings |
+| `SelectionContext` | GameFlow (§29 S10 pin — written exactly once per transition into PreEvent/race-scoped flows) | transitions | PreEvent/Race readers | no (session) |
+
+Binding guarantee: **any given fact has exactly one mutable home**; Save never mutates meanings, only snapshots. Runtime State containers remain session-scoped.
+
+## 35. Scene and runtime lifecycle architecture 【Recommendation — satisfies OQ-T06 candidates; nothing created】
+
+### 35.1 Two candidate structures (compared; P6/D-037 remains provisional)
+**Option S-A — Persistent root + additive race content (recommended working candidate):**
+```text
+Persistent root scene (loads once at launch)
+  └─ Boot composition: service graph + GameFlow
+  └─ All menu screens as UI panels (Main Menu, Championship/Event Selection,
+     Garage, Upgrades, Pre-Event, Settings, Results)
+Race scene (additive per event — P6 candidate)
+  └─ Environment content (one of 5 themes)
+  └─ Race systems + Vehicle + Camera rig
+```
+**Option S-B — Screen-per-scene navigation: every GDD screen gets its own Unity scene.** Pros: matches a "scene = page" mental model; simpler state-machine mapping. Cons: 8+ UI scenes serialize/deserialize repeatedly; loading-veil spam between menu screens; breaks fast-retry continuity; asset duplication; heavier memory churn on web. Verdict 【Recommendation】: rejected — GDD screens are UI panels, not worlds; screens are navigation *within* a persistent UI layer.
+Comparison: S-A keeps one lightweight context swap per race and satisfies GDD §6 low-friction-retry; menu navigation becomes pure state change with zero scene-reload cost. Whether the pattern is safe long-term comes only from vertical-slice validation (OQ-T06 stays OPEN with load-speed/memory criteria). Persistent root + additive environment scene is the closest match to GDD §24's UI-centric screen set and to Web memory discipline (official Unity guidance: pack content into loadable/unloadable units; keep the always-resident blob small — §28.3).
+*Superseded discovery sketch:* the discovery's early scene-set idea (Boot / MainMenu / Garage / Race_<Environment> / Results scenes) was refined by this design: menu screens live in the persistent root as UI panels (no per-screen scenes); `Boot` exists as app state §30.2, not a mandatory separate scene.
+
+### 35.2 Scene ownership & conventions (candidate level; nothing created)
+| Scene | Owner system | Persistence | Loaded when | Unloaded when |
+|---|---|---|---|---|
+| Persistent root (Boot+UI) | Bootstrap/GameFlow | whole app lifetime | launch | never (contains the composition root) |
+| Race scene (per event/environment composition) | GameFlow coordinates load; Race Rules/Vehicle/Camera own contents | per race session | `PreEvent→Race` transition (async) | final race exit (§30.6 step 16) — **not** on retry (§30.5 A2 rule) |
+| Optional per-theme environment-variant split (later) | Track & Event | same | with Race scene | same |
+
+Naming/serialization conventions (exact scene names, folder placement, text-serialization settings) are Phase-4 owner-gated deliverables (PROJECT_STRUCTURE deferral note) — not invented here.
+
+### 35.3 Persistent services & scene lifecycle
+- The composition root lives in the persistent root; **no per-scene service setup** — race scenes contain only content-bound behaviors (Vehicle rig instances, Track triggers, Camera rig), never service construction (prevents duplicate-manager defects; risk R-A4 family).
+- Unity `DontDestroyOnLoad` is **not** the base approach 【Recommendation】: the persistent-root scene keeps additivity clean and avoids root-object migration bugs (DDOL objects re-parent out of scene coordination; makes additive-unload accounting harder); confirm feasibility in the Phase-4 spike.
+- Boot composition 【Recommendation】: the game launches directly into the persistent root scene; the composition root's `Awake` constructs services once; no separate Boot scene needed (a distinct visual splash is presentation only if the UI spec asks).
+
+**Implementation status (Part 4.2, owner-directed, 2026-11-05):** the persistent root scene exists as `Assets/Scenes/Bootstrap.unity` and is enabled at Build Settings index 0. Its single root GameObject `Bootstrap` carries `VelocityRush.Core.Bootstrapper` (S1 composition root): it runs the ordered `ApplicationStartup` step sequence exactly once (instance-level duplicate-initialization guard; duplicate step names rejected at construction), fails closed on the first failing step (`StartupException` names the step; later steps never run), and emits startup segment timings as profiling evidence (`StartupReport`). Uses `DontDestroyOnLoad` nowhere — the persistent root stays loaded per §35.3. The only current step is `environment-snapshot` (boot-time environment identity logging); later systems attach ordered steps here rather than building parallel boot paths. No service construction exists yet (Data indexes, Save/Localization/Audio routers and the GameFlow transition arrive in later authorized tasks, §30.6 step order preserved). Validation evidence: Unity batch-mode import + scene validation (scene opened, exactly one Bootstrapper, zero missing scripts), 7/7 EditMode tests passing (ordering, fail-closed, duplicate-name rejection, exactly-once entry point), final clean compile 0 errors / 0 warnings for the shipped scripts.
+
+### 35.4 Scene transitions & loading screens
+- Transitions validated by GameFlow (§30.2), executed as async additive loads (`SceneManager.LoadSceneAsync` now; Addressables candidate deferred — its package requires owner approval, Phase-4 gate).
+- Loading veil presentation: owned by UI/Navigation (blocking overlay during any transition that loads). Capabilities recorded (visuals per OQ-A03): progress readout; cancel affordance limited to menu back-outs (§30.6 step 9).
+- Same-scene transitions (navigation inside persistent UI) perform no scene load at all — instant swap.
+
+### 35.5 Loading cancellation & fast retry
+- **Cancellation:** only for menu back-outs initiated from the loading veil, per §30.3/§30.6; cancelled additive loads trigger the `Resources.UnloadUnusedAssets` discipline to drop partially-resident content. Capability boundary (integration review R-4): no guarantee of instant cancel responsiveness (cancellation honors the async boundary); richer UX (double-back semantics, partial progress display) belongs to the OQ-A03 spec pass — not invented.
+- **Fast Retry (GDD §6 minimal-friction; §30.5):** `Results→Race(retry)` and in-race retry do **not** touch scene loading — the race scene is still resident; retry runs a race-state reset (positions, timers, telemetry, respawn).
+- Transition-speed expectations (load times in target browsers) are recorded as OQ-T06 validation evidence at vertical slice — no invented numbers.
+
+### 35.6 Scene cleanup & memory lifecycle
+- Race exit unloads the additive race scene, then triggers an explicit `Resources.UnloadUnusedAssets` cycle 【Recommendation】 (official Web-memory guidance: unload explicitly; bundles land inside the Unity heap).
+- Asset-delivery model for race content: AssetBundles as the delivery candidate (official docs; §28.3) — exact tooling selection (bundles vs direct-packed scenes) is a Phase-4 owner-gated ADR.
+- WebGL memory boundary reminder: the built `.data` stays resident while running; keep static content lean; per-environment content lives behind the loadable boundary.
+
+### 35.7 Failed loading recovery
+| Failure | Behavior |
+|---|---|
+| Additive race scene fails to load (missing key, corrupt content) | cancel, unload partial state, return to the prior safe state; user-facing presentation wording spec-gated (OQ-A03) |
+| Persistent-root content issue (boot-time corruption definition invalid) | fail-closed per §34.2 — blocked at startup with dev diagnostics |
+
+### 35.8 WebGL scene-loading considerations 【Official-doc facts; no invented numbers】
+- Data Caching (IndexedDB/Cache API) avoids re-download across sessions — candidate enabled in Player Settings **with owner approval** (a ProjectSettings change, owner-gated).
+- Decompression/Brotli/GZip hosting support and decompression fallback are deployment/host concerns (§40.3 + re-verification for the Playgama host, OQ-P02).
+- COOP/COEP multithreading, if ever enabled, is host-config territory — not planned for gameplay; recorded as a discovery fact.
+
+## 36. Vehicle physics technical design (Simcade)
+
+> Status: does **not** finalize OQ-T03/D-033 — WheelCollider remains the provisional candidate (P2/D-033), hybrid fallback documented contingency; no vehicle controller is implemented or authorized. Every numeric is a tuning surface; acceptance comes only from the Phase-6 D-023 playtest gate + WebGL profiling.
+
+### 36.1 Driving-feel objectives & constraints
+Objectives 【Approved, GDD §7/D-002】: responsive controls; believable accel/braking; convincing cornering; controlled drifting; per-class/vehicle distinct handling; readable road feedback; consistent camera; skill-based mastery ("easy to learn, hard to master"); upgrades change effort, never skill-irrelevance (skill-preservation binding).
+Constraints: (1) WebGL single-threaded-first budget discipline (frame-bound GC, §28.3) — per-frame allocation is a defect class; (2) **one code path, ten vehicles** — differentiation via data; (3) no simulation realism creep contradicting Simcade identity (full tire-model sim, clutch/heat systems are out of V1 without an owner decision per D-002 rule); (4) feel is not decided here — every dynamic parameter is a tuning surface gated by D-023 playtest + OQ-T02/T03 evidence.
+
+### 36.2 Architecture overview
+```text
+IVehicleInput (Core abstraction) ─┐
+VehiclePhysicsProfile (Data SO template) ─┤─▶ VehicleController (one code path per raced vehicle, Gameplay, FixedUpdate)
+UpgradeModifiers (computed from levels) ─┘        │→ WheelRigService (4 per vehicle)
+        CTL → StabilityAssistLayer (evidence-gated, default OFF) ─┤→ RuntimeVehicleState
+        CTL → TelemetryProvider ─▶ polled by Camera/HUD/Audio/Race Rules; rule-threshold events → Race Rules
+```
+- `VehicleController` (name illustrative; no code authored): consumes profile × modifiers, drives physics in `FixedUpdate`, publishes read-only telemetry.
+- **No second simulation path** for different vehicle classes — classes differ only through profile data + assist-layer flags 【Recommendation】 (satisfies §9's 10-vehicles-without-10-controllers requirement, D-028 roster).
+- Vehicle never calls UI/Progression/Save; it reads Track surface data by physics layers and emits events.
+
+### 36.3 WheelCollider candidate evaluation 【Provisional — P2/D-033】
+| Aspect | Assessment |
+|---|---|
+| What it is | Unity's official vehicle foundation (Vehicles module, already in manifest): raycast suspension with spring/damper (`sprungMass`, `targetPosition`), slip-based friction model (`forwardFriction`/`sidewaysFriction` curves), `motorTorque`/`brakeTorque`/`steerAngle` drives, per-wheel `ConfigureVehicleSubsteps`, `GetWorldPose` for visuals |
+| Advantages | Officially supported and documented; fast live inspector iteration; tunable Simcade range via per-wheel curve sets; upgrades map cleanly onto force/curve parameters; avoids hand-rolling suspension math |
+| Risks | Not a real tire model — arcade feel may need code shaping (roll-torque control, anti-flip, assisted grip) — known community pain points at handling extremes; fixed-update + substep cost on WebGL must be measured; suspension-jitter corner cases |
+| Evidence | Official WheelCollider API docs (Unity 6000.6, accessed 2026-11-05) — behavior facts only; WebGL cost **unmeasured** |
+| Verdict | Preferred initial candidate per D-033; final selection gated on D-023 playtest + WebGL profiling + owner decision |
+
+### 36.4 Hybrid custom-force fallback (documented fallback only; not chosen, not implemented)
+Rigidbody-with-custom-tire-forces (own suspension integration + lateral/longitudinal force curves): keeps rigidbody chassis stability while replacing WheelCollider friction/suspension with a fully controllable model. Trigger candidates (at least one must fire): (a) D-023 feel gate unreachable with realistic effort after documented tuning iterations; (b) measured WebGL cost of enabled substeps beyond the evidence-based frame budget (OQ-T08); (c) systemic jitter/instability that assist shaping cannot resolve. Cost: more code, own skid/flip handling, bespoke surface integration. (Discovery also recorded: fully kinematic/no-rigidbody arcade physics — rejected as primary for Simcade; third-party paid physics assets — excluded by scope rules.)
+
+### 36.5 Rigidbody responsibilities (whatever wheel model wins)
+| Responsibility 【Recommendation】 | Policy (values deferred) |
+|---|---|
+| Center of mass | Set deliberately per vehicle (low/central stability bias); a profile parameter, value owner-gated — never the default |
+| Interpolation | Enabled (render smoothness between fixed steps) |
+| Collision detection | Discrete initially; continuous modes evaluated only by evidence |
+| Sleep | Disabled for raced vehicles |
+| Mass | From profile (values OQ-06/OQ-14 — not invented) |
+| Velocity ownership | Physics only; no external transform teleporting except the respawn path |
+
+### 36.6 Behavior domains (design responsibilities; every numeric = tuning surface)
+| Domain | Design responsibilities | Telemetry surface | Gates |
+|---|---|---|---|
+| Wheel & tire | Per-wheel contact wiring; forward/side friction curve sets per surface; visual pose sync (`GetWorldPose`) | wheel slip, grounded flag, surface zone id | Surface multipliers arrive from Track layer data |
+| Engine torque & power | Throttle → torque via profile curve shaping; torque capped by profile | current power output | curve ownership OQ-06/OQ-14; simplified response, no engine sim |
+| Transmission | Torque-shaping taps (auto-only V1 feel); no manual shifting without owner decision | gear state (HUD/audio) | GDD promises no manual transmission |
+| Braking & handbrake | Brake torque distribution front/rear per profile; handbrake as strong rear-bias lock supporting drift (Drift-class bias) | applied braking per wheel | handbrake supports, never replaces, skill (D-011 spirit) |
+| Steering response & speed sensitivity | Input multiplier filtered by a speed-dependent sensitivity curve + response shaping; filtering lives under the input abstraction (device-agnostic) | effective steer angle | curve shapes are Phase-6 tuning (OQ-02) |
+| Grip, slip, drift | Drift = intentional state with laterally reduced grip under player control (handbrake/throttle-bias), recomposable on demand; slip feeds scoring (OQ-03 placeholders) | drift state, lateral slip | drift depth never final without Phase 6; entry assists evidence-gated |
+| Suspension & ground contact | Spring/damper/`targetPosition` per profile; staggered per-class; primary readable-road-feedback channel | compression, contact normal | bottoming-out policy deferred |
+| Airborne & landing | Limited air control (minimal pitch/yaw damping — not steering-in-air); landing impulse physics-natural; `Landed/BecameAirborne` feed Race Rules + audio/camera | airborne flag, landing impulse | GDD §8 jump/landing approved direction |
+| Collision & obstacle | Rigidbody contacts against gameplay collision layers only; `ObstacleHit(type, impulse)` output; anti-stuck no-progress detection emits an event — reset policy belongs to Race Rules | contact events, stuck flag | no penetration hacks; surfaces are Track's world |
+| Stability & recovery | Optional assist layer: roll-torque shaping at extremes, mild angular-velocity damping, auto-flip recovery surfaced to Race Rules (never silent teleports). All assists data-flagged, default OFF 【D-033 evidence gate】 | assist flags | assists smooth, never drive (skill identity) |
+
+### 36.7 Vehicle configuration data (P4/D-035 consistent)
+`VehiclePhysicsProfile` (ScriptableObject **template**, Data assembly; no values authored by this design): rigidbody params (mass, CoM offset); engine curve taps + torque cap; brake bias + handbrake bias; steer range + speed-sensitivity curve; friction curve sets (fwd/side + per-surface multiplier refs); suspension (spring/damper/target/travel); air damping + landing params; assist flags + strengths (default OFF); audio class id + camera profile ref.
+- Per-vehicle override layer: 10 vehicles = 10 profile assets inheriting per-class defaults (Starter/Sport/Drift/Supercar per D-014 planning; roles from GDD §10).
+- **Upgrades integration:** the upgrade system computes `UpgradeModifiers` (delta multipliers per D-011 category) from progression levels + `UpgradeDefinition` curve points; the controller composes profile × modifiers. Upgrade effects alter handling within skill-preserving bounds — modifiers apply small caps; formula values OQ-07 Open.
+- Runtime separation (D-035): profiles never mutated; modifiers are plain C# values rebuilt when upgrade levels change.
+
+### 36.8 Runtime tuning boundaries
+- Tunable live: all profile fields (EditMode inspector + Play Mode tweak); assist strengths; input filtering curves.
+- Not runtime-mutable: definition templates (frozen at runtime per D-035); anything owner-gated (assist depth, drift philosophy).
+- Tuning loop (Phase 6): adjust profile → editor playtest lap → record D-023 observation notes → repeat; notes recorded, values decided **by the owner** after playtest evidence.
+
+### 36.9 Update lifecycle
+```text
+per frame:   IVehicleInput sampled request (throttle/brake/steer/handbrake)
+FixedUpdate: apply forces (torque/brake/steer per profile×modifiers)
+FixedUpdate: update RuntimeVehicleState (pose/velocity/slip/grounded/drift)
+FixedUpdate: rule-threshold events → Race Rules (stuck/obstacle/airborne/landed)
+per frame:   Camera/HUD/Audio read RuntimeVehicleState (read-only, polled, no per-frame allocs)
+```
+Physics step: default fixed timestep initially; whether 0.02 s (default) or altered values fits the WebGL budget is a measured decision (OQ-T08). Substep budget: `ConfigureVehicleSubsteps` per rig — decided by profiling (prototype wheel count = 4; commercial simultaneous physics = player vehicle(s), no AI before OQ-T09).
+
+### 36.10 Debugging & telemetry
+- Dev-build overlay (editor & web debug builds only): per-wheel contact/slip renderers, CoM gizmo, suspension-travel bars, speed/velocity vectors. Debug tooling authoring is owner-gated (Phase 4+ deliverable under explicit authorization).
+- `TelemetryProvider` exposes a read-only struct snapshot (speed, accel, drift state, grounded, per-wheel slip, stuck flag, obstacle contact) — single source for camera look-ahead, HUD, engine sound, Race Rules scoring inputs. No per-frame event emission (polled interface, per §32.3).
+
+### 36.11 Validation strategy (planned — nothing exists yet)
+| Layer | Test type | Content |
+|---|---|---|
+| Profile/schema integrity | EditMode | schema test: non-zero travel, curve sanity, no null surfaces — catches authoring errors |
+| Pure math (steer filter, upgrade compose) | EditMode | extracted static functions with synthetic inputs — deterministic, scene-less |
+| Repeatability lap | PlayMode | scripted-input harness drives N identical laps; asserts result variance within bounds (determinism/instability, not feel) |
+| Feel | Manual D-023 playtest | human validation per milestone M4; recordings + owner feedback; authoritative, not automatable |
+| WebGL perf | Profiler ritual | wheel-substep/frame cost at OQ-T07/T08 evidence steps |
+
+### 36.12 WebGL performance risks / fallback / sequencing
+| Risk | Treatment |
+|---|---|
+| Substep cost scaling | Player vehicle race-scoped activation (only player physics in V1); measured substep profiles; timestep decided by evidence |
+| GC from friction/telemetry strings (debug only) | zero-allocation fields; debug strings editor-only |
+| Suspension jitter at low visual update | interpolation on; jitter policy a data param |
+| Engine-curve allocation churn per upgrade frame | pre-allocate per-vehicle numeric arrays once at load |
+Known limitations: WheelCollider literature corner cases (high-speed flips, extreme compression); recorded mitigations = roll-torque shaping, spring pre-tension, assist damping, per-class curve sets; full fallback triggers in §36.4; damage/consequences beyond approved direction stay open (GDD §8).
+Proposed prototype implementation sequence (Phase 4/5, owner-gated suggestion): ① physics skeleton forces (steer straight, placeholder profile) → ② wheel contact + suspension walk-through on flat test surface → ③ speed-sensitivity + input filtering → ④ drift plumbing (handbrake + lateral bias) → ⑤ jump/obstacle/anti-stuck events to Race Rules → ⑥ profiles for the one test vehicle to D-023 readiness → ⑦ repeatability harness + first profiling numbers at OQ-T07/T08. Deferred production features: persistent damage/condition (GDD §8, owner decision); anti-cheat telemetry (single-player; OQ-T09).
+
+## 37. Input architecture
+
+> Status: does not finalize OQ-T04/D-034 or install any package; no final control layouts, sensitivity, dead zones, or steering curves are defined (all tuning/spec territory — OQ-A03/OQ-02).
+
+### 37.1 Ownership & abstraction
+| Element | Owner | Notes |
+|---|---|---|
+| `IVehicleInput` (driving surface: throttle/brake/steer/handbrake samples) | Interface defined in Core; implemented by an input adapter | Vehicle consumes the interface only — never a device API (§8) |
+| `IAppInput` (pause/quit/retry intents) | Same seam; emits **AppCommands** to GameFlow (§30.3 command model) | UI-agnostic |
+| UI input (menus, buttons, popups) | UI/Navigation via standard uGUI EventSystem | Never routed through `IVehicleInput`; `IAppInput` carries only high-level intents |
+| Implementation code (package or legacy bridges) | Input adapter (location owner-gated at Phase 4) | Two candidate implementations behind the same seam (§37.5) |
+
+Rationale: device code stays out of gameplay code (§8 binding) and the package decision stays swappable (D-034).
+
+### 37.2 Device coverage
+- **Keyboard (desktop web):** steering (left/right), throttle, brake, handbrake, pause, camera intent (§37.4). Key *bindings* are recommendations pending UI spec — prototype suggestion: standard racing cluster (directional/WASD; space handbrake; dedicated pause; Escape reserved for overlay-close only, **never a critical flow dependency** — GDD §27). Simultaneous-press semantics use the same response shaping as touch (device-agnostic).
+- **Touch (mobile browser — product target per platform constraints 13/14/16/22):** on-screen driving controls (layout deferred to OQ-A03): steering via left/right zones or a steering surface; throttle/brake zones; handbrake button; pause button always visible during Race. Accessibility baseline: color never the only status signal; no long-press-required gestures; landscape-only responsive layout. Multi-touch: independent simultaneous touches for steering+throttle 【Recommendation】; actual browser touch behavior validated in the prototype (OQ-T04). No text entry during driving.
+- **Mouse:** no mouse steering for V1 (keyboard + touch cover both device classes); mouse remains for UI/cursor contexts and optional prototype debug look.
+- **Gamepad:** not planned for V1 (Keyboard+Touch product target) — a candidate future device only if the owner requests; scope unchanged, not reduced.
+
+### 37.3 Action lifecycle & state reset (single owner: GameFlow → input adapter)
+| Event | Adapter behavior |
+|---|---|
+| Any `AppState` transition | **Full driving-input reset** — clear all pressed/held values, cancel input buffering (prevents stuck-input defects) |
+| Pause enter | stop driving-input polling; enumerate UI intents only |
+| Loading | ignore driving inputs (veil non-interactive) |
+| Retry (scene reuse) | fresh reset before lap start |
+| Browser focus loss (tab blur) | neutral-input frame + Race-Rules pause request (§30.4) |
+| Ad interruption (Phase 13) | zero driving input during ads (D-027); restored only via explicit resume |
+
+### 37.4 Action definitions (no final values invented)
+| Action | Surface | Implementation instruction |
+|---|---|---|
+| Steering | signed −1..+1 per frame | adapter reports the *raw* normalized sample; speed-sensitivity/response shaping lives in the vehicle domain (§36.6) |
+| Throttle / Brake | 0..1 digital (analog where device reports it) | digital ramp shaping = tuning surface (OQ-02) |
+| Handbrake | boolean | routes to the drift-support path (§36.6) |
+| Pause | discrete intent | converted to AppCommand via `IAppInput`, never a direct state change |
+| Camera intent | discrete (reset/look toggle) — presentation-only | camera rig consumes; never mutates gameplay |
+
+Map switching is event-driven from `StateChanged` (Race map vs UI map). Rebindable controls belong to the Settings screen production (OQ-A03) — prototype ships fixed experimental bindings, zero remap surface, no promised feature depth.
+
+### 37.5 Input System package vs Legacy Input (D-034 【Provisional】 preserved)
+| Dimension | Input System package (`com.unity.inputsystem`) | Legacy Input Manager |
+|---|---|---|
+| Delivery | Event-driven, action maps, buffered input | Polling per frame |
+| Multi-device/mapping | Native, incl. touch | Manual ad-hoc |
+| Alignment | Preferred direction per D-034 | Currently active baseline (no package) |
+| WebGL caveats | touch/mouse handling profiles per docs; must validate | Decades of web behavior |
+| Constraint | **Install requires explicit owner approval** (manifest change) | Available today |
+| Ownership cost | Event lifecycle discipline; adapter | Fewer moving parts; weaker UI integration |
+
+【Recommendation (unchanged, owner-gated):】 implement the adapter behind `IVehicleInput`/`IAppInput`; when Phase 4/5 needs the package, request installation explicitly with GO/NO-GO criteria (§44).
+
+### 37.6 Testing & WebGL risks (planned; nothing exists)
+Tests: EditMode adapter mapping + reset semantics (zeroed on every major state change); PlayMode fake-adapter drives a full lap deterministically; manual browser keyboard/mouse + representative mobile touch (device matrix owner choice, OQ-P01); input-path profiler check (no per-frame alloc). Risks: (1) touch latency/multi-touch quirks in target browsers — measure, don't assume; (2) browser context stealing (long-press context menu, focus loss) — suppression per platform-constraints guidance; fragile behaviors go on the OQ-P02 re-verification list; (3) keyboard layout/locale variance (Arabic layouts must not break driving) — normalized positional mapping recommended, final choice pending OQ-A03; (4) reserved browser keys — Escape overlay-close only, arrow-key scroll suppressed, browser context menu unbound; (5) pointer-lock not needed for driving; recorded as a caveat for any future look feature.
+
+### 37.7 Prototype vs production scope
+| Prototype (Phase 4–6) | Production (Phase 10–12+) |
+|---|---|
+| Keyboard + touch driving minimum viable; fixed default bindings | Full control layouts per approved specs; Settings rebinding |
+| Interfaces + legacy-bridge adapter | Package decision realized (if owner selects) under the same seam; gamepad if owner requests |
+| Pause intent + camera-look debug | Camera action polish, accessibility remap |
+
+## 38. Camera and presentation architecture
+
+> Status: capability design, not feel; OQ-01/OQ-A06 leave the final perspective open (temporary default allowed for the prototype); no distances/FOV/damping/offset values are invented.
+
+### 38.1 Rig ownership
+Owner: Camera/Presentation system (§29 S14) — one `VehicleCameraRig` per race instance, created/torn down with race scope; owns **no gameplay state** — read-only consumer of Vehicle telemetry. Racing cameras are gameplay-external by design: replaceable without touching Vehicle (future cockpit view = rig swap).
+
+### 38.2 Chase rig pipeline (capability)
+```text
+chassis anchor (per-profile marker)
+  → desired follow position (anchor + speed-scaled look-ahead offset)
+  → critically damped spring / smooth-damp (position + rotation)
+  → sphere-cast collision check (pivot → desired, track collision layers only)
+  → final position/rotation → FOV ramp + optional drift yaw damping
+```
+- Follow target: a per-vehicle profiled marker transform (not vehicle root — root rotation destabilizes follow).
+- Speed-based look-ahead: offset/distance scale with the speed vector 【capability; all magnitudes = profile tuning surfaces OQ-01/OQ-A06】.
+- Drift response: reduced yaw damping while drift is active so the vehicle visibly slides in frame (capability in rig; per-class via profile).
+- Manual-look offsets: optional, prototype-debug oriented; no committed player feature.
+
+### 38.3 Damping, collision, state transitions
+| Responsibility | Approach 【Recommendation】 |
+|---|---|
+| Damping | critically damped spring constants per profile; separate position/rotation stiffness; freeze-when-paused (smoothing halts, no oscillate-back) |
+| Collision avoidance | sphere-cast from anchor toward the desired position; layer mask = track/environment collision layers only (no gameplay-layer coupling); push-in with profile minimum distance |
+| Race start | rig spawns at profile spawn offset, aimed toward the drive path |
+| Pause | freeze smoothing |
+| Retry | keep rig; reset to spawn orientation |
+| Results | same rig frozen shot (parked orbit is a future option, not built); transition veil covers swap |
+| Camera-collision edge cases | fallback min-distance clamp (never snaps inside geometry) — tunable |
+
+### 38.4 Camera profiles & performance
+`CameraProfile` (ScriptableObject template, Data-pattern per D-035): offset, distance ranges, damping constants, look-ahead factors, FOV ramp shape, drift-yaw damping factor, collision radii/min distance, per-class defaults (2/3/2/3 composition per D-014 planning). **All numeric fields are placeholders to be filled via Phase-6 tuning — this design invents none.** 1 profile per class minimum (4 files), extendable per-vehicle via override assets — no code forks.
+Performance: single active camera; no render textures in the prototype; post-processing adoption is gated by the pipeline decision (OQ-T02/D-032) and is a profiling-evidence surface (P8) — nothing adopted by default here. Camera math uses no per-frame allocations (struct reads + damped motion math; frame-bound GC rule). Camera follows only the player (no AI spectator logic before OQ-T09).
+Debugging: editor/debug-build overlays (rig path lines, predicted vs actual follow position, look-ahead vector, collision hit point) — never shipped enabled in release; free-cam tooling owner-gated (Phase 4+).
+Validation: profile schema test (valid ranges; per-class defaults exist) EditMode; scripted camera-collision test in a dummy tunnel + manual; smoothness = **human D-023 playtest** (not a unit test); included in frame profiling at P8 steps.
+Future options (none approved): cockpit/hood cam — candidate only, owner decision with its own profile data; photo/orbit mode — **not planned** (outside GDD V1 scope per D-020 exclusions); recorded to prevent surprise scope creep.
+
+## 39. Save architecture (P5/D-036 preserved; provider undecided OQ-09/T05)
+
+### 39.1 Layering & boundaries
+Layered design (binding structure): `SaveModel` (plain serializable DTOs, versioned with `saveVersion`) ⇄ `ISaveStore` (persistence abstraction defined in Core) ⇄ `SaveService` (orchestration: load at boot, autosave on progression events + session end, failure policy) — `BridgeSaveAdapter : ISaveStore` arrives **only at Phase 13** (D-036 strict), inheriting atomic semantics or degrading gracefully per a real Bridge capability probe; the OQ-P02 re-verification ritual precedes any coding; no Bridge API call exists anywhere else (§14).
+- **In scope:** player profile; unlocked vehicles; upgrade levels per vehicle; championship progress & completion; best results/stars (provisional communication model, GDD §20 — thresholds OQ-04); currency/recognition metrics 【shape only, values OQ-17】; settings (language, audio volumes, control-preference placeholders); `saveVersion`.
+- **Out of scope:** any definition/asset content (re-derived from Data Definitions every boot); race telemetry/logs; analytics.
+
+### 39.2 Serialization (candidates; no final choice)
+| Candidate | Pros | Cons |
+|---|---|---|
+| Unity `JsonUtility` | zero dependencies, tiny, fast | schema-evolution friction, no polymorphism |
+| Newtonsoft Json (package) | flexible, mature, migration-friendly | package install → **owner approval**; adds size |
+| custom bit-packed writer | smallest payload | highest code burden, brittle |
+【Recommendation】 start JsonUtility; select the final format at Phase-11/13 implementation, owner-gated. Serialization owner: SaveService only; DTOs are plain serializable classes — no Unity-Object refs, no GUIDs/asset pointers in save payloads (IDs only).
+
+### 39.3 Versioning & migration
+`saveVersion` integer at root; unknown-future version → refuse + fresh-defaults path (never guess-forward); backward deserialization via staged per-version converters added only when a save format actually changes (V1 launch saves version 1); migration registry is a pure-function chain, EditMode-testable with synthetic payloads. First-run defaults (incl. the default-language rule — single origin §29 S13) are owner-gated OQ-09.
+
+### 39.4 Save/load failure & recovery (policies pending OQ-09 owner approval where marked)
+| Scenario | Detection | Immediate behavior | Recovery |
+|---|---|---|---|
+| Write fails (quota/private block) | ISaveStore result code | hold current in-memory state; one retry; surface warning presentation if repeated (wording spec-gated) | next autosave; storage diagnostics recorded in evidence |
+| Load returns empty (first run) | version 0/absent | fresh defaults 【values/spec owner-gated OQ-09】 | normal first-run |
+| Load corrupt (parse fail / bad version) | validation | discard payload; try a backup copy if one exists 【Recommendation: SaveService keeps previous-good copy rotation — pending OQ-09】; else fresh defaults + corruption log | continue with defaults; never fabricates progress |
+| Valid-but-invalid (schema mismatch after migration) | migration failure | treat as corrupt path | same as corrupt |
+
+### 39.5 Autosave trigger candidates (recommendation pending OQ-09)
+1. After each `ProgressionUpdated`/`Unlocked` event (progression mutation boundary); 2. after Settings change (immediate); 3. after upgrade application; 4. on Results accepted (end-of-race boundary, coalesced with #1); 5. browser shutdown (`pagehide`/`visibilitychange`-derived attempt — **must be validated on actual target browsers; not globally guaranteed**). No timer-based autosave during driving (D-027: no interruptions mid-drive).
+
+### 39.6 Atomicity & duplicate-write protection
+- Single-writer rule: SaveService is the only SaveModel writer (§34.3); concurrent write requests coalesce into a queue (latest wins) — no concurrent double writes.
+- Atomic swap 【Recommendation, provider-permitting】: write to a temp key/blob first, then swap/rename to the live key via `ISaveStore` atomic semantics; provider capabilities determine the actual guarantee (Phase-13 adapter inherits the interface contract). In-flight mid-write failure leaves the live key unchanged; temp cleaned on next boot.
+- Exactly-once result processing lives at the Progression boundary (§30.5); Save serializes the *post-state*.
+
+### 39.7 Progression-applied-but-unsaved window (bounded, accepted-risk note)
+Window between `PlayerProgress` mutation and the coalesced SaveService write completing; bounded by the autosave cadence — worst case one race-completion delta. Mitigation candidates (none final): the trigger list above; Bridge cloud save later adds a second recovery surface (Phase 13, OQ-T05). Explicitly **not** a data-loss guarantee — a browser tab kill can still lose ≤ one race's delta; recorded as an accepted-risk note pending OQ-09.
+
+### 39.8 Save lifecycle & WebGL persistence constraints (facts; provider undecided)
+| Moment | Save behavior |
+|---|---|
+| Race scene load/unload | no save involvement (session only) |
+| Results accept / progression update | autosave via trigger candidates |
+| app-quit / tab hide (web) | attempt final save on hide/`pagehide` 【browser-compatibility caveat】 |
+| ad interruption (Phase 13) | no forced save during ads; resume path revalidates |
+
+Provider candidates (never quoted as guarantees): browser `localStorage` (small, synchronous, quota-limited per browser — exact limits diverge by vendor and are measured), IndexedDB (async, larger, eviction varies), Bridge cloud save (Phase 13, evaluated with real Bridge docs after the OQ-P02 ritual). Private/incognito modes commonly constrain storage → failure recovery (§39.4) is mandatory, not optional. Data Caching (build caching) is a *different* mechanism from save persistence — never conflated (§28.3).
+
+## 40. WebGL performance and build strategy
+
+> Status: no performance budget number invented; no browser/device guarantee invented; **no WebGL build has been performed** — the batch-mode Editor launches prove environment capability only, not a successful web build. Thresholds are evidence-gated (P8/D-006 note; OQ-T08 OPEN). Evidence classes: 【Verified env fact】 = verified on this workstation; 【Official-doc fact】 = Unity 6.6 manual (2026-11-05); 【Expectation】/【Proposal】 = planning positions; 【Unverified — validate】 = pending measurement.
+
+### 40.1–40.3 Build architecture & pipeline
+- 【Official-doc fact】 A web build = `index.html` + `.data` (virtual file system payload) + `.wasm` (engine runtime) + loader JS; the `.data` payload remains resident (uncompressed) in browser memory while running → pack content into loadable/unloadable units (AssetBundles) and keep the always-resident blob lean (§28.3).
+- 【Verified env fact】 Unity 6000.6.8f1 with WebGL Build Support installed and identity-confirmed (Hub 3.22.5, batch-mode start exit 0, UnityPersonal entitlement). 【Unverified — validate】 an actual project build (OQ-T01 compatibility scope), size, startup memory, runtime behavior on Playgama hosting.
+- 【Proposal】 local batch pipeline (P7/D-038): CLI invocation of the installed editor with `-buildTarget WebGL` + a build method (editor code authored only under Phase-4/7 authorization) → artifact directory → manual archive/inspection → local browser smoke; full `-logFile` capture required for evidence. CI deferred per D-038 until release-cadence justification with owner approval.
+- Development vs release build profiles 【Proposal】: dev = debug symbols, console stack traces, low stripping, profiler hooks; release = maximum stripping, no diagnostics, profiler off; compression choice affects loader size/decompression hosting needs — measured at release, no invented numbers. Decompression-fallback details are a deployment decision recorded via the `PLAYGAMA_CONSTRAINTS.md` re-verification (OQ-P02).
+
+### 40.4–40.7 Execution constraints & runtime discipline
+- 【Official-doc fact】 single WebAssembly memory block; growth must be physically contiguous and can fail; mobile browsers need deliberate initial-memory tuning (Player Setting) sized to typical usage.
+- 【Official-doc fact】 frame-bound GC (§28.3) — per-frame allocation is an architecture rule violation, not tuning slack. Binding ruleset: no per-frame `new` in hot paths; no LINQ in gameplay loops; events use `readonly struct` payloads; no string concatenation outside editor/debug guards; lists/dicts pre-allocated with explicit capacities at load boundaries; unavoidable allocations namespaced to loading phase, never racing. Per P8: each build stage records allocation notes; repeated violations become defect-backlog items, not habits.
+- 【Expectation】 CPU/physics cost concentrates in wheel rigs × substeps, suspension raycasts, and rigidbody contact processing — only the player vehicle(s) simulate in V1 single-player (no AI before OQ-T09). Timestep/substeps are measured decisions (§36.9); **no frame-rate target promised**.
+- 【Expectation】 download-size levers (no numbers invented): engine stripping; texture compression/resolution policy; audio streaming vs decompress-in-memory; avoiding unnecessary packages; minimal shader variants (pipeline-dependent OQ-T02); AssetBundle separation of environment content out of the initial blob.
+- 【Expectation】 draw-call discipline: shared-material patterns, atlas discipline, batching-friendly authoring rather than runtime tricks; actual numbers from profiling evidence.
+
+### 40.8–40.15 Asset domains & behavior
+- Textures/audio 【Official-doc fact + Expectation】: textures dominate memory; compression format per platform; audio streaming reduces resident memory but costs latency; both profiled per asset family at vertical slice (OQ-A08/T08) — no invented caps. Arabic font set is a known OQ-A01 licensing/size gate.
+- Asset loading 【Proposal, per §35.6】: race/environment content behind the loadable boundary (additive scenes/bundles); UI/bootstrap inside persistent root; language/font assets load with UI.
+- Scene loading & cleanup: additive unload + `UnloadUnusedAssets` at race exits; retry never reloads; repeated load/unload cycling must not steadily grow heap — verified at vertical slice, not assumed.
+- Input latency: derived from frame pacing (no invented numbers); mitigation candidates: input processed at the fixed-update boundary; measured in-browser (prototype, OQ-T04).
+- Browser audio activation: web audio usually requires a user-gesture unlock — design defers audio init to the first gesture (§29 S12); browser variance validated in the prototype, not assumed.
+
+### 40.16–40.19 Compatibility, profiling, diagnostics
+- Compatibility ladder (each stage evidence-gated): (1) local batch artifact loads via simple HTTP hosting; (2) DevTools checks — console exception absence, wasm size sanity, network waterfall (`.data` weight visible); (3) gameplay smoke (Boot→Race→Results); (4) mobile-browser probe **per QA matrix plan** (device choice owner, OQ-P01).
+- Browser/device test matrix: not yet defined 【Verified】. 【Proposal — owner-gated placeholder, OQ-P01】: desktop-first triage (Chrome, Firefox, Edge, Safari on dev workstations) + representative Android/iOS chosen at Phase-13/14 QA planning — the design fabricates no "supported list".
+- Profiling workflow (P8 evidence ritual — binding; thresholds derived **from** measurements, recorded in the `PLAYGAMA_CONSTRAINTS.md` §5 evidence log):
+```text
+Stage 1: Empty/min web build → record baseline sizes, load, GC notes
+Stage 2: Prototype build (driving loop) → record frame cost, GC pauses, heap growth over retries
+Stage 3: Vertical-slice build → record full quality-bar evidence → basis for the OQ-T08 budget proposal
+```
+Each measurement gets build hash, date, machine/network context, readings; deviations become defect backlog. Instruments (title suggestions, no tool installed): Unity Profiler attached to the dev web build + browser DevTools performance/memory traces.
+- Build failure diagnostics 【Plan】: expected classes (not yet observed) — wasm heap allocation failure at startup, missing decompression support at host (mixed content/mime config), C# compile errors in the batch log, content-key failure at runtime (fail-closed validation). Rule: build log always retained (`-logFile`); browser console/screenshot attached to the failure report.
+
+### 40.20–40.23 Automation, CI, Playgama boundary, acceptance
+- Local batch automation 【Proposal — description only; no scripts authored】: entrypoint (Phase 4, owner-gated) parametrized by project root, build method name, output dir, web target; invokes the installed editor CLI, waits, verifies exit code, captures the log, moves artifacts, prints key line markers. Windows/Linux parity deferred (Ubuntu today).
+- Future CI (D-038 deferral, not rejection): trigger candidates = release-cadence builds, PR-time web smoke. Known constraints recorded for future owner review: Unity licensing on hosted runners, runner storage, headless license activation fragility.
+- Playgama integration boundary 【Phase 13 strictly】: build output must satisfy `PLAYGAMA_CONSTRAINTS.md` packaging rules (`index.html` at archive root, Latin filenames, no external asset hosting, re-verify ritual); nothing Bridge-related ships before Phase 13.
+- Performance acceptance 【evidence-first】: each P8 stage produces its evidence; acceptance thresholds are set by the owner from that evidence and recorded as the budget table (OQ-T08 resolution); failures roll into the profiling-led fix list — never silently accepted.
+- Constraint cross-check 【Verified env fact】: editor + WebGL module + identity + C# extensions installed; built-in renderer baseline. 【Official-doc fact】: build architecture, frame-bound GC, `.data` residency, memory/heap constraints, audio unlock, Data Caching. 【Expectation/Proposal】: levers, profiles, evidence-gated acceptance, bundle strategy, A/B comparison plan. 【Unverified — validate】: actual build success; sizes; startup memory; runtime on Playgama; browser/device matrix; OQ-T01 compatibility scope; OQ-T02 A/B results; OQ-T08 thresholds.
+
+## 41. Error and recovery paths (consolidated; cross-section consistent)
+
+| Failure | Detector | Immediate policy | Recovery | Status |
+|---|---|---|---|---|
+| Invalid content definitions | Definition-index validation (§30.6 step 4) | fail-closed at Boot; dev diagnostics name the asset; on release builds block progression to gameplay, present generic maintenance wording — exact wording spec-gated | content fix via pipeline | consistent; protects OQ-A05 discipline |
+| Failed scene loading | async load result (missing key, corrupt content) | cancel, unload partial state, return to prior safe state; retry affordance needs spec (no invented error screens) | P6 pattern keeps the partial-failure surface small | §35.7 |
+| Save write fails | ISaveStore result code (quota/private mode) | keep session state in memory; retry-once-then-report policy 【final policy pending OQ-09】 | next autosave re-attempts; user warning only if a real loss risk exists (wording spec-gated) | §39.4 |
+| Save load fails / corrupt | version/migration mismatch | fresh defaults + dev corruption report; **never** fabricate progress; backup-copy rotation 【Recommendation pending OQ-09】 | settings-reset controls 【UX pending spec】 | §39.4 |
+| Race interruption (browser blur/tab loss) | visibility events (platform adapter Phase 13; prototype: engine pause flags) | auto-suspend per §30.4; ads never trigger resume | manual resume only | final behavior confirmed by platform spec (§22) |
+| Pause/resume | §30.4 | Race Rules sole arbiter; manual resume only | — | consistent |
+| Fast Retry | §30.5 | scene non-reload; race-state reset; final-exit distinction (audit A2) | — | spec-gated UX |
+| Duplicate result processing | exactly-once keyed handoff (§30.5); Save serialize post-state | Race Rules produces `RaceResult` once (readonly) | idempotency key formalized at Phase 5 (race-instance ID field) | §36 above note |
+| Missing localization key | catalog parity EditMode tests; runtime fallback rule spec-gated (OQ-A03) | **never ship half-mirrored UI** | parity fixes | §29 S13 |
+| Audio initialization failure (web unlock) | user-gesture probe | silent until first gesture; retry silently | resume on next gesture 【prototype validates】 | §29 S12/OQ-A11 |
+| Platform service unavailable (Phase 13) | adapter capability probe | gameplay never depends on platform success (D-021 rewarded rules; offline-capable core) | adapter degrades per probe | Phase 13 details |
+| Memory pressure (heap growth) | profiling gates ritual (P8) — not runtime auto-detect | budget discipline + AssetBundle unload discipline | no runtime auto-degradation this scope (OQ-T08) | provisional plan |
+
+No behavior here invents new screens or English/Arabic copy — all user-facing failure presentation is spec-gated (OQ-A03).
+
+## 42. Testing and validation architecture (planned only — no claim that tests exist)
+
+| System | EditMode (planned) | PlayMode (planned) | Manual | WebGL/browser (planned) | Perf profiling (planned) | When |
+|---|---|---|---|---|---|---|
+| GameFlow transitions | pure rule-table tests | screen-circuit integration | as needed | smoke path | — | Phase 4 |
+| Bootstrap | graph construct-without-scene | — | — | — | startup segment timings | Phase 4 |
+| Data Definitions schema | schema tests w/ fixtures | — | authoring review | — | — | Phase 4 |
+| Save (DTO/migrate) | round-trip + synthetic-version tests | store-based integration | corruption drills later | storage-behavior checks | — | when Save lands (Phase 11 / Phase 13 revisit) |
+| Race Rules core | synthetic-stream scoring tests (highest-value) | scripted-lap integration | D-023 playtest | judge parity | frame cost | Phase 5–6 |
+| Vehicle physics | profile schema + pure math | repeatability lap harness | D-023 feel (authoritative) | — | wheel/substep cost | Phase 5–6 |
+| Input | adapter mapping + reset tests | fake-adapter lap | device matrix manual (OQ-P01) | latency/touch checks | input-path alloc check | Phase 5 |
+| Camera | profile schema | collision scripted test | feel playtest (D-023) | — | no-alloc check | Phase 5–6 |
+| Track & Event triggers | — | trigger correctness | — | — | — | Phase 5 |
+| Progression | rules tests + save integration | — | — | — | — | Phase 10–11 |
+| Localization | en/ar parity tests | RTL relay display check | GDD §33.5 playtest | — | — | from first UI |
+| UI navigation rules | stack/overlay rule tests | flow integration | per-screen spec reviews (OQ-A03) | touch ergonomics | — | Phase 4 rules → later |
+| WebGL build | — | — | browser smoke ladder (§40.16) | OQ-T01/OQ-T07 evidence steps | P8 three-stage ritual | first build owner-gated |
+| Platform adapters (Phase 13) | mocked adapter tests | — | — | real behavior at Bridge contact (OQ-P02 first) | — | Phase 13 |
+
+Rules: tests never claim performance (that is the evidence log, §20); OQ-T07 (automated build/test strategy) stays formally OPEN — this section proposes only; test naming/conventions finalized with the Phase-4 code-conventions task 【Owner gate】.
+
+## 43. Integration review results (F1–F5, performed 2026-11-05)
+
+- **F1 — Responsibility boundaries (15 systems classified; Commercial V1.0 scope untouched):** required early (9): Bootstrap, GameFlow, Data Definitions (thin index + schema validation), Runtime State (thin), Vehicle, Track & Event (minimal test track), Race Rules (minimal judging), Localization (thin), Camera/Presentation (temporary default per OQ-01). Initially folded (3): Audio (slim router inside Core-owned services), Garage (roster browsing inside UI when roster exists), UI/Navigation (thin registry + minimal HUD in the Core seam; `UI` assembly later). Deferred (3): Progression (implementation; seam reserved), Save (implementation; `ISaveStore` reserved), Platform Integration (fully, Phase 13). No unnecessary manager introduced; the four folds exist as responsibilities inside other systems until their phase. Deferrals are stage-scoped (D-030), not scope reductions (F-G2 ✅).
+- **F2 — Dependency integrity 【Consistent】: dependency directions (downward + Core-owned interfaces); interface ownership (the five seams in Core); assembly matrix cycle-free (§33.2, audit F-E1 inversion edge documented); no circular dependencies; event-bus usage bounded (§32); data/runtime-state ownership matches §34.3 exactly.**
+- **F3 — End-to-end gameplay flow (GDD §6 loop; no new features):**
+| Loop step | Owning system | Data handed onward |
+|---|---|---|
+| Select Championship | ChampionshipSelection (UI) reading ChampionshipDefinition + Progression progress | `SelectionContext.championshipId` |
+| Select Event | EventSelection (UI) + EventDefinition (8-type basis 【Provisional D-031】) | `SelectionContext.eventId` + rules handle |
+| Select/Prepare Vehicle | Garage (UI/context) reading VehicleDefinition + unlock state | `SelectionContext.vehicleId` |
+| Pre-Event | Pre-Event screen; assist/controls confirmation values per OQ-A03 spec | validated `SelectionContext` → GameFlow approve |
+| Race loading | GameFlow async additive load (P6 【Provisional】); Vehicle+Track+Camera race-scoped created | scene keys from EnvironmentTheme/SceneDescriptor |
+| Race driving | Vehicle physics (§36) ◀ `IVehicleInput` (§37) on track signals (§29 S4) | telemetry stream → Race Rules |
+| Scoring/judging | Race Rules pure core (formulas OQ-03 Open) | `RaceResult` (once; numeric outputs stay empty until formulas approved) |
+| Results | Results screen reads projection; GameFlow state change | exactly-once handoff (§30.5) |
+| Rewards/Unlock presentation | Progression `ApplyRaceResult` → overlays (spec pending OQ-A03/OQ-17) | `ProgressionUpdated`/`Unlocked` |
+| Upgrade/Unlock | Garage/Upgrades flows → UpgradeDefinition curves → UpgradeModifiers (§36.7) | physics parameters next race |
+| Progression update | Progression → SaveService autosave (coalesced, §39.5) | SaveModel snapshot |
+| Replay | GameFlow retry command (scene reuse — no reload) or fresh event selection | — |
+- **F4 — Error/recovery paths:** consolidated table §41 — verified consistent across the package (audit corrections applied).
+- **F5 — Testing traceability:** §42 matrix — planned tests only; zero claims of executed tests.
+
+## 44. Draft decision records and owner-gated register (proposals — NOT filed in `DECISIONS.md`)
+
+### 44.1 Draft decision records D-039…D-042 (audit F-C1 response; UNFILED)
+Four working-architecture requirements introduced by the design pass with no registered decision record. Suggested filings (owner decides whether to approve each as PROVISIONAL/APPROVED-INITIAL):
+
+| Draft ID | Topic | Proposed content | Proposed status |
+|---|---|---|---|
+| Draft **D-039** | Prototype communication model | Direct references + interfaces + per-emitter C# events for the prototype; typed ring deferred with documented adoption evidence (§32.4) | tentative PROVISIONAL |
+| Draft **D-040** | Exactly-once result processing | Race-completion handoff idempotent by session-unique race-instance id; Progression sole applier (§30.5) | tentative PROVISIONAL |
+| Draft **D-041** | Assembly reference matrix | Core/Data/Gameplay (+tests) initially; reference table §33.1; UI/Platform/tests staged | tentative PROVISIONAL |
+| Draft **D-042** | Fail-closed data validation | Definition-index validation at Boot; invalid content blocks gameplay with diagnostics (§34.2/§41) | tentative PROVISIONAL |
+
+These are implementation-approach requirements, not question resolutions — filing them would close no OQ. Consequences of not filing: they remain recommendation text here (still govern by review, but untraceable in the decision register — the audit's concern). **They are not registered in `DECISIONS.md` (owner-gated); the audit's process suggestion R-2 remains open.**
+
+### 44.2 Owner-gated decision register (current, consolidated) 【Open】
+| # | Item | Status | Options | Proposed recommendation | Approval needed |
+|---|---|---|---|---|---|
+| 1 | Approve Part II of this document as the working architecture plan | Open | approve as-is / request rework | approve (does not close any OQ) | owner review |
+| 2 | Draft decision records D-039…D-042 filing | Open | file all as PROVISIONAL / file subset / reject | file all 4 | DECISIONS change-history entry (owner) |
+| 3 | Render pipeline choice | Open (OQ-T02/D-032) | Built-in / URP after A/B | URP lean, conditional on profiling | same-scene A/B evidence + owner |
+| 4 | Vehicle physics strategy | Open (OQ-T03/D-033) | WheelCollider-first / hybrid | WheelCollider-first (already PROVISIONAL) | D-023 gate + profiling + owner |
+| 5 | Input System package install | Open (OQ-T04/D-034) | install / stay legacy adapter | install when Phase 5 requires (behind seams) | manifest-change owner approval |
+| 6 | First WebGL build authorization | Open (OQ-T01 scope/OQ-T07) | build now / defer | build empty project first (advances OQ-T01/T07/T08 stage 1) | owner |
+| 7 | Save provider + autosave cadence + first-run defaults + backup rotation | Open (OQ-09/OQ-T05/D-036) | per candidates §39 | JsonUtility-first tilt; trigger list; rotation | owner policy |
+| 8 | Phase-4 conventions (Assets skeleton, asmdef set, naming, scene conventions, code conventions) | Foundation accepted (owner-directed Parts 4.1–4.2, 2026-11-05 → D-043 APPROVED-INITIAL); remaining Phase-4 task authorizations open | owner-authorized task per task step | continue Phase-4 tasks (T-4.5 GameFlow stubs, T-4.6 build automation) | owner |
+| 9 | Exact retry flow & loading-cancel UX | Open (GDD §6/OQ-A03) | spec pass | defer to OQ-A03 | spec approval |
+| 10 | Loading-cancellation capability boundary (R-4) | Open | approve capability-only statement / extend UX now | approve; UX details at OQ-A03 | owner confirmation |
+| 11 | Camera perspective & feel values | Open (OQ-01/OQ-A06) | per tuning | temporary default for prototype | owner at Phase 6 |
+| 12 | All numeric content/performance values | Open (OQ-03/04/06/07/14–19, OQ-T08) | measurement/content passes | none invented — established from evidence/content design | owner |
+| 13 | Playgama Bridge integration | Phase-13-locked (D-036 constraint) | nothing now | stays locked; OQ-P02 ritual before coding | owner at Phase 13 |
+
+### 44.3 Phase-3 readiness verdict (consolidated from the final readiness report)
+**READY WITH DOCUMENTED OPEN DECISIONS** (verdict preserved from the Phase-3 readiness report): every Phase-3 documentation deliverable existed and was internally consistent (F1–F5); the provisional direction set complete and traceable (P1–P8 → D-032…D-038 → Part II); audit corrections applied; no OQ closed, no decision promoted, no package/settings/repo-structure change, nothing staged/committed. The documented open decisions above are exactly the owner-controlled residues Phase 3's mandate must leave open. **Documentation completion ≠ implementation readiness:** no code, scene, prefab, or tooling exists; the architecture is a blueprint awaiting (a) owner approval and (b) the OQ-T01/OQ-T07/OQ-T08/OQ-T02/OQ-T03 validation evidence required for final technical decisions. **Phase 3 is NOT complete** — closure requires owner approval of the architecture plus the listed validation evidence (see `production/ROADMAP.md` Phase 3 status).
+
+## 45. Architecture risks and mitigations
+
+### 45.1 Discovery-phase risks
+| # | Risk | Impact | Likelihood | Mitigation |
+|---|---|---|---|---|
+| R1 | URP/Built-in A/B profiling consumes Phase 4/5 time | Medium | Medium | Time-boxed A/B on one prototype scene; prototype stays minimal regardless |
+| R2 | WheelCollider tuning rabbit hole | High (D-023 gate) | Medium | Data-driven per-class curve packs; daily playtest cadence; hybrid fallback documented |
+| R3 | Web GC pitfalls in naive code | High | High unless disciplined on day 1 | Mandatory patterns from day 1 (§28.4/§40.7); profiling habit via build artifacts |
+| R4 | Browser/localStorage save limits (e.g., iOS Safari small quotas) | Medium | Medium | Size-tolerant SaveModel (small payloads); degradation plan; Phase-13 Bridge pivot |
+| R5 | Playgama platform terms change before Phase 13 | Medium | Low-Med | `PLAYGAMA_CONSTRAINTS.md` re-verify ritual (pre-integration & pre-submission) |
+| R6 | COOP-COEP host support missing for Burst/jobs on Web | Medium | Medium | Single-threaded-first gameplay; multithreading only as a post-profiling optimization |
+| R7 | WebGL audio unlock (user gesture) mishandled | Low-Med | Med | Audio bootstrap behind first user interaction; prototype task |
+| R8 | Input System install deferred → abstraction leak | Low | Low | Interfaces designed regardless; swap cost controlled |
+
+### 45.2 Detailed-architecture risks (R-A series)
+| # | Risk | Mitigation | Validate by phase |
+|---|---|---|---|
+| R-A1 | Overengineering: reserved-but-never-used interfaces accumulate | Reserve only seams with named consumers (§29.4); every addition needs a logged consumer | Phase 5 readiness review |
+| R-A2 | Event-bus sprawl / hidden globals | Closed set §32.2; ring owned by Core; no string-topics; subscription assertions in integration test | Phase 5–6 |
+| R-A3 | Dependency cycles | asmdef reference tables compile-enforced (§33); violation fails the build | Phase 4 → enforced forever |
+| R-A4 | Double truth for progression facts | Exactly-once handoff (§30.5) + single-mutator matrix (§34.3); integration test asserts "one apply" | Phase 10–11 |
+| R-A5 | Data duplication (UI caching stale stat copies) | Projection interfaces only; no cached mutable state in UI | first UI code review |
+| R-A6 | Save ownership conflict (multiple writers) | SaveService sole writer; Progression push-only; schema additions gated to Save owner | Phase 11/13 |
+| R-A7 | WebGL lifecycle: audio unlock, tab suspend, context loss | explicit §30.6/§41 steps; prototype must exhibit both behaviors once before Phase-6 sign-off | Phase 5–6 |
+| R-A8 | Web-GC pressure from event/message allocations | readonly-struct payloads; no per-frame events (§32.3); P8 profiling habit | every build stage |
+| R-A9 | Prototype architecture ≠ commercial architecture (retrofit debt) | deferred systems get Core-facing seams now; assemblies land when needed (§33.1 "When") | Phase 7 vertical-slice gate |
+| R-A10 | State sync between app FSM and race FSM (e.g., quit during loading) | single transition coordinator + restricted race command surface; loading-cancel rules §30.3 | Phase 5 |
+| R-A11 | Untuned feel values derail timeline | data-driven profiles; playtest cadence; fallback path (D-033) | Phases 5–6 |
+
+## 46. References
+- Internal authoritative: `docs/GDD.md` (§6 loop, §24 screens, §25/§27/§33) · `docs/DECISIONS.md` (D-002/006/008/009/010–014/020–023/027–031, D-032…D-038, v0.3.1–v0.3.3 history) · `docs/OPEN_QUESTIONS.md` (OQ-T01–T09, OQ-01…OQ-21, OQ-A01…A11, OQ-P01…P05) · `docs/TRACEABILITY.md` · `docs/PROJECT_STRUCTURE.md` · `docs/AI_AGENT_GUIDELINES.md` (§2/§3/§5/§6a) · `docs/PLAYGAMA_CONSTRAINTS.md` · `production/ROADMAP.md` (phases + milestone register M0–M12).
+- External official documentation (read-only references, accessed 2026-11-05): Unity 6.6 Web manual (overview; Memory in Unity Web — heaps/`.data`/AssetBundles/Data Caching/GC; Cache behavior; graphics APIs; audio; multithreading/COOP-COEP; .NET API support; WebAssembly 2023; debugging) at `docs.unity3d.com/6000.6/Documentation/Manual/...`; `WheelCollider` Script Reference (6000.6); URP 17.2 manual; Input System 1.14 manual; Playgama Bridge getting-started docs and `github.com/Playgama/bridge-unity` (min Unity 2022.3, package `com.playgama.bridge` v2.4.0 — **nothing installed**).
+- Historical provenance: this Part II consolidates the nine retired Phase-3 standalone documents (created 2026-11-05; retired by consolidation, recorded in `CHANGELOG.md`); discovery content was produced without modifying any existing decision status, open question, package, setting, scene, or script. The independent architecture audit returned **CONDITIONAL PASS (0 CRITICAL / 3 MAJOR / 6 MINOR)** — the three MAJORs and the audited MINOR pins were resolved as the applied audit-correction set A1–A4 (§29.5 S8/S10/S13 pins, §30.2 row-6 and row-8, §30.5 retry-context rules, §32.2 allocation qualification, §30.6 step-9/16 scopes); the four unregistered working requirements it identified are the draft decision records in §44.1.

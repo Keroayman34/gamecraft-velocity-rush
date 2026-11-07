@@ -76,11 +76,52 @@ Do not put concept-reference images into Unity runtime folders unless they are i
 
 ## 6a. File modification rules
 - Modify only files within the assigned task's scope; leave unrelated files untouched.
-- Never delete existing documentation; instead, correct, extend, or reorganize it — with the original intent preserved.
+- Never delete existing documentation; instead, correct, extend, or reorganize it — with the original intent preserved. *(Exception: deletions may occur only under an explicit owner-approved consolidation instruction, after every piece of unique content is verified as migrated and cross-references are updated.)*
 - Never overwrite reference images or replace content with shortened summaries (extension, not substitution).
 - Do not create new files without a justified, unique responsibility (`docs/PROJECT_STRUCTURE.md`).
 - When changing any decision, follow `docs/DECISIONS.md` change procedure; never overwrite a decision silently.
 - Update `CHANGELOG.md` for meaningful project changes.
+
+## 6a-1. Documentation baseline & no-new-Markdown policy
+The project maintains a small, stable set of authoritative documents. A task must normally **update these files** instead of creating another planning document.
+
+**Authoritative baseline (updated in place; consulted before any work):**
+| File | Authoritative for |
+|---|---|
+| `docs/GDD.md` | Product vision, game design, gameplay loop, vehicles/championships/events/environments, screens/UX, progression & rewards |
+| `docs/TDD.md` | Complete technical architecture (Part I baseline + Part II detailed design), vehicle physics, input, camera, scene lifecycle, data/runtime state, save, audio/logic boundaries, WebGL performance & build, testing/validation |
+| `docs/DECISIONS.md` | Approved decisions, provisional decisions, decision history & rationale (dated change procedure only) |
+| `docs/OPEN_QUESTIONS.md` | Unresolved questions, evidence required for resolution, owner-approval requirements |
+| `production/ROADMAP.md` | All 14 phases, tasks/statuses, dependencies & gates, milestone register M0–M12 with acceptance criteria, completed vs remaining work |
+| `docs/TRACEABILITY.md` | Requirement → design → task → test mapping |
+
+**Supporting set (retained in place; never duplicated):** `README.md`, `docs/PROJECT_STRUCTURE.md`, `docs/AI_AGENT_GUIDELINES.md` (this file), `docs/PLAYGAMA_CONSTRAINTS.md`, `CHANGELOG.md`.
+
+**File-creation rule:** **No new Markdown file may be created for an individual phase, task, feature, audit, design, or review** unless (a) the project owner explicitly requests it, or (b) the content has a clear independent operational purpose (e.g., a deliverable spec file inside an approved `design/` package per the design-folder rules). A per-task planning document is never created.
+
+**Default locations (route content into the baseline instead of new files):**
+- Game design questions → `docs/GDD.md`
+- Technical architecture / implementation design → `docs/TDD.md`
+- Decisions & their history → `docs/DECISIONS.md`
+- Unresolved questions → `docs/OPEN_QUESTIONS.md`
+- Execution progress, planning, status, milestones → `production/ROADMAP.md`
+- Requirement coverage & traceability → `docs/TRACEABILITY.md`
+- Operational project instructions → this file (`docs/AI_AGENT_GUIDELINES.md`)
+- Platform constraints → `docs/PLAYGAMA_CONSTRAINTS.md`
+
+Ask the owner before deviating from these locations.
+
+## 6a-2. Implementation-first workflow (mandatory per task)
+1. Read the relevant GDD/TDD sections.
+2. Check approved decisions (`DECISIONS.md`) and open questions (`OPEN_QUESTIONS.md`) that govern the work.
+3. Identify the implementation task and its acceptance criteria (status in `production/ROADMAP.md`; authorized scope from the task assignment).
+4. Implement within the authorized scope only.
+5. Run the relevant tests and validation.
+6. Review code and Unity behavior before reporting.
+7. Update the roadmap and authoritative documents **only when the work genuinely requires it** (status changes, decision changes, new open questions, coverage changes) — following the change procedures of those files.
+8. Report completed work and remaining blockers per the required task report (§8).
+
+Do not create a planning document for every task; do not restate the task outline in a new file.
 
 ## 6b. Git safety rules
 - Preserve the repository, branch, commit history, and remote configuration.

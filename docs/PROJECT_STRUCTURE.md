@@ -38,8 +38,7 @@ This file explains where project information and assets belong. It is a reposito
 │   └── prompts/
 │       └── README.md
 └── production/
-    ├── ROADMAP.md
-    └── MILESTONES.md
+    └── ROADMAP.md     # phases + statuses + dependency notes + milestone register M0–M12
 ```
 
 Note: `docs/TRACEABILITY.md` maps project requirements to the documents that cover them. Screen-, vehicle-, and environment-specific specification files are added inside their design folders only when their packages are produced; a new file must have a justified responsibility (see `AI_AGENT_GUIDELINES.md`).
@@ -64,6 +63,8 @@ Existing folders: `docs/`, `design/`, `ai/`, `production/`. Proposed future fold
 
 Do not manually create or populate `Packages/` and `ProjectSettings/` before Unity creates the project. The future `Assets/` organization (scripts, scenes, data, vehicle/environment bundles) belongs in `docs/TDD.md` and is decided after technical discovery — it must not be invented now.
 
+Phase-4 note (2026-11-05, owner-directed Parts 4.1–4.2): the minimal `Assets/` skeleton and assembly-definition set now exist and are recorded in `docs/TDD.md` §33 (implementation note); the persistent-root Bootstrap scene (`Assets/Scenes/Bootstrap.unity`, Build Settings index 0) and its composition root are recorded in `docs/TDD.md` §35 (implementation note) — validated by Unity batch mode and EditMode tests. Conventions (root namespace `VelocityRush`, assembly set, skeleton layout) were accepted by the owner and are registered as `docs/DECISIONS.md` D-043. Temporary editor tooling used to build/validate the scene was removed after validation; production scripts live only under `Assets/Scripts/` and `Assets/Tests/EditMode/`.
+
 Location and deferral clarifications (Task 0.1, 2026-11-05):
 
 - The Unity project is created **at the repository root** as specified above — `Assets/`, `Packages/`, `ProjectSettings/`, `UserSettings/` appear at `<repository root>/` alongside `docs/`, `design/`, `ai/`, `production/`. This does not change.
@@ -78,7 +79,7 @@ Location and deferral clarifications (Task 0.1, 2026-11-05):
 | `docs/` | GDD, TDD, platform rules, decisions, guides | Unity runtime assets |
 | `design/` | Reference images, UI specs, concept art, art direction | Production scripts |
 | `ai/` | Agent rules, reusable prompts, task templates | Secrets or credentials |
-| `production/` | Roadmap, milestones, release planning | Source assets |
+| `production/` | Roadmap (phases, statuses, dependency notes, milestone register M0–M12), release planning | Source assets, standalone phase/task planning documents (use the baseline files; see `AI_AGENT_GUIDELINES.md` §6b) |
 | `Assets/` | Imported runtime models, textures, audio, scenes, prefabs, scripts | Moodboards and planning docs |
 | `Packages/` | Unity package manifest and lock file | Arbitrary assets |
 | `ProjectSettings/` | Unity-generated project settings | Design references |
