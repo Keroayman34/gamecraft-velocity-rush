@@ -17,6 +17,13 @@ namespace VelocityRush.Core
 
         private bool _hasRun;
 
+        /// <summary>
+        /// True only when the ordered startup sequence completed without failure. The temporary
+        /// prototype entry gate reads this before loading content; it stays false when startup
+        /// fails closed and is unaffected by duplicate initialization requests.
+        /// </summary>
+        public bool StartupSucceeded { get; private set; }
+
         private void Awake()
         {
             Initialize();
@@ -42,6 +49,7 @@ namespace VelocityRush.Core
             {
                 startup = new ApplicationStartup(new[] { CreateEnvironmentSnapshotStep() });
                 report = startup.Run();
+                StartupSucceeded = true;
             }
             catch (StartupException failure)
             {

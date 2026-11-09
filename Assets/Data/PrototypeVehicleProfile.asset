@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 535b56779c753fbfd9c5597c99b5670e, type: 3}
+  m_Name: PrototypeVehicleProfile
+  m_EditorClassIdentifier: VelocityRush.Data::VelocityRush.Data.VehiclePhysicsProfile
+  mass: 1200
+  centerOfMassOffset: {x: 0, y: -0.25, z: 0.05}
+  linearDamping: 0.02
+  angularDamping: 0.05
+  wheelRadius: 0.35
+  wheelMass: 20
+  suspensionDistance: 0.2
+  suspensionSpring: 35000
+  suspensionDamper: 4500
+  suspensionTargetPosition: 0.5
+  forwardFrictionStiffness: 1.5
+  sidewaysFrictionStiffness: 1.5
+  motorTorque: 1000
+  brakeTorque: 2500
+  handbrakeTorque: 4000
+  steeringAngle: 30
+  brakeBiasFront: 0.5
+  engineTorqueCurve:
+    serializedVersion: 3
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: -0.0075
+      outSlope: -0.0075
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 60
+      value: 0.55
+      inSlope: -0.0075
+      outSlope: -0.0075
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  steeringSpeedSensitivity:
+    serializedVersion: 3
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: -0.009166667
+      outSlope: -0.009166667
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 60
+      value: 0.45
+      inSlope: -0.009166667
+      outSlope: -0.009166667
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4

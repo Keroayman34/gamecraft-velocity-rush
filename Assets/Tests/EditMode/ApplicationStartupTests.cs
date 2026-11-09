@@ -132,6 +132,25 @@ namespace VelocityRush.Tests.EditMode
                 "The first run must complete and emit startup segment-timing evidence.");
         }
 
+        [Test]
+        public void Bootstrapper_StartupSucceeded_IsTrueAfterInitialize()
+        {
+            var bootstrapper = new GameObject("BootstrapSuccessTestRoot").AddComponent<Bootstrapper>();
+            try
+            {
+                bootstrapper.Initialize();
+
+                Assert.That(
+                    bootstrapper.StartupSucceeded,
+                    Is.True,
+                    "A completed startup run must report success so the prototype entry can gate content loading on it.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(bootstrapper.gameObject);
+            }
+        }
+
         private static string[] SegmentNames(IReadOnlyList<StartupSegment> segments)
         {
             return segments.Select(segment => segment.Name).ToArray();

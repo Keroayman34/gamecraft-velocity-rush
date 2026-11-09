@@ -8,4 +8,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Bootstrap.unity
     guid: 48ace000459390ad0add3789ec87ee26
+  - enabled: 1
+    path: Assets/Scenes/TestTrack.unity
+    guid: a8580a36fbc0405fc848a29159217ea3
   m_configObjects: {}
