@@ -7,6 +7,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
+using UnityEngine.UIElements;
 using VelocityRush.Data;
 using VelocityRush.Gameplay;
 using Object = UnityEngine.Object;
@@ -14,13 +15,21 @@ using Object = UnityEngine.Object;
 namespace VelocityRush.EditorTools
 {
     /// <summary>
-    /// Deterministic builder for the Phase-6 handling course scene (development prototype).
+    /// Deterministic builder for the Phase-6 handling course scene, now the Phase-7 vertical-slice
+    /// demonstrator scene (development slice, Desert Circuit identity).
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The scene is intentionally NOT added to <c>EditorBuildSettings</c>: the approved WebGL
-    /// preflight still expects exactly Bootstrap → TestTrack. Phase-6 playtests open this scene
-    /// directly in the editor. Running this tool never modifies TestTrack, build settings, or the
-    /// existing prototype profiles.
+    /// preflight still expects exactly Bootstrap → TestTrack. Phase-6 playtests and the Phase-7
+    /// slice review open this scene directly in the editor. Running this tool never modifies
+    /// TestTrack, build settings, or the existing prototype profiles.
+    /// </para>
+    /// <para>
+    /// The slice profile change is deliberate and owner-approved: the active vehicle profile is
+    /// <c>CandidateA_Grip_Vehicle</c>, the environment uses baked-GI settings plus a light-probe
+    /// grid, and the scene gains the UI Toolkit HUD and the development performance probe.
+    /// </para>
     /// </remarks>
     public static class HandlingCourseBuilder
     {
@@ -32,7 +41,7 @@ namespace VelocityRush.EditorTools
         private const string RoadMaterialPath = CourseFolder + "/HandlingCourseRoad.mat";
         private const string BarrierMaterialPath = CourseFolder + "/HandlingCourseBarrier.mat";
         private const string VehiclePrefabPath = "Assets/Prefabs/PrototypeVehicle.prefab";
-        private const string BaselineVehiclePath = "Assets/Data/Tuning/Baseline_Vehicle.asset";
+        private const string DefaultVehicleProfilePath = "Assets/Data/Tuning/CandidateA_Grip_Vehicle.asset";
         private const string BaselineCameraPath = "Assets/Data/Tuning/Baseline_Camera.asset";
 
         private const int TrackLayer = 8;
@@ -106,14 +115,14 @@ namespace VelocityRush.EditorTools
             // written: the DeleteAsset/CreateAsset import cycles below unload unreferenced assets,
             // which would leave earlier preset references as fake-null Unity objects.
             TuningPresetBuilder.EnsurePresets();
-            var baselineVehicle = LoadRequired<VehiclePhysicsProfile>(BaselineVehiclePath, "tuning preset");
+            var vehicleProfile = LoadRequired<VehiclePhysicsProfile>(DefaultVehicleProfilePath, "tuning preset");
             var baselineCamera = LoadRequired<CameraProfile>(BaselineCameraPath, "tuning preset");
 
             var trackRoot = new GameObject("Track").transform;
 
             var road = new GameObject("Road");
             road.layer = TrackLayer;
-            road.isStatic = true;
+            MarkStatic(road);
             road.transform.SetParent(trackRoot, false);
             road.AddComponent<MeshFilter>().sharedMesh = roadMesh;
             road.AddComponent<MeshRenderer>().sharedMaterial = roadMaterial;
@@ -121,7 +130,7 @@ namespace VelocityRush.EditorTools
 
             var barriers = new GameObject("Barriers");
             barriers.layer = TrackLayer;
-            barriers.isStatic = true;
+            MarkStatic(barriers);
             barriers.transform.SetParent(trackRoot, false);
             barriers.AddComponent<MeshFilter>().sharedMesh = barrierMesh;
             barriers.AddComponent<MeshRenderer>().sharedMaterial = barrierMaterial;
@@ -129,6 +138,7 @@ namespace VelocityRush.EditorTools
 
             CreateGround(trackRoot, centerline, roadMaterial);
             CreateBrakingMarkers(trackRoot, centerline, barrierMaterial);
+            CreateLightProbes(trackRoot, centerline);
             CreateLighting();
 
             var spawnPoint = HandlingCourseLayout.SampleAtDistance(centerline, 0f, out var spawnTangent);
@@ -143,7 +153,7 @@ namespace VelocityRush.EditorTools
             vehicleGo.name = "PrototypeVehicle";
             vehicleGo.transform.SetPositionAndRotation(spawnPosition, spawnRotation);
             var vehicle = vehicleGo.GetComponent<VehicleController>();
-            SetObject(vehicle, "profile", baselineVehicle);
+            SetObject(vehicle, "profile", vehicleProfile);
             SetObject(vehicle, "inputSource", input);
 
             var cameraGo = new GameObject("Main Camera");
@@ -202,6 +212,25 @@ namespace VelocityRush.EditorTools
             var overlay = overlayGo.AddComponent<VehicleTelemetryOverlay>();
             SetObject(overlay, "telemetrySource", vehicle);
 
+            // Slice UI/lighting assets are created and refreshed only after every generated mesh
+            // and material has been written, so the loads below cannot observe fake-null objects.
+            SliceAssetBuilder.EnsureSliceAssets();
+            var panelSettings = LoadRequired<PanelSettings>(SliceAssetBuilder.PanelSettingsPath, "slice panel settings");
+            var lightingSettings = LoadRequired<LightingSettings>(SliceAssetBuilder.LightingSettingsPath, "slice lighting settings");
+            Lightmapping.lightingSettings = lightingSettings;
+
+            var hudGo = new GameObject("SliceHud");
+            var uiDocument = hudGo.AddComponent<UIDocument>();
+            uiDocument.panelSettings = panelSettings;
+            uiDocument.sortingOrder = 10;
+            var presenter = hudGo.AddComponent<SliceHudPresenter>();
+            SetObject(presenter, "race", race);
+            SetObject(presenter, "telemetrySource", vehicle);
+            SetObject(presenter, "document", uiDocument);
+
+            var probeGo = new GameObject("PerformanceProbe");
+            probeGo.AddComponent<PrototypePerformanceProbe>();
+
             var spawn = new GameObject("SpawnPoint");
             spawn.transform.SetPositionAndRotation(spawnPosition, spawnRotation);
 
@@ -216,9 +245,12 @@ namespace VelocityRush.EditorTools
 
             Debug.Log(
                 "[VelocityRush.HandlingCourse] Built " + ScenePath +
+                " | slice=DesertCircuit" +
+                " | vehicle=" + vehicleProfile.name +
                 " | length " + HandlingCourseLayout.TotalLength.ToString("0.0") + " m" +
                 " | checkpoints " + checkpoints.Length +
-                " | layer " + TrackLayer);
+                " | layer " + TrackLayer +
+                " | bakedGI=true lightProbes=true ui=UIToolkit");
             Selection.activeObject = AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath);
         }
 
@@ -240,6 +272,7 @@ namespace VelocityRush.EditorTools
             var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
             ground.name = "Ground";
             ground.layer = TrackLayer;
+            MarkStatic(ground);
             ground.transform.SetParent(parent, false);
             ground.transform.position = center;
             ground.transform.localScale = new Vector3(extent / 10f, 1f, extent / 10f);
@@ -259,6 +292,7 @@ namespace VelocityRush.EditorTools
                     var marker = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     marker.name = "Brake Marker " + distances[i].ToString("0") + "m";
                     marker.layer = TrackLayer;
+                    MarkStatic(marker);
                     marker.transform.SetParent(parent, false);
                     marker.transform.position =
                         position + (right * (side * ((HandlingCourseLayout.RoadWidth * 0.5f) - 0.45f))) +
@@ -276,13 +310,74 @@ namespace VelocityRush.EditorTools
             var lightGo = new GameObject("Directional Light");
             var light = lightGo.AddComponent<Light>();
             light.type = LightType.Directional;
-            light.intensity = 1.1f;
-            light.color = Color.white;
+            light.lightmapBakeType = LightmapBakeType.Mixed;
+            light.intensity = 1.25f;
+            light.color = new Color(1.0f, 0.93f, 0.82f);
             light.shadows = LightShadows.Soft;
-            lightGo.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
+            light.shadowStrength = 0.82f;
+            light.shadowBias = 0.05f;
+            lightGo.transform.rotation = Quaternion.Euler(48f, -32f, 0f);
 
-            RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.42f, 0.45f, 0.50f);
+            RenderSettings.ambientMode = AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.55f, 0.62f, 0.72f);
+            RenderSettings.ambientEquatorColor = new Color(0.52f, 0.46f, 0.36f);
+            RenderSettings.ambientGroundColor = new Color(0.30f, 0.24f, 0.18f);
+            RenderSettings.ambientIntensity = 0.9f;
+
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Linear;
+            RenderSettings.fogColor = new Color(0.82f, 0.72f, 0.55f);
+            RenderSettings.fogStartDistance = 180f;
+            RenderSettings.fogEndDistance = 520f;
+        }
+
+        /// <summary>
+        /// Builds a coarse light-probe grid over the course so the moving vehicle receives baked
+        /// indirect light without real-time GI (T-7.5). The editor bake itself is a Stage-2 task;
+        /// this step only establishes the deterministic probe layout and scene wiring.
+        /// </summary>
+        private static void CreateLightProbes(Transform parent, Vector3[] centerline)
+        {
+            var min = new Vector3(float.MaxValue, 0f, float.MaxValue);
+            var max = new Vector3(float.MinValue, 0f, float.MinValue);
+            for (var i = 0; i < centerline.Length; i++)
+            {
+                min.x = Mathf.Min(min.x, centerline[i].x);
+                min.z = Mathf.Min(min.z, centerline[i].z);
+                max.x = Mathf.Max(max.x, centerline[i].x);
+                max.z = Mathf.Max(max.z, centerline[i].z);
+            }
+
+            const float spacing = 24f;
+            var heights = new[] { 2.5f, 6f };
+            var positions = new List<Vector3>();
+
+            for (var heightIndex = 0; heightIndex < heights.Length; heightIndex++)
+            {
+                var y = heights[heightIndex];
+                for (var x = min.x - spacing; x <= max.x + spacing; x += spacing)
+                {
+                    for (var z = min.z - spacing; z <= max.z + spacing; z += spacing)
+                    {
+                        positions.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+
+            var groupGo = new GameObject("Light Probe Group");
+            groupGo.transform.SetParent(parent, false);
+            var group = groupGo.AddComponent<LightProbeGroup>();
+            group.probePositions = positions.ToArray();
+        }
+
+        private static void MarkStatic(GameObject target)
+        {
+            GameObjectUtility.SetStaticEditorFlags(
+                target,
+                StaticEditorFlags.ContributeGI |
+                StaticEditorFlags.BatchingStatic |
+                StaticEditorFlags.OccluderStatic |
+                StaticEditorFlags.OccludeeStatic);
         }
 
         private static CheckpointTrigger CreateCheckpoint(
@@ -470,6 +565,10 @@ namespace VelocityRush.EditorTools
             {
                 AssetDatabase.DeleteAsset(path);
             }
+
+            // Baked GI needs a second UV set. Generated meshes have only UV0, so author a lightmap
+            // chart once at build time instead of failing the lightmapper at bake time (T-7.3).
+            Unwrapping.GenerateSecondaryUVSet(mesh);
 
             AssetDatabase.CreateAsset(mesh, path);
             return mesh;

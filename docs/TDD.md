@@ -8,7 +8,7 @@
 ## Table of contents
 
 - **Part I — Baseline technical direction** (§§1–27): approved direction, platform constraints, Playgama plan, high-level boundaries, per-domain Open items (input/vehicle/camera/UI/loc/save/audio/assets/visual), performance gates, testing, deferred decisions, P1–P8 provisional directions.
-- **Part II — Phase-3 detailed architecture (consolidated)** (§§28–46): discovery synthesis & platform facts (§28) · architecture goals & 15-system responsibilities (§29) · GameFlow & state model (§30) · UI navigation (§31) · communication (§32) · assembly boundaries (§33) · data definitions & ownership (§34) · scene & runtime lifecycle (§35) · vehicle physics (§36) · input (§37) · camera/presentation (§38) · save (§39) · WebGL performance & build (§40) · error/recovery (§41) · testing & validation (§42) · integration review results (§43) · draft decision records & owner-gated register (§44) · risks (§45) · references (§46)
+- **Part II — Phase-3 detailed architecture (consolidated)** (§§28–47): discovery synthesis & platform facts (§28) · architecture goals & 15-system responsibilities (§29) · GameFlow & state model (§30) · UI navigation (§31) · communication (§32) · assembly boundaries (§33) · data definitions & ownership (§34) · scene & runtime lifecycle (§35) · vehicle physics (§36) · input (§37) · camera/presentation (§38) · save (§39) · WebGL performance & build (§40) · error/recovery (§41) · testing & validation (§42) · integration review results (§43) · draft decision records & owner-gated register (§44) · risks (§45) · references (§46) · vertical-slice Stage-1 definition, quality criteria, asset pipeline, lighting and UI standards (§47)
 
 Part I sections remain valid high-level statements; where they overlap Part II, **Part II is the more detailed authoritative treatment** of the same concept.
 
@@ -981,3 +981,97 @@ These are implementation-approach requirements, not question resolutions — fil
 - Internal authoritative: `docs/GDD.md` (§6 loop, §24 screens, §25/§27/§33) · `docs/DECISIONS.md` (D-002/006/008/009/010–014/020–023/027–031, D-032…D-038, v0.3.1–v0.3.3 history) · `docs/OPEN_QUESTIONS.md` (OQ-T01–T09, OQ-01…OQ-21, OQ-A01…A11, OQ-P01…P05) · `docs/TRACEABILITY.md` · `docs/PROJECT_STRUCTURE.md` · `docs/AI_AGENT_GUIDELINES.md` (§2/§3/§5/§6a) · `docs/PLAYGAMA_CONSTRAINTS.md` · `production/ROADMAP.md` (phases + milestone register M0–M12).
 - External official documentation (read-only references, accessed 2026-11-05): Unity 6.6 Web manual (overview; Memory in Unity Web — heaps/`.data`/AssetBundles/Data Caching/GC; Cache behavior; graphics APIs; audio; multithreading/COOP-COEP; .NET API support; WebAssembly 2023; debugging) at `docs.unity3d.com/6000.6/Documentation/Manual/...`; `WheelCollider` Script Reference (6000.6); URP 17.2 manual; Input System 1.14 manual; Playgama Bridge getting-started docs and `github.com/Playgama/bridge-unity` (min Unity 2022.3, package `com.playgama.bridge` v2.4.0 — **nothing installed**).
 - Historical provenance: this Part II consolidates the nine retired Phase-3 standalone documents (created 2026-11-05; retired by consolidation, recorded in `CHANGELOG.md`); discovery content was produced without modifying any existing decision status, open question, package, setting, scene, or script. The independent architecture audit returned **CONDITIONAL PASS (0 CRITICAL / 3 MAJOR / 6 MINOR)** — the three MAJORs and the audited MINOR pins were resolved as the applied audit-correction set A1–A4 (§29.5 S8/S10/S13 pins, §30.2 row-6 and row-8, §30.5 retry-context rules, §32.2 allocation qualification, §30.6 step-9/16 scopes); the four unregistered working requirements it identified are the draft decision records in §44.1.
+
+## 47. Vertical slice — Stage-1 definition, quality criteria, asset pipeline, lighting and UI standards (2026-11-10)
+
+> Status: **Stage 1 of Phase 7 is complete; M5 is not.** This section records the owner-approved slice composition, the draft quality criteria, the internal-only asset pipeline/provenance rules, the Built-in baked-lighting decision, the UI Toolkit stack, and the profiling-harness contract. The criteria and any numeric budgets remain owner-gated; no production asset, bake, or WebGL slice capture is claimed.
+
+### 47.1 Slice composition and explicit non-goals (owner-approved 2026-11-10, D-044)
+
+- **Environment identity:** Desert Circuit. The existing `HandlingCourse` section (100 m start straight with braking markers, T1, T2 crest, T3, return) is reused as the slice section and upgraded with production materials rather than re-authoring a new layout.
+- **Hero vehicle:** one Sport-class vehicle using the `CandidateA_Grip_Vehicle` handling profile; the physics rig is the approved WheelCollider baseline (D-033) and is not re-tuned by presentation work.
+- **Gameplay:** one time-trial event — countdown → run → finish → results → retry. No scoring, stars, rewards, progression, or championship state.
+- **Screens:** HUD (speed, race time, checkpoint progress), countdown, results, and (Stage 2) pause. English-only.
+- **Audio scope:** engine loop with pitch/volume mapping, tyre/impact one-shots, and UI stings. No music, no localization.
+- **Explicit non-goals:** main menu, championship selection, garage, upgrades, progression, save, Playgama Bridge, localization, and any commercial meta-system.
+- **Review basis:** desktop Chrome and Firefox, targeting a stable 60 fps (OQ-P01/OQ-T08). Mobile-class review is not part of M5.
+- **Technical basis:** Built-in Render Pipeline (D-032), Baked GI + Light Probes, no post-processing package (OQ-A10); UI Toolkit only, with no manifest change.
+
+### 47.2 Quality criteria draft (OQ-A08 / OQ-A09 — DRAFT, not owner-approved)
+
+Reference status: the only existing board (`AD-BOARD-001`) remains **DRAFT** and cannot be treated as an approved specification. Stage 1 therefore applies written criteria plus camera-angle-matched review against the reference library; the owner must approve the criteria and reference status before T-7.16 can pass them.
+
+| Asset class | Pass criteria (draft) | Evidence / review method | Status |
+|---|---|---|---|
+| Vehicle (OQ-A09) | Silhouette reads as a Sport-class car at gameplay distance; coherent body/glass/wheel material separation; no visible primitive seams; LOD0/LOD1 parity at speed; collider parity with the visual footprint | 3/4 front, rear, and chase-camera frames at 960×540 and 1920×1080; overlay with reference board at matched angle | Draft; hero mesh not yet produced |
+| Environment | Desert identity via silhouette, material palette, and landmarks; road edge, barriers, and checkpoints remain readable at speed; no repeated-kit monotony inside the section | Chase-camera run at 60 fps; checkpoint readability check; side-by-side with the environment reference direction | Draft; production kit is T-7.6 |
+| Materials | Asphalt, sand, metal barrier, paint, glass, and rubber are visually distinct; roughness/metalness variation is restrained; no mirror-like paint; no magenta/error shaders | Material sheet capture under the slice lighting; shader-variant and texture-count audit | Draft; baseline materials only |
+| Lighting | Warm key light and readable shadows; road visibility preserved; vehicle silhouette separated from the background; no crushed blacks or blown highlights; baked indirect contribution visible | Capture with the baked/probe rig at the approved camera angles; luminance histogram and near-black coverage | Draft; bake is T-7.8 |
+| UI | HUD hierarchy is legible at 1920×1080 and 1280×720; speed/time/checkpoints never overlap; results readable in one glance; no per-frame allocation on the steady-state HUD | Panel screenshots; `GC.GetAllocatedBytesForCurrentThread` guard tests; frame-time probe | Draft; foundation implemented |
+| VFX | Effects communicate events without obscuring the road, checkpoints, or UI; overdraw is bounded and measured; no effect runs without a measured budget | Profiling capture per effect; visual review at speed | Draft; T-7.9 |
+| Audio | Engine loop tracks RPM/speed without audible seams; tyre/impact one-shots are distinct; UI stings are short and non-fatiguing; no clipped or silent states | Listening pass; browser console/audio-state check; pooled-source audit | Draft; T-7.11 |
+| Performance (slice) | Stable 60 fps on the approved desktop browsers; no per-frame GC in gameplay; draw calls, triangles, memory, and lightmap residency recorded per feature | T-7.4 harness + Stage-3 matrix; evidence rows in `PLAYGAMA_CONSTRAINTS.md` §5 | Draft; numeric thresholds deferred to T-7.15 |
+
+Review method (applies to every row):
+1. Read the relevant GDD/TDD/art-direction section and the current reference status before judging.
+2. Capture at the documented camera angles/resolutions with the approved lighting path.
+3. Record pass/fail per criterion and every deviation in the deviation log (owner-visible), with a screenshot/measurement reference.
+4. Any quality reduction caused by performance must cite a measured cost and an owner decision — never a silent downgrade (D-006).
+5. Numeric thresholds are added only after the Stage-3 measurements (OQ-T08); this draft deliberately contains none.
+
+### 47.3 Asset pipeline and provenance (OQ-A05 — internal-only slice route)
+
+For the vertical slice the owner approved an **internal-only provenance route**: engine primitives, procedural materials, and engine-native assets. No external model, texture, audio, font, or shader dependency is introduced, so no third-party licence attaches to the slice.
+
+| Asset family | Source for the slice | Licence / provenance | Owner | Status |
+|---|---|---|---|---|
+| Track surface, barriers, ground, braking markers | Generated by `HandlingCourseBuilder` (engine mesh primitives) | Unity-generated project asset; no external source | Engineering | Implemented |
+| Materials (asphalt, barrier, paint, glass, metal, rubber) | Procedural `Standard` shader materials | Unity built-in shader; no external texture | Engineering | Baseline implemented; production materials T-7.6/T-7.7 |
+| Vehicle body/glass/wheels | Engine primitives in the prototype prefab | Unity-generated project asset | Engineering | Placeholder; hero visual T-7.7 |
+| Lighting/probe data | `DesertSliceLighting.lighting` + `LightProbeGroup` | Engine-native settings/data | Engineering | Configured; bake T-7.8 |
+| UI | UI Toolkit visual tree built in C# + Unity default runtime theme | Engine-native UI Toolkit; no font/icon asset added | Engineering | Implemented |
+| Audio | Not yet authored | — | — | T-7.11; any imported sound requires a provenance/licence entry first |
+| VFX | Not yet authored | Engine particle system | Engineering | Placeholder; T-7.9 |
+
+Pipeline rules (binding for the slice and a baseline for Phases 8–9):
+- **Scale/orientation:** 1 Unity unit = 1 metre, Y-up, content faces +Z; pivots at the ground-contact point for props and at the chassis origin for vehicles.
+- **Meshes:** UV0 carries tiling; UV2 is required for baked GI and is generated at build time with `Unwrapping.GenerateSecondaryUVSet` for generated meshes. LODs and collider parity are required for hero assets; MeshColliders are limited to the road/ground/barrier surfaces, with primitive colliders for props.
+- **Materials:** one shared material per family, no per-instance material cloning in gameplay; Built-in `Standard`/legacy shaders only; no URP shaders, no post-processing dependency.
+- **Textures (when introduced):** power-of-two dimensions, platform-appropriate compression, atlas by material family, mipmaps on, readable/CPU access off unless a measured need exists. No numeric resolution cap is invented here — it is set by Stage-3 measurement.
+- **Static content:** `ContributeGI`, `BatchingStatic`, `OccluderStatic`, `OccludeeStatic` on immutable environment geometry; dynamic vehicle/HUD objects remain non-static.
+- **Provenance rule:** every future external asset must be entered in this register (source, licence, owner, date) **before** it is committed. Unlicensed or unclear-licence assets are prohibited.
+- **Zero-cost discipline:** no runtime asset generation, no `Resources.Load` in gameplay, and no per-frame material/string allocation in the slice loop.
+
+### 47.4 Lighting, baked GI and light probes (OQ-A10 — approved path)
+
+- **Pipeline:** Built-in Render Pipeline only (D-032); no URP asset or shader.
+- **Global illumination:** baked GI enabled, real-time GI disabled. Mixed lighting uses **Indirect-Only** so the directional light keeps real-time direct light and shadows while indirect light is baked into lightmaps and probes. Shadowmask/Subtractive are not used in Stage 1.
+- **Bake settings:** `UnityComputeGPU` lightmapper, 20 texels/unit, 1024 maximum lightmap size, 2 px padding, AO on, one bounce, albedo boost 1.0, indirect scale 1.0.
+- **Scene lighting:** one mixed directional light (warm 1.0/0.93/0.82, intensity 1.25, soft shadows, strength 0.82), trilight ambient, linear desert fog (180–520 m). Static environment renderers contribute GI and batching; the road/barrier meshes carry generated UV2 charts.
+- **Light probes:** deterministic two-height grid (24 m spacing at y = 2.5 and 6.0 m) covering the course bounding box, so the moving vehicle receives baked indirect light without real-time GI.
+- **Post-processing:** none. Any Post Processing Stack v2 or URP adoption requires a new measured proposal and explicit owner approval; it is not implied by this section.
+- **Bake rule:** a bake is run only on an explicitly approved scene/lighting state, is recorded with its lightmap size and build hash, and is never claimed as done until the bake log is captured. **Stage 1 configures the rig; it does not claim a bake.**
+
+### 47.5 UI stack — UI Toolkit (T-7.5b, no manifest change)
+
+- **Why UI Toolkit:** the `com.unity.modules.uielements` module is already present, so the HUD/Results/Pause stack needs **no package or manifest change**. uGUI + TextMeshPro would require a manifest addition and remains unauthorized.
+- **Asset model:** `Assets/UI/Slice/SlicePanelSettings.asset` (scale-with-screen-size, 1920×1080 reference, match 0.5, sorting order 10) plus the committed `UnityDefaultRuntimeTheme.tss`. The visual tree is built programmatically; no UXML/USS asset is required for Stage 1.
+- **Hot path:** `SliceHudPresenter` polls at 10 Hz by default and drives `SliceHudView`; numeric fields use `DigitDisplay`, which writes one of ten cached glyph strings per cell. EditMode proves repeated updates allocate **0 B**. `SliceHudModel`/`SliceHudFormat` are pure, allocation-free, and separately tested.
+- **Cold path:** results text is composed once on `RaceFinished` (a single event, not a per-frame path). The HUD root uses `PickingMode.Ignore` so it cannot intercept input.
+- **Pause:** in scope for T-7.10; not implemented in Stage 1. The presenter/view split keeps it replaceable.
+- **Files:** `Assets/Scripts/Gameplay/UI/{SliceHudFormat,DigitDisplay,SliceHudSnapshot,SliceHudModel,ISliceHudView,SliceHudView,SliceHudPresenter}.cs`.
+
+### 47.6 Profiling harness and Stage-0 baseline (T-7.4)
+
+- **`FrameTimeStatistics`** (`VelocityRush.Core.Diagnostics`): fixed-capacity ring buffer; one allocation at construction; sanitises non-finite/negative samples; exposes mean/min/max, derived FPS, and interpolated p95 via a preallocated scratch buffer.
+- **`PrototypePerformanceProbe`** (`VelocityRush.Gameplay`, dev-only at runtime via `UNITY_EDITOR || DEBUG`): configurable warm-up (default 3 s) and sampling window (default 10 s). It records unscaled frame time, then logs one summary containing frame count, mean/p95/min/max milliseconds, mean/min/max FPS, managed heap and delta, `Profiler` total-allocated/delta, draw calls, batches, triangles, vertices, graphics device type, and renderer name.
+- **Capture protocol:** build a Development WebGL player, open the console, let the warm-up complete, and record the single `[VelocityRush.Perf]` line with device/browser/build hash. No number is treated as a budget until the owner approves it under OQ-T08.
+- **Stage-0 baseline:** the current Built-in prototype evidence already recorded in `PLAYGAMA_CONSTRAINTS.md` §5 is the reference: 35.64 MB five-artifact payload (11.9% of the 300 MB archive limit), 28.816 s cold build, JS heap 9.95 MB, WASM ArrayBuffer 96.0 MiB, managed wasm memory 40.0 MB. The harness is wired into the slice scene; the first in-browser slice capture follows the T-7.12 build-contract extension and the T-7.14 matrix.
+
+### 47.7 Stage-1 validation evidence (2026-11-10)
+
+- Batch compile: **0 errors**; no new warning from Stage-1 code. Two pre-existing `UAC0009` warnings remain from the Phase-6 overlay guards (`TelemetryOverlayFormat`, `VehicleTelemetryOverlay`) and are the owner-mandated `DEVELOPMENT_BUILD` pattern.
+- EditMode: **204/204 passed** (baseline 181 + 23 new tests covering frame statistics, time/speed formatting, HUD projection, digit rendering, full-view steady-state zero allocation, and overlay transitions).
+- PlayMode: **7/7 passed**, 0 failed, 0 skipped.
+- Scene regeneration: `Assets/Scenes/HandlingCourse.unity` rebuilt with `vehicle=CandidateA_Grip_Vehicle`, 347.0 m centreline, 3 checkpoints, mixed directional light, `DesertSliceLighting`, two-height light-probe grid, `SliceHud` (`UIDocument` + `SliceHudPresenter`), and `PerformanceProbe`.
+- Known limits: the slice scene is not in the WebGL build contract yet (T-7.12); no lightmap bake is claimed (T-7.8); no in-browser slice capture exists yet (T-7.14); the quality criteria and numeric budgets remain drafts/open.
