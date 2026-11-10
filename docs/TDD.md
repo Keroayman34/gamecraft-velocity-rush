@@ -108,6 +108,7 @@ Expected responsibilities, not an implementation plan:
 ## 17. Lighting strategy (Proposed, validation-gated — OQ-A10)
 - Cinematic lighting for presentation scenes; gameplay lighting preserves road and obstacle readability.
 - Plan must compare: baked vs mixed vs minimal real-time lighting; limited real-time shadows; restrained post-processing. Chosen only after browser performance evidence (OQ-T02/T08), never by default.
+- **Measured constraint (2026-11-10):** the prototype lighting is authored for the Built-in Pipeline. The T-6.2 A/B showed URP renders the same scene 71.4% darker with equivalent light intensity/shadow distance, so any future pipeline switch must re-author light intensities/exposure and re-run the same-scene comparison before art production (§28.5).
 
 ## 18. Visual effects strategy (Proposed, validation-gated)
 - Effects (tire smoke, sparks, speed lines, dust, atmosphere) must communicate events without obscuring the road; overdraw/particle cost constrained per WebGL test data.
@@ -145,15 +146,15 @@ Loop: local Unity WebGL build → archive structure per Playgama rules → Bridg
 For each major technical decision, document problem, options, trade-offs, chosen approach, consequences — recorded as ADR entries when the docs/architecture structure is introduced.
 
 **Explicitly deferred until Unity project creation + technical prototype/vertical slice evidence:**
-- Render pipeline (OQ-T02) — engine version already decided and verified (Unity 6000.6.8f1, owner-approved 2026-11-05; environment portion of OQ-T01 complete)
-- Vehicle physics strategy (OQ-T03)
+- Render pipeline (OQ-T02) — **RESOLVED 2026-11-10:** Built-in retained for the development prototype after the measured A/B; URP deferred with a Phase-7 re-evaluation trigger (D-032, §28.5). Engine version remains Unity 6000.6.8f1 (owner-approved 2026-11-05)
+- Vehicle physics strategy (OQ-T03) — **RESOLVED 2026-11-10:** WheelCollider Simcade approved after the D-023 playtest; hybrid custom-force fallback not adopted (D-033)
 - Input abstraction details (OQ-T04)
 - Scene/content organization (OQ-T06)
 - Save strategy (OQ-T05/OQ-09)
 - Build/CI automation (OQ-T07)
 - Performance budgets (OQ-T08) and quality acceptance criteria (OQ-A08/OQ-A09)
 
-**Owner-reviewed provisional directions for every item above were recorded 2026-11-05 in `DECISIONS.md` D-032…D-038 (+ D-006 review note) and summarized in §27 below.** Each item remains deferred: a provisional direction is planning input, not a final decision, and resolution still requires the listed validation evidence.
+**Owner-reviewed provisional directions for every item above were recorded 2026-11-05 in `DECISIONS.md` D-032…D-038 (+ D-006 review note) and summarized in §27 below.** OQ-T02 and OQ-T03 were resolved on 2026-11-10 by the Phase-6 A/B and driving-feel evidence (D-032/D-033). Every remaining item stays deferred: a provisional direction is planning input, not a final decision, and resolution still requires the listed validation evidence.
 
 ## 26. Do not implement yet
 No final class diagrams, namespaces, service locators, dependency-injection frameworks, or manager hierarchy has been approved. Avoid creating them before technical discovery and the prototype validate them. Do not reduce product scope to prototype scope; the Commercial V1.0 target (D-028) always governs.
@@ -163,8 +164,8 @@ The owner reviewed the Phase-3 Technical Architecture Discovery report (discover
 
 | # | Provisional direction | Decision entry | Governing open question | Final decision requires |
 |---|---|---|---|---|
-| P1 | Controlled Built-in vs URP comparison before any pipeline selection; URP not installed now | D-032 | OQ-T02 | Same-scene A/B profiling evidence + explicit owner decision |
-| P2 | WheelCollider-first prototype physics; custom hybrid physics documented as fallback | D-033 | OQ-T03 | Driving-feel validation (D-023 gate) + WebGL profiling + owner decision |
+| P1 | Controlled Built-in vs URP comparison before any pipeline selection; URP not installed now | D-032 | OQ-T02 | **Met 2026-11-10** — same-scene A/B measured; Built-in retained, URP deferred (D-032, §28.5) |
+| P2 | WheelCollider-first prototype physics; custom hybrid physics documented as fallback | D-033 | OQ-T03 | **Met 2026-11-10** — D-023 playtest passed; WheelCollider Simcade approved, hybrid fallback not adopted (D-033) |
 | P3 | Unity Input System preferred direction behind input-abstraction interfaces; **package installation NOT authorized by this review** | D-034 | OQ-T04 | Prototype input validation + explicit owner approval of the manifest change |
 | P4 | ScriptableObject definition assets; runtime mutable state kept separate from definition assets | D-035 | Data values remain owner-gated (OQ-06/07/14/15/16/17/18/19) | Architecture design detail: asset organization + loading strategy |
 | P5 | SaveModel + ISaveStore + SaveService layering; storage provider undecided; Bridge strictly deferred to Phase 13 | D-036 | OQ-09 / OQ-T05 | Browser-storage validation + Phase-13 Bridge reality check + owner policy approval |
@@ -185,7 +186,7 @@ The owner reviewed the Phase-3 Technical Architecture Discovery report (discover
 ### 28.1 Discovery executive summary
 - The project started Roadmap Phase 3 at the documented starting point: clean minimal Unity 6000.6.8f1 bootstrap (built-in renderer baseline, zero gameplay/content packages) with an approved documentation baseline.
 - Eight architecture areas were investigated with evidence-based recommendations only, each mapped to a governing open question — nothing resolved.
-- Highest-consequence findings: (a) Web GC behavior documented by Unity materially shapes runtime architecture (no per-frame allocations, pooling/`NativeArray`); (b) WheelCollider (Vehicles module, already in the manifest) is the strongest Simcade baseline but must be proven on WebGL with profiling; (c) URP-vs-Built-in (OQ-T02) remains genuinely undecided — both viable; the prototype must measure before the owner commits.
+- Highest-consequence findings: (a) Web GC behavior documented by Unity materially shapes runtime architecture (no per-frame allocations, pooling/`NativeArray`); (b) WheelCollider (Vehicles module, already in the manifest) is the strongest Simcade baseline but must be proven on WebGL with profiling; (c) URP-vs-Built-in (OQ-T02) remains genuinely undecided — both viable; the prototype must measure before the owner commits (resolved 2026-11-10 by the T-6.2 A/B, §28.5: Built-in retained, URP deferred).
 - Implementation order defers all mass content and Playgama Bridge integration behind a validated driving prototype (D-030, D-023, 14-phase roadmap).
 
 ### 28.2 Project assessment (documented vs. actual, verified 2026-11-05)
@@ -194,7 +195,7 @@ The owner reviewed the Phase-3 Technical Architecture Discovery report (discover
 | Unity project at repo root, no invented Assets architecture | `PROJECT_STRUCTURE.md` §2 | `Assets/` empty (0 files); Unity folders at root | ✅ |
 | Engine version owner-approved, env verified | D-008, OQ-T01 (environment portion complete) | `ProjectSettings/ProjectVersion.txt` = `6000.6.8f1 (237b6593792b)` | ✅ |
 | Identity normalized | Task 0.2.5 | `companyName: GameCraft Studio`, `productName: Velocity Rush` | ✅ |
-| Render pipeline undecided (OQ-T02 open) | OQ-T02 row | `GraphicsSettings.asset`: `m_CustomRenderPipeline: {fileID: 0}`; no URP/HDRP in manifest | ✅ (built-in baseline) |
+| Render pipeline decided for the development prototype (2026-11-10) | D-032, OQ-T02, §28.5 | `GraphicsSettings.asset`: `m_CustomRenderPipeline: {fileID: 0}`; no URP/HDRP in manifest; same-scene A/B evidence in `PLAYGAMA_CONSTRAINTS.md` §5 | ✅ (Built-in retained; URP deferred) |
 | Playgama Bridge not installed | §4/§24; OQ-T01 pending scope; constraints #1 | Not in manifest/lock | ✅ |
 | Packages | Only IDE packs expected | `manifest.json`: `com.unity.ide.rider` 3.1.0, `com.unity.ide.visualstudio` 2.0.26 + 36 built-in modules; lock adds `ext.nunit`, `test-framework` (Editor infrastructure) | ✅ |
 | Baseline commit | Task 0.2.7 report | `637f952` on `main`; tree clean | ✅ |
@@ -222,11 +223,12 @@ Minor observations: root `*.slnx` generated locally, correctly git-ignored (`.sl
 - A concrete WebGL memory budget is decided in owner review (OQ-T08) — three-door measurement ritual: Empty build → Prototype build → Vertical-slice build, each recorded in the `PLAYGAMA_CONSTRAINTS.md` §5 evidence log.
 - Mandated patterns 【Recommendation, enforced §40.7】: no per-frame allocations in hot loops; pre-allocated `List` churn; no per-frame string concatenation; audio pools; strictly pooled particle/VFX recycling.
 
-### 28.5 OQ-T02 pipeline analysis (open; D-032 direction)
+### 28.5 OQ-T02 pipeline analysis (A/B complete 2026-11-10 — Built-in retained; D-032)
 - **Options:** (A) stay Built-in; (B) install URP 17.x — official prebuilt SRP "optimized across a range of platforms, from mobile to high-end"; (C) HDRP — excluded by WebGL/web restrictions and mobile-target focus.
 - **Evidence summary:** URP is the performance-oriented pipeline across mobile→desktop; Built-in is a smaller memory/engine footprint; URP adds pipeline asset/Global Settings and an extra package; URP on WebGL is supported since Unity 6; exact cost on the heap + D-006 quality (bloom, tonemapping, shadows) is measurable only by profiling.
-- **Recommended direction (needs evidence first):** prove both in Phases 4–6 by profiling the *same* prototype scene in both configurations (install requires owner approval; reversal before content production is nil-cost). Preliminary engineering lean: **URP** for the D-006 quality bar, *conditional on* acceptable measured WebGL memory/FPS impact. **Owner makes the final call.**
+- **Recommended direction (needs evidence first):** prove both in Phases 4–6 by profiling the *same* prototype scene in both configurations (install requires owner approval; reversal before content production is nil-cost). Preliminary engineering lean: **URP** for the D-006 quality bar, *conditional on* acceptable measured WebGL memory/FPS impact. **Owner makes the final call.** — *Completed 2026-11-10: the measured result below did not support the lean, so Built-in was retained.*
 - **Test before approval:** same-scene A/B profiling (memory, GPU capture, load time, shader compilation, bloom/tonemap cost, mobile-GPU worst case); feeds the OQ-T08 budget table.
+- **Measured result (2026-11-10, T-6.2):** both pipelines were built and run on the identical `Bootstrap → TestTrack` contract through the permanent builder, with URP 17.6.0 configured for equivalent directional-light/shadow settings (HDR off, MSAA 1, render scale 1, 50 m shadow distance, 1 cascade, SRP Batcher on). Built-in: **28.816 s** cold build, **35.64 MB** payload, WASM ArrayBuffer **96.0 MiB**, managed wasm memory **40.0 MB**, JS heap **9.95 MB**. URP: **123.687 s** cold / 3.409 s warm, **78.90 MB** payload (**+2.21×**), WASM ArrayBuffer **142.3 MiB** (**+1.48×**), managed wasm memory **82.0 MB** (**+2.05×**), JS heap **20.52 MB** (**+2.06×**). Both fit the recorded 300 MB / 2 GB limits. Decisive factors beyond size: URP needed every built-in material converted to `Universal Render Pipeline/Lit` (**65.23%** magenta on TestTrack before the fix, **0.00%** after), and with *equivalent* light settings the same scene/camera/capture path rendered **71.4% darker** (mean luminance **225.0 → 64.3**; course **0.00% → 20.89%** near-black). URP is therefore **not** visual parity without re-authored lighting/exposure, and it delivered no approved visual gain for the prototype. **Decision:** Built-in retained for the development prototype; URP deferred with a Roadmap-Phase-7 re-evaluation trigger (D-032 update, `PLAYGAMA_CONSTRAINTS.md` §5).
 
 ## 29. Architecture goals and 15-system responsibility design
 
@@ -931,8 +933,8 @@ These are implementation-approach requirements, not question resolutions — fil
 |---|---|---|---|---|---|
 | 1 | Approve Part II of this document as the working architecture plan | Open | approve as-is / request rework | approve (does not close any OQ) | owner review |
 | 2 | Draft decision records D-039…D-042 filing | Open | file all as PROVISIONAL / file subset / reject | file all 4 | DECISIONS change-history entry (owner) |
-| 3 | Render pipeline choice | Open (OQ-T02/D-032) | Built-in / URP after A/B | URP lean, conditional on profiling | same-scene A/B evidence + owner |
-| 4 | Vehicle physics strategy | Open (OQ-T03/D-033) | WheelCollider-first / hybrid | WheelCollider-first (already PROVISIONAL) | D-023 gate + profiling + owner |
+| 3 | Render pipeline choice | **Decided 2026-11-10 for the development prototype:** Built-in retained, URP deferred (D-032) | Built-in / URP after A/B | Built-in as shipped | A/B evidence recorded; re-evaluation at vertical-slice art production |
+| 4 | Vehicle physics strategy | **Decided 2026-11-10:** WheelCollider Simcade approved (D-033); hybrid fallback not adopted | WheelCollider-first / hybrid | WheelCollider baseline as shipped | D-023 playtest verdict recorded; per-vehicle tuning later (OQ-02/OQ-06/OQ-07) |
 | 5 | Input System package install | Open (OQ-T04/D-034) | install / stay legacy adapter | install when Phase 5 requires (behind seams) | manifest-change owner approval |
 | 6 | First WebGL build authorization | Open (OQ-T01 scope/OQ-T07) | build now / defer | build empty project first (advances OQ-T01/T07/T08 stage 1) | owner |
 | 7 | Save provider + autosave cadence + first-run defaults + backup rotation | Open (OQ-09/OQ-T05/D-036) | per candidates §39 | JsonUtility-first tilt; trigger list; rotation | owner policy |

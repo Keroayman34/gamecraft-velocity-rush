@@ -30,7 +30,7 @@ namespace VelocityRush.Gameplay
     /// </remarks>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(Rigidbody))]
-    public sealed class VehicleController : MonoBehaviour, IVehicleTelemetry
+    public sealed class VehicleController : MonoBehaviour, IVehicleTelemetry, IVehicleWheelTelemetry
     {
         private const string LogPrefix = "[VelocityRush.Vehicle] ";
 
@@ -45,6 +45,7 @@ namespace VelocityRush.Gameplay
         [SerializeField] private WheelBinding rearRight = new WheelBinding();
 
         private readonly WheelBinding[] _wheels = new WheelBinding[4];
+        private readonly WheelTelemetry[] _wheelTelemetry = new WheelTelemetry[4];
         private IVehicleInput _input;
 
         /// <summary>The tuning template assigned in the inspector (read-only for consumers).</summary>
@@ -52,6 +53,20 @@ namespace VelocityRush.Gameplay
 
         /// <inheritdoc />
         public VehicleTelemetry Telemetry { get; private set; }
+
+        /// <inheritdoc />
+        public int WheelCount => _wheelTelemetry.Length;
+
+        /// <inheritdoc />
+        public WheelTelemetry GetWheel(int index)
+        {
+            if ((uint)index >= (uint)_wheelTelemetry.Length)
+            {
+                return default;
+            }
+
+            return _wheelTelemetry[index];
+        }
 
         private void Awake()
         {
@@ -166,6 +181,10 @@ namespace VelocityRush.Gameplay
             // Make the teleport visible to trigger queries in the same frame as the reset.
             Physics.SyncTransforms();
             Telemetry = default;
+            for (var i = 0; i < _wheelTelemetry.Length; i++)
+            {
+                _wheelTelemetry[i] = default;
+            }
         }
 
         private bool ValidateWheel(string label, WheelBinding binding, out string error)
@@ -291,8 +310,9 @@ namespace VelocityRush.Gameplay
         }
 
         /// <summary>
-        /// Fills the telemetry snapshot from the current Rigidbody velocity and grounded wheel
-        /// hits. Uses preallocated bindings and struct-only wheel queries, so it does not allocate.
+        /// Fills the aggregate and per-wheel snapshots from the current Rigidbody velocity and
+        /// grounded wheel hits. Uses preallocated bindings and struct-only wheel queries, so it
+        /// does not allocate (TDD §36.10/§36.12).
         /// </summary>
         private void SampleTelemetry(Vector3 velocity, float speed, float forwardSpeed)
         {
@@ -303,28 +323,41 @@ namespace VelocityRush.Gameplay
             for (var i = 0; i < _wheels.Length; i++)
             {
                 var wheel = _wheels[i].Collider;
-                if (wheel == null || !wheel.isGrounded)
+                if (wheel == null)
                 {
+                    _wheelTelemetry[i] = default;
                     continue;
                 }
 
-                isGrounded = true;
-                if (!wheel.GetGroundHit(out var hit))
+                var grounded = wheel.isGrounded;
+                var slip = 0f;
+                var compression = 0f;
+
+                if (grounded && wheel.GetGroundHit(out var hit))
                 {
-                    continue;
+                    var sidewaysSlip = Mathf.Abs(hit.sidewaysSlip);
+                    var longitudinalSlip = Mathf.Abs(hit.forwardSlip);
+                    slip = sidewaysSlip > longitudinalSlip ? sidewaysSlip : longitudinalSlip;
+
+                    // The hit point is the tire contact patch; subtracting the radius leaves
+                    // remaining suspension travel, which maps to a 0..1 compression value.
+                    var downDistance = Vector3.Dot(hit.point - wheel.transform.position, -wheel.transform.up);
+                    var travel = downDistance - wheel.radius;
+                    var suspensionDistance = Mathf.Max(0.0001f, wheel.suspensionDistance);
+                    compression = 1f - Mathf.Clamp01(travel / suspensionDistance);
                 }
 
-                var slip = Mathf.Abs(hit.sidewaysSlip);
-                var forwardSlip = Mathf.Abs(hit.forwardSlip);
-                if (forwardSlip > slip)
+                if (grounded)
                 {
-                    slip = forwardSlip;
+                    isGrounded = true;
                 }
 
                 if (slip > maxSlip)
                 {
                     maxSlip = slip;
                 }
+
+                _wheelTelemetry[i] = new WheelTelemetry(slip, grounded, compression);
             }
 
             Telemetry = new VehicleTelemetry(speed, forwardSpeed, lateralSpeed, maxSlip, isGrounded);

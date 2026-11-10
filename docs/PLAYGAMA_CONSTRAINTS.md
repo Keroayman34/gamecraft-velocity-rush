@@ -87,9 +87,32 @@ The Commercial V1.0 scope (D-028: 10 vehicles, ≥3 championships, 5 distinct en
 
 **Statuses used:** `Proposed-unverified` values are planning hypotheses. Nothing here is an achieved performance claim, a guarantee, or an approved budget. Measured results will be added to the **performance evidence log** (below) with dates, device/browser, and the feature tested.
 
-### Performance evidence log (empty — to be filled by profiling work)
+### Performance evidence log (measured 2026-11-10 — development-prototype stage; evidence only, not approved budgets)
+
 | Date | Feature/measure | Device/browser | Result | Decision recorded |
 |---|---|---|---|---|
+| 2026-11-10 | Phase-5 baseline (superseded, kept for trend): WebGL Development build `Bootstrap → TestTrack`, untextured prototype (`dev-20261109-210202`) | Linux x86_64, Unity 6000.6.8f1; Chromium 152 / WebGL 2.0 | 29,722,007 B payload (29.72 MB, ~9.9% of 300 MB); wasm heap 95,944,704 B; JS heap ~9.5 MiB; 0 errors/warnings | OQ-T08 reference numbers only (CHANGELOG 2026-11-10) |
+| 2026-11-10 | **T-6.2 Pass A — Built-in Render Pipeline.** Same two-scene build contract (`Bootstrap → TestTrack`) through the permanent builder; identical gameplay code; no URP package installed | Linux x86_64, Unity 6000.6.8f1 (OpenGL 4.6 / Mesa editor); Chromium 152 / WebGL 2.0 runtime | Build 28.816 s (cold), 35,642,986 B total = **35.64 MB (34.0 MiB), 11.9% of the 300 MB archive limit**; wasm 30,836,260 B; `.data` 4,035,705 B; framework.js 687,861 B; loader.js 60,309 B; index.html 8,737 B; 3 build warnings (UAC0009 `DEVELOPMENT_BUILD` deprecation + emcc advisories), 0 errors. Runtime: bootstrap 2 ms, race completed 12.136 s, 0 console errors; JS heap 9.95 MB (0.23% of the 4,192 MiB V8 limit); `JSArrayBufferData` 100,704,633 B (96.0 MiB); `Managed (WasmNativeModuleTag)` 40,007,936 B | Pass A baseline for D-032/OQ-T02 |
+| 2026-11-10 | **T-6.2 Pass B — URP 17.6.0** (editor-bundled package, no registry download). Minimal pipeline asset: HDR off, MSAA 1, render scale 1, shadow distance 50, 1 cascade, no depth/opaque texture, SRP Batcher on; same scene list and gameplay code | Same hardware/editor/browser as Pass A | Build 123.687 s cold, **3.409 s warm**; 78,897,884 B total = **78.90 MB (75.24 MiB), 26.3% of the 300 MB limit**; wasm 67,662,326 B; `.data` 10,456,384 B; framework.js 696,030 B; loader.js 60,309 B; **0 errors / 0 warnings** after material conversion. Runtime: bootstrap 2 ms, 0 console errors; JS heap 20.52 MB; `JSArrayBufferData` 149,199,424 B (142.3 MiB, **1.48×** Pass A); `Managed (WasmNativeModuleTag)` 82,012,394 B (**2.05×**) | URP evaluated and **deferred**; delta table below |
+| 2026-11-10 | **T-6.2 visual-parity check.** Identical scene, camera pose, light settings and capture path (`camera.Render()` → 960×540 sRGB RenderTexture); magenta coverage and mean luminance sampled from the readback | Linux editor, OpenGL 4.6 / Mesa, Unity 6000.6.8f1 | Built-in: TestTrack mean luminance **225.0**, course **0.00%** near-black. URP with *equivalent* directional-light intensity/shadow distance: TestTrack mean luminance **64.3 (−71.4%)**, course **20.89%** near-black. Material conversion was mandatory: URP rendered **65.23% magenta** on TestTrack before `Universal Render Pipeline/Lit` was assigned, **0.00%** after | URP is not visual parity under equivalent light settings → lighting/exposure re-authoring would be required; contributed to the Built-in restoration |
+
+**T-6.2 delta summary (Built-in → URP 17.6.0, same scene and code):**
+
+| Measure | Built-in (Pass A) | URP (Pass B) | Delta |
+|---|---|---|---|
+| Total payload | 35,642,986 B (34.0 MiB) | 78,897,884 B (75.24 MiB) | **+2.21×** (+43.25 MB) |
+| `.wasm` | 30,836,260 B | 67,662,326 B | **+2.19×** (+36.83 MB) |
+| `.data` | 4,035,705 B | 10,456,384 B | **+2.59×** (+6.42 MB) |
+| Cold build | 28.816 s | 123.687 s | **+4.29×** |
+| Warm build | not measured (cold only) | 3.409 s | — |
+| WASM ArrayBuffer memory | 100,704,633 B | 149,199,424 B | **+1.48×** |
+| Managed (wasm native) | 40,007,936 B | 82,012,394 B | **+2.05×** |
+| JS heap | 9.95 MB | 20.52 MB | **+2.06×** |
+| Mean luminance (TestTrack) | 225.0 | 64.3 | **−71.4%** |
+| Magenta (before/after material fix) | 0.00% | 65.23% → 0.00% | material conversion required |
+| Archive-limit use (300 MB) | 11.9% | 26.3% | still within limit |
+
+Both passes stay inside the recorded Playgama limits (300 MB archive, 2 GB memory). The measured regression in visual parity under *equivalent* lighting settings, combined with the payload/memory/build-time cost, is why the prototype stays on Built-in (D-032 update, 2026-11-10).
 
 ## 6. Submission checklist
 

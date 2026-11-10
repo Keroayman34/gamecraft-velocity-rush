@@ -50,13 +50,17 @@ namespace VelocityRush.Tests.EditMode
             var asset = AssetDatabase.LoadAssetAtPath<VehiclePhysicsProfile>(AuthoredProfilePath);
             Assert.That(asset, Is.Not.Null);
 
-            Assert.That(asset.BrakeBiasFront, Is.EqualTo(0.5f).Within(0.0001f));
+            // Phase 6 (T-6.1) promoted CandidateA_Grip values into the prototype default after the
+            // owner-accepted driving-feel playtest (OQ-02 remains the owning question for further tuning).
+            Assert.That(asset.BrakeBiasFront, Is.EqualTo(0.55f).Within(0.0001f));
+            Assert.That(asset.ForwardFrictionStiffness, Is.EqualTo(1.9f).Within(0.0001f));
+            Assert.That(asset.SidewaysFrictionStiffness, Is.EqualTo(1.95f).Within(0.0001f));
             Assert.That(asset.EngineTorqueCurve, Is.Not.Null);
             Assert.That(asset.EngineTorqueCurve.Evaluate(0f), Is.EqualTo(1f).Within(0.001f));
             Assert.That(asset.EngineTorqueCurve.Evaluate(60f), Is.EqualTo(0.55f).Within(0.001f));
             Assert.That(asset.SteeringSpeedSensitivity, Is.Not.Null);
             Assert.That(asset.SteeringSpeedSensitivity.Evaluate(0f), Is.EqualTo(1f).Within(0.001f));
-            Assert.That(asset.SteeringSpeedSensitivity.Evaluate(60f), Is.EqualTo(0.45f).Within(0.001f));
+            Assert.That(asset.SteeringSpeedSensitivity.Evaluate(60f), Is.EqualTo(0.62f).Within(0.001f));
         }
 
         [Test]

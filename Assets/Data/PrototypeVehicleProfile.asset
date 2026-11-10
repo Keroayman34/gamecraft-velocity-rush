@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PrototypeVehicleProfile
   m_EditorClassIdentifier: VelocityRush.Data::VelocityRush.Data.VehiclePhysicsProfile
   mass: 1200
-  centerOfMassOffset: {x: 0, y: -0.25, z: 0.05}
+  centerOfMassOffset: {x: 0, y: -0.28, z: 0.05}
   linearDamping: 0.02
   angularDamping: 0.05
   wheelRadius: 0.35
@@ -22,15 +22,15 @@ MonoBehaviour:
   suspensionSpring: 35000
   suspensionDamper: 4500
   suspensionTargetPosition: 0.5
-  forwardFrictionStiffness: 1.5
-  sidewaysFrictionStiffness: 1.5
+  forwardFrictionStiffness: 1.9
+  sidewaysFrictionStiffness: 1.95
   motorTorque: 1000
   brakeTorque: 2500
-  handbrakeTorque: 4000
-  steeringAngle: 30
-  brakeBiasFront: 0.5
+  handbrakeTorque: 3600
+  steeringAngle: 31
+  brakeBiasFront: 0.55
   engineTorqueCurve:
-    serializedVersion: 3
+    serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
       time: 0
@@ -54,22 +54,22 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   steeringSpeedSensitivity:
-    serializedVersion: 3
+    serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
       time: 0
       value: 1
-      inSlope: -0.009166667
-      outSlope: -0.009166667
+      inSlope: 0
+      outSlope: -0.0063333334
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
       outWeight: 0
     - serializedVersion: 3
       time: 60
-      value: 0.45
-      inSlope: -0.009166667
-      outSlope: -0.009166667
+      value: 0.62
+      inSlope: -0.0063333334
+      outSlope: 0
       tangentMode: 0
       weightedMode: 0
       inWeight: 0
