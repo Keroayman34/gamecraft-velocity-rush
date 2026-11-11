@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 63a0177694a603477ab6bd24ebac04ca, type: 3}
+  m_Name: drift-kuma-dx_Definition
+  m_EditorClassIdentifier: VelocityRush.Data::VelocityRush.Data.VehicleDefinition
+  schemaVersion: 1
+  vehicleId: drift-kuma-dx
+  displayNameEn: Kuma DX
+  displayNameAr: "\u0643\u0648\u0645\u0627 \u062F\u064A \u0625\u0643\u0633"
+  vehicleClass: 2
+  physicsProfile: {fileID: 11400000, guid: 93c6625b3aacec11699537e72542d44b, type: 2}

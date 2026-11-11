@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 535b56779c753fbfd9c5597c99b5670e, type: 3}
+  m_Name: sport-aero-coupe_Physics
+  m_EditorClassIdentifier: VelocityRush.Data::VelocityRush.Data.VehiclePhysicsProfile
+  mass: 1300
+  centerOfMassOffset: {x: 0, y: -0.26, z: 0.05}
+  linearDamping: 0.02
+  angularDamping: 0.05
+  wheelRadius: 0.35
+  wheelMass: 20
+  suspensionDistance: 0.2
+  suspensionSpring: 38000
+  suspensionDamper: 4800
+  suspensionTargetPosition: 0.5
+  forwardFrictionStiffness: 1.88
+  sidewaysFrictionStiffness: 1.93
+  motorTorque: 1100
+  brakeTorque: 2700
+  handbrakeTorque: 3400
+  steeringAngle: 30
+  brakeBiasFront: 0.54
+  engineTorqueCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: -0.0063333334
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 60
+      value: 0.62
+      inSlope: -0.0063333334
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  steeringSpeedSensitivity:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: -0.007
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 60
+      value: 0.58
+      inSlope: -0.007
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4

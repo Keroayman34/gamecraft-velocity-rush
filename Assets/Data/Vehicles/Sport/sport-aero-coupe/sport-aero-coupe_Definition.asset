@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 63a0177694a603477ab6bd24ebac04ca, type: 3}
+  m_Name: sport-aero-coupe_Definition
+  m_EditorClassIdentifier: VelocityRush.Data::VelocityRush.Data.VehicleDefinition
+  schemaVersion: 1
+  vehicleId: sport-aero-coupe
+  displayNameEn: Aero Coupe
+  displayNameAr: "\u0625\u064A\u0631\u0648 \u0643\u0648\u0628\u064A\u0647"
+  vehicleClass: 1
+  physicsProfile: {fileID: 11400000, guid: 9e16d9ef5b31ce70eaf800cf0890b067, type: 2}

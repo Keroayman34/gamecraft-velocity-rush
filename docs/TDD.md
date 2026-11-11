@@ -629,6 +629,29 @@ Rigidbody-with-custom-tire-forces (own suspension integration + lateral/longitud
 - **Authoring tool:** `VehicleRosterBuilder` (`Assets/Editor/VehicleRosterBuilder.cs`) provides the menu `Tools/GameCraft Studio/Velocity Rush/Validate Vehicle Roster`, the batch entry `ValidateFromCommandLine` (exit `1` on any defect), and `CreateDefinition(...)`, which validates before writing and creates `Assets/Data/Vehicles/<Class>/<vehicleId>/<vehicleId>_Definition.asset`. It creates only owner-supplied identities; it never invents names, classes, or statistics.
 - **Status:** schema and tooling are implemented and tested (43 new EditMode tests; suite **284/284**, compile **0 errors / 0 warnings**). No `VehicleDefinition` or vehicle-profile asset exists yet: `T-8.0` (OQ-14/OQ-06 owner freeze) gates `T-8.3`/`T-8.4`, and an empty roster intentionally fails validation.
 
+#### 36.7.2 Phase-8 Stage-2 generated roster (implemented 2026-11-11)
+
+`VehicleRosterStage2Builder` (`Assets/Editor/VehicleRosterStage2Builder.cs`) authors the ten frozen OQ-14 identities. Each profile is an instantiated clone of an approved prototype baseline with only the listed serialized fields overridden; each definition then references its profile. Menus: `Generate Phase 8 Vehicle Roster`; batch: `-executeMethod VelocityRush.EditorTools.VehicleRosterStage2Builder.GenerateFromCommandLine`.
+
+| Vehicle (id) | Class | Baseline | Mass (kg) | Fwd/side grip | Torque (N·m) | Brake / handbrake | Steering | Brake bias F | Spring / damper |
+|---|---|---|---|---|---|---|---|---|---|
+| Apex-V (`starter-apex-v`) | Starter | Grip | 1050 | 1.85 / 1.90 | 850 | 2600 / 3200 | 33° | 0.55 | 30000 / 4000 |
+| Nova Hatch (`starter-nova-hatch`) | Starter | Grip | 1100 | 1.80 / 1.85 | 900 | 2700 / 3000 | 32° | 0.62 | 32000 / 4200 |
+| Velocity GT (`sport-velocity-gt`) | Sport | Grip | 1200 | 1.90 / 1.95 | 1000 | 2500 / 3600 | 31° | 0.55 | 35000 / 4500 |
+| Aero Coupe (`sport-aero-coupe`) | Sport | Grip | 1300 | 1.88 / 1.93 | 1100 | 2700 / 3400 | 30° | 0.54 | 38000 / 4800 |
+| Pulse R (`sport-pulse-r`) | Sport | Grip | 1120 | 1.92 / 1.97 | 1150 | 2600 / 3600 | 33° | 0.56 | 34000 / 4400 |
+| Sidewinder (`drift-sidewinder`) | Drift | Loose | 1200 | 1.35 / 1.10 | 1100 | 2500 / 5200 | 33° | 0.40 | 35000 / 4500 |
+| Kuma DX (`drift-kuma-dx`) | Drift | Loose | 1350 | 1.40 / 0.95 | 1250 | 2600 / 5600 | 34° | 0.38 | 33000 / 4300 |
+| Vortex V10 (`supercar-vortex-v10`) | Supercar | Grip | 1150 | 2.15 / 2.25 | 1500 | 3200 / 4200 | 29° | 0.58 | 45000 / 5500 |
+| Eclipse (`supercar-eclipse`) | Supercar | Grip | 1180 | 2.20 / 2.30 | 1450 | 3600 / 4000 | 28° | 0.60 | 50000 / 6000 |
+| Nebula X (`supercar-nebula-x`) | Supercar | Grip | 1280 | 2.10 / 2.20 | 1550 | 3300 / 4200 | 30° | 0.57 | 46000 / 5600 |
+
+- **Exact baselines:** `sport-velocity-gt` equals `CandidateA_Grip_Vehicle` and `drift-sidewinder` equals `CandidateB_Loose_Vehicle` across every serialized field and both curves; `VehicleRosterAssetTests` asserts this over the real assets.
+- **Curves:** `engineTorqueCurve` is linear from `1.0` at 0 m/s to the row's endpoint (0.55–0.72 at 60 m/s); `steeringSpeedSensitivity` is linear from `1.0` to 0.42–0.68. Both stay within the validator's 0..1 range.
+- **Derivation, not invention:** the owner supplied qualitative briefs; the numeric values above are engineering choices inside the approved envelopes. They are **not** final balance and remain OQ-06/T-8.5.
+- **Drivetrain limit:** `VehiclePhysicsProfile` has no layout field. "FWD-feel" (Nova Hatch: front brake bias 0.62, low CoM) and "AWD-feel" (Nebula X: high mass, steep early torque endpoint 0.72, heavier high-speed steering) are approximations only.
+- **Status:** roster validation **PASS** (10 definitions, 2/3/2/3); batch compile 0 errors / 0 warnings; EditMode **288/288**; PlayMode **13/13**. Visual rigs, Garage, and upgrades are out of scope for this stage.
+
 ### 36.8 Runtime tuning boundaries
 - Tunable live: all profile fields (EditMode inspector + Play Mode tweak); assist strengths; input filtering curves.
 - Not runtime-mutable: definition templates (frozen at runtime per D-035); anything owner-gated (assist depth, drift philosophy).

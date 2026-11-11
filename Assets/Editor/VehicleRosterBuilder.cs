@@ -192,7 +192,7 @@ namespace VelocityRush.EditorTools
             return definition;
         }
 
-        private static void EnsureFolder(string path)
+        internal static void EnsureFolder(string path)
         {
             if (AssetDatabase.IsValidFolder(path))
             {
