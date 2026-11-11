@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &838923117
+--- !u!1 &492827396
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,60 +127,45 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 838923120}
-  - component: {fileID: 838923119}
-  - component: {fileID: 838923118}
+  - component: {fileID: 492827398}
+  - component: {fileID: 492827397}
   m_Layer: 0
-  m_Name: Garage UI
+  m_Name: VehicleRoster
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &838923118
+--- !u!114 &492827397
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 838923117}
+  m_GameObject: {fileID: 492827396}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4b44e62fe64efe83a8582ccf2b6becc4, type: 3}
+  m_Script: {fileID: 11500000, guid: 98df8fb9c12c1ed7b99bdc0d5921ef23, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: VelocityRush.Gameplay::VelocityRush.Gameplay.GarageScreen
-  document: {fileID: 838923119}
-  catalog: {fileID: 1528204120}
---- !u!114 &838923119
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 838923117}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
-  m_PanelSettings: {fileID: 11400000, guid: c536a979ade0d982d9b46f2414e634d7, type: 2}
-  m_ParentUI: {fileID: 0}
-  sourceAsset: {fileID: 0}
-  m_SortingOrder: 20
-  m_Position: 0
-  m_WorldSpaceSizeMode: 1
-  m_WorldSpaceWidth: 1920
-  m_WorldSpaceHeight: 1080
-  m_PivotReferenceSize: 0
-  m_Pivot: 0
-  m_WorldSpaceCollider: {fileID: 0}
---- !u!4 &838923120
+  m_EditorClassIdentifier: VelocityRush.Data::VelocityRush.Data.VehicleRosterCatalog
+  vehicles:
+  - {fileID: 11400000, guid: 59ac934bb693381bb87037d81c7d3a90, type: 2}
+  - {fileID: 11400000, guid: 8a92940aca3b88919959c919940ff5ef, type: 2}
+  - {fileID: 11400000, guid: 9429e8ac8689fea879a1610f0026b87d, type: 2}
+  - {fileID: 11400000, guid: b6431ce223d147b4ea132c8f7c318aaf, type: 2}
+  - {fileID: 11400000, guid: 4649ebfccf153a52f84252e1ea53e271, type: 2}
+  - {fileID: 11400000, guid: f8ca667028f71b11b8198b2770676e99, type: 2}
+  - {fileID: 11400000, guid: e9c64c3295af2c642833061ae2b00403, type: 2}
+  - {fileID: 11400000, guid: f2a0c7a39ce223a8c9fb92faa66b4387, type: 2}
+  - {fileID: 11400000, guid: 8b992280b0f20f6598c69d7daa98da9a, type: 2}
+  - {fileID: 11400000, guid: fb7ad613a0648cbe495cb34fe3c1047a, type: 2}
+--- !u!4 &492827398
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 838923117}
+  m_GameObject: {fileID: 492827396}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -189,7 +174,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1515756753
+--- !u!1 &761235240
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -197,8 +182,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1515756755}
-  - component: {fileID: 1515756754}
+  - component: {fileID: 761235242}
+  - component: {fileID: 761235241}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -206,13 +191,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!20 &1515756754
+--- !u!20 &761235241
 Camera:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1515756753}
+  m_GameObject: {fileID: 761235240}
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
@@ -257,13 +242,13 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!4 &1515756755
+--- !u!4 &761235242
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1515756753}
+  m_GameObject: {fileID: 761235240}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 1.5, z: -6}
@@ -272,7 +257,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1528204119
+--- !u!1 &1788935735
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -280,45 +265,106 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1528204121}
-  - component: {fileID: 1528204120}
+  - component: {fileID: 1788935738}
+  - component: {fileID: 1788935737}
+  - component: {fileID: 1788935736}
   m_Layer: 0
-  m_Name: VehicleRoster
+  m_Name: Garage UI
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1528204120
+--- !u!114 &1788935736
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1528204119}
+  m_GameObject: {fileID: 1788935735}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 98df8fb9c12c1ed7b99bdc0d5921ef23, type: 3}
+  m_Script: {fileID: 11500000, guid: 4b44e62fe64efe83a8582ccf2b6becc4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: VelocityRush.Data::VelocityRush.Data.VehicleRosterCatalog
-  vehicles:
-  - {fileID: 11400000, guid: 59ac934bb693381bb87037d81c7d3a90, type: 2}
-  - {fileID: 11400000, guid: 8a92940aca3b88919959c919940ff5ef, type: 2}
-  - {fileID: 11400000, guid: 9429e8ac8689fea879a1610f0026b87d, type: 2}
-  - {fileID: 11400000, guid: b6431ce223d147b4ea132c8f7c318aaf, type: 2}
-  - {fileID: 11400000, guid: 4649ebfccf153a52f84252e1ea53e271, type: 2}
-  - {fileID: 11400000, guid: f8ca667028f71b11b8198b2770676e99, type: 2}
-  - {fileID: 11400000, guid: e9c64c3295af2c642833061ae2b00403, type: 2}
-  - {fileID: 11400000, guid: f2a0c7a39ce223a8c9fb92faa66b4387, type: 2}
-  - {fileID: 11400000, guid: 8b992280b0f20f6598c69d7daa98da9a, type: 2}
-  - {fileID: 11400000, guid: fb7ad613a0648cbe495cb34fe3c1047a, type: 2}
---- !u!4 &1528204121
+  m_EditorClassIdentifier: VelocityRush.Gameplay::VelocityRush.Gameplay.GarageScreen
+  document: {fileID: 1788935737}
+  catalog: {fileID: 492827397}
+--- !u!114 &1788935737
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1788935735}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
+  m_PanelSettings: {fileID: 11400000, guid: c536a979ade0d982d9b46f2414e634d7, type: 2}
+  m_ParentUI: {fileID: 0}
+  sourceAsset: {fileID: 0}
+  m_SortingOrder: 20
+  m_Position: 0
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_WorldSpaceCollider: {fileID: 0}
+--- !u!4 &1788935738
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1528204119}
+  m_GameObject: {fileID: 1788935735}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1907689817
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1907689819}
+  - component: {fileID: 1907689818}
+  m_Layer: 0
+  m_Name: GarageDebugLauncher
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1907689818
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1907689817}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e77b11f76073af6c9b0b4885ea4e9637, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VelocityRush.Gameplay::VelocityRush.Gameplay.GarageDebugLauncher
+  screen: {fileID: 1788935736}
+  courseSceneName: HandlingCourse
+--- !u!4 &1907689819
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1907689817}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -331,6 +377,7 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 1515756755}
-  - {fileID: 838923120}
-  - {fileID: 1528204121}
+  - {fileID: 761235242}
+  - {fileID: 1788935738}
+  - {fileID: 492827398}
+  - {fileID: 1907689819}

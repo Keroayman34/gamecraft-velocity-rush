@@ -92,6 +92,42 @@ namespace VelocityRush.Gameplay
         }
 
         /// <summary>
+        /// Rebinds the rig to a runtime-spawned vehicle (T-8.11 debug selection flow). Smoothing
+        /// state is reset so the camera snaps to the new target instead of interpolating from the
+        /// previous vehicle's pose.
+        /// </summary>
+        /// <param name="newTarget">New follow target root.</param>
+        /// <param name="newTelemetrySource">MonoBehaviour implementing <see cref="IVehicleTelemetry"/>.</param>
+        /// <returns>True when the new wiring is valid.</returns>
+        public bool Configure(Transform newTarget, MonoBehaviour newTelemetrySource)
+        {
+            if (newTarget == null || !(newTelemetrySource is IVehicleTelemetry))
+            {
+                return false;
+            }
+
+            if (_camera == null)
+            {
+                _camera = GetComponent<Camera>();
+            }
+
+            target = newTarget;
+            telemetrySource = newTelemetrySource;
+            _telemetry = (IVehicleTelemetry)newTelemetrySource;
+            _targetBody = newTarget.GetComponentInParent<Rigidbody>();
+            _initialized = false;
+            _currentDistance = 0f;
+            CurrentDistance = 0f;
+            _pivotVelocity = Vector3.zero;
+            _positionVelocity = Vector3.zero;
+            _rotationVelocity = Vector3.zero;
+            _distanceVelocity = 0f;
+            _smoothedRotation = Quaternion.identity;
+            enabled = true;
+            return true;
+        }
+
+        /// <summary>
         /// Validates the serialized rig wiring without entering play mode. Used by <see cref="Awake"/>
         /// and by tests; returns the first problem found.
         /// </summary>

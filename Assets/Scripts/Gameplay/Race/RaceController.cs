@@ -130,6 +130,35 @@ namespace VelocityRush.Gameplay
             _initialized = true;
         }
 
+        /// <summary>
+        /// Rebinds the race participant and spawn pose to a runtime-spawned vehicle (T-8.11 debug
+        /// selection flow). The race rules and checkpoint wiring are unchanged; only the body used
+        /// for participant checks and the retry pose move to the selected rig.
+        /// </summary>
+        /// <param name="newVehicle">Selected vehicle controller.</param>
+        /// <param name="spawnPosition">Spawn pose captured before the template was replaced.</param>
+        /// <param name="spawnRotation">Spawn rotation captured before the template was replaced.</param>
+        /// <returns>True when the participant was rebound.</returns>
+        public bool Configure(VehicleController newVehicle, Vector3 spawnPosition, Quaternion spawnRotation)
+        {
+            if (!_initialized || newVehicle == null)
+            {
+                return false;
+            }
+
+            var newBody = newVehicle.GetComponent<Rigidbody>();
+            if (newBody == null)
+            {
+                return false;
+            }
+
+            vehicle = newVehicle;
+            _vehicleBody = newBody;
+            _spawnPosition = spawnPosition;
+            _spawnRotation = spawnRotation;
+            return true;
+        }
+
         private void OnDestroy()
         {
             if (_rules != null)

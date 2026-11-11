@@ -61,6 +61,25 @@ namespace VelocityRush.Gameplay
             }
         }
 
+        /// <summary>
+        /// Rebinds the tyre-screech bed to a runtime-spawned vehicle (T-8.11 debug selection flow).
+        /// </summary>
+        /// <param name="newTelemetrySource">MonoBehaviour implementing <see cref="IVehicleTelemetry"/>.</param>
+        /// <returns>True when the source implements the telemetry contract.</returns>
+        public bool Configure(MonoBehaviour newTelemetrySource)
+        {
+            var telemetry = newTelemetrySource as IVehicleTelemetry;
+            if (telemetry == null)
+            {
+                return false;
+            }
+
+            telemetrySource = newTelemetrySource;
+            _telemetry = telemetry;
+            _wheelTelemetry = newTelemetrySource as IVehicleWheelTelemetry;
+            return true;
+        }
+
         private void Update()
         {
             if (source == null)

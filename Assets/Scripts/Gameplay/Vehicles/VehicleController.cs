@@ -48,8 +48,11 @@ namespace VelocityRush.Gameplay
         private readonly WheelTelemetry[] _wheelTelemetry = new WheelTelemetry[4];
         private IVehicleInput _input;
 
-        /// <summary>The tuning template assigned in the inspector (read-only for consumers).</summary>
+        /// <summary>Referenced handling profile (sole source of physics values).</summary>
         public VehiclePhysicsProfile Profile => profile;
+
+        /// <summary>The bound driving input source, or null before runtime binding.</summary>
+        public MonoBehaviour InputSource => inputSource;
 
         /// <inheritdoc />
         public VehicleTelemetry Telemetry { get; private set; }

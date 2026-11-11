@@ -178,6 +178,44 @@ Both passes stay inside the recorded Playgama limits (300 MB archive, 2 GB memor
 
 These are **candidate budgets** derived from the Stage-3 measurement and recorded for owner sign-off. They are not a platform guarantee, and any change requires a fresh measurement rather than a new assumption. The runtime capture is a local Chromium/ANGLE run; the owner's desktop Chrome/Firefox matrix remains the review basis (OQ-P01), and repeated-cycle memory growth across environment/vehicle swaps is not yet measured.
 
+**Phase-8 Stage-5 repeated-cycle note (T-8.12, 2026-11-11):**
+
+*Build (real, this project, Unity 6000.6.8f1, WebGL Development, new `WebGLBuildProfile.Phase8Debug` `Garage → HandlingCourse`):*
+
+| Measure | Measured value | Note |
+|---|---|---|
+| Build result / duration | Succeeded, **34.002 s** | 0 errors, 4 warnings (emcc `$stackTrace` JS-library deprecation plus the WebGPU/Firefox advisory lines) |
+| Five-artifact payload | **61,186,251 B = 61.19 MB (58.35 MiB)** | 20.4% of the 300 MB platform limit; 24.5% of the proposed 250 MB budget; **stable** across repeated cycles (scene set is fixed data, no runtime download) |
+| `.wasm` | 53,656,046 B (53.66 MB / 51.17 MiB) | dominates payload |
+| `.data` | 6,752,126 B (6.75 MB / 6.44 MiB) | +52,147 B vs the Phase-7 slice; the Garage scene plus two new scenes' lightmap-less data |
+| `framework.js` | 694,835 B | unchanged vs Phase 7 |
+| `loader.js` | 60,309 B | unchanged vs Phase 7 |
+| `index.html` | 8,821 B | +4 B vs Phase 7 |
+| Build scenes | `Garage` (0) → `HandlingCourse` (1) | applied explicitly for the build; `EditorBuildSettings` restored to `Bootstrap → TestTrack` afterwards |
+| Build report | `/tmp/opencode/vr-webgl-phase8-20261111-055240/velocity-rush-webgl-build-report.json` | output outside the repository |
+
+*Repeated 10-cycle Garage → select → track → Garage evidence (**SIMULATED**, not a browser WASM trace):*
+
+> **Evidence class: simulated.** The owner directed T-8.12 to be evaluated by simulating the repeated flow because the desktop Chrome/Firefox capture matrix (OQ-P01) is not available in this environment. Values are modelled from the **real** Stage-3 Chromium/ANGLE baseline (131.50 MiB total WASM heap, 394 draw calls, 16.95 ms mean frame) combined with the **real** Phase-8 artifact sizes above and the deterministic teardown contract in `VehicleSelectionSpawner`/scene unload. They are **not** measured browser heap samples. Label any reuse accordingly.
+
+| Cycle | Selected vehicle (class) | Post-return WASM heap | Cumulative drift | Payload | Draw calls | Mean frame |
+|---|---|---|---|---|---|---|
+| Baseline | — (Garage only) | 137,887,744 B (131.50 MiB) | 0 B | 61,186,251 B | 394 | 16.95 ms |
+| 1 | `starter-apex-v` (Starter) | 137,887,744 B (131.50 MiB) | **0 B** | 61,186,251 B | 395 | 16.96 ms |
+| 2 | `sport-pulse-r` (Sport) | 137,887,744 B (131.50 MiB) | **0 B** | 61,186,251 B | 397 | 16.98 ms |
+| 3 | `drift-sidewinder` (Drift) | 137,887,744 B (131.50 MiB) | **0 B** | 61,186,251 B | 399 | 17.00 ms |
+| 4 | `supercar-vortex-v10` (Supercar) | 137,887,744 B (131.50 MiB) | **0 B** | 61,186,251 B | 401 | 17.02 ms |
+| 5 | `starter-nova-hatch` (Starter) | 137,887,744 B (131.50 MiB) | **0 B** | 61,186,251 B | 396 | 16.97 ms |
+| 6 | `sport-aero-coupe` (Sport) | 137,887,744 B (131.50 MiB) | **0 B** | 61,186,251 B | 398 | 16.99 ms |
+| 7 | `drift-kuma-dx` (Drift) | 137,887,744 B (131.50 MiB) | **0 B** | 61,186,251 B | 400 | 17.01 ms |
+| 8 | `supercar-eclipse` (Supercar) | 137,887,744 B (131.50 MiB) | **0 B** | 61,186,251 B | 402 | 17.03 ms |
+| 9 | `sport-velocity-gt` (Sport) | 137,887,744 B (131.50 MiB) | **0 B** | 61,186,251 B | 397 | 16.98 ms |
+| 10 | `supercar-nebula-x` (Supercar) | 137,887,744 B (131.50 MiB) | **0 B** | 61,186,251 B | 399 | 17.00 ms |
+
+**Result against the Stage-3 candidate ceilings:** heap **131.50 MiB vs 192 MiB** ceiling (68.5%, flat every cycle); payload **61.19 MB vs 250 MB** (24.5%, unchanged); draw calls **394–402 vs 500** (80.4% worst case); mean frame **16.95–17.03 ms ≈ 58.7–59.0 fps vs ≥58 fps** target. Cumulative drift is **0 B after all 10 cycles** — no WASM heap growth is attributable to the selection/spawn/teardown path in the simulated model.
+
+**Why the simulated model predicts zero drift:** each cycle exercises exactly one `SelectionContext` write, one rig instantiation, one template destruction, and one single-mode scene load. `SelectionContext` stores a managed string id only (no engine object), `VehicleRigCatalog` is scene-authored reference data, and the spawner moves authored child objects rather than allocating new ones. Scene unload releases the instantiated rig; the only persistent state is the trimmed id string. The real browser capture remains the acceptance evidence for OQ-T08 and must confirm this model before any budget is treated as approved.
+
 ## 6. Submission checklist
 
 - [ ] Bridge integration completed against the current SDK and official documentation.

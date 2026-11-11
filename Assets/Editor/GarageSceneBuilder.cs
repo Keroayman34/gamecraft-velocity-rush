@@ -115,6 +115,13 @@ namespace VelocityRush.EditorTools
             screenSerialized.FindProperty("catalog").objectReferenceValue = catalog;
             screenSerialized.ApplyModifiedPropertiesWithoutUndo();
 
+            var debugGo = new GameObject("GarageDebugLauncher");
+            var launcher = debugGo.AddComponent<GarageDebugLauncher>();
+            var launcherSerialized = new SerializedObject(launcher);
+            launcherSerialized.FindProperty("screen").objectReferenceValue = screen;
+            launcherSerialized.FindProperty("courseSceneName").stringValue = "HandlingCourse";
+            launcherSerialized.ApplyModifiedPropertiesWithoutUndo();
+
             EditorSceneManager.MarkSceneDirty(scene);
             if (!EditorSceneManager.SaveScene(scene, ScenePath))
             {

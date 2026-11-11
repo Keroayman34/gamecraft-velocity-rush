@@ -42,6 +42,7 @@ namespace VelocityRush.Tests.PlayMode
         [UnitySetUp]
         public IEnumerator SetUp()
         {
+            SelectionContext.Clear();
             RestoreTimeScale();
             Time.timeScale = 2f;
             _straightSteps = Mathf.CeilToInt(StraightSeconds / Time.fixedDeltaTime);

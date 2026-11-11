@@ -117,6 +117,7 @@ namespace VelocityRush.EditorTools
             var vehicleProfile = LoadRequired<VehiclePhysicsProfile>(DefaultVehicleProfilePath, "tuning preset");
             var baselineCamera = LoadRequired<CameraProfile>(BaselineCameraPath, "tuning preset");
             var roster = LoadRosterDefinitions();
+            var rigPrefabs = LoadRigPrefabs(roster);
 
             var trackRoot = new GameObject("Track").transform;
 
@@ -307,6 +308,25 @@ namespace VelocityRush.EditorTools
             {
                 throw new InvalidOperationException("Generated roster catalog is invalid: " + catalogError);
             }
+
+            var rigsGo = new GameObject("VehicleRigs");
+            var rigCatalog = rigsGo.AddComponent<VehicleRigCatalog>();
+            rigCatalog.ConfigureForAuthoring(roster, rigPrefabs);
+            if (!rigCatalog.TryValidate(out var rigCatalogError))
+            {
+                throw new InvalidOperationException("Generated rig catalog is invalid: " + rigCatalogError);
+            }
+
+            var spawnerGo = new GameObject("VehicleSelectionSpawner");
+            var spawner = spawnerGo.AddComponent<VehicleSelectionSpawner>();
+            SetObject(spawner, "rigCatalog", rigCatalog);
+            SetObject(spawner, "templateVehicle", vehicleGo);
+            SetObject(spawner, "appInputSource", input);
+            SetObject(spawner, "race", race);
+            SetObject(spawner, "cameraRig", cameraRig);
+            SetObject(spawner, "hudPresenter", presenter);
+            SetObject(spawner, "telemetryOverlay", overlay);
+            SetString(spawner, "debugGarageScene", "Garage");
 
             EditorSceneManager.MarkSceneDirty(scene);
             if (!EditorSceneManager.SaveScene(scene, ScenePath))
@@ -696,6 +716,22 @@ namespace VelocityRush.EditorTools
         }
 
         /// <summary>
+        /// Loads the generated rig prefab for every roster definition, preserving roster order.
+        /// </summary>
+        private static GameObject[] LoadRigPrefabs(VehicleDefinition[] roster)
+        {
+            var prefabs = new GameObject[roster.Length];
+            for (var i = 0; i < roster.Length; i++)
+            {
+                prefabs[i] = LoadRequired<GameObject>(
+                    VehicleRigBuilder.GetVariantPath(roster[i]),
+                    "rig prefab for " + roster[i].VehicleId);
+            }
+
+            return prefabs;
+        }
+
+        /// <summary>
         /// Loads a required asset and fails loudly instead of silently wiring a null reference.
         /// </summary>
         private static T LoadRequired<T>(string path, string description) where T : Object
@@ -734,6 +770,20 @@ namespace VelocityRush.EditorTools
             }
 
             property.floatValue = value;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void SetString(Object target, string propertyName, string value)
+        {
+            var serialized = new SerializedObject(target);
+            var property = serialized.FindProperty(propertyName);
+            if (property == null)
+            {
+                throw new InvalidOperationException(
+                    "Missing serialized property '" + propertyName + "' on " + target.GetType().Name);
+            }
+
+            property.stringValue = value;
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 

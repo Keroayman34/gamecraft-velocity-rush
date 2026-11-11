@@ -33,6 +33,7 @@ namespace VelocityRush.Tests.PlayMode
         [UnitySetUp]
         public IEnumerator SetUp()
         {
+            VelocityRush.Core.SelectionContext.Clear();
             yield return ResetToCleanHost();
 
             if (SceneManager.GetSceneByName(SceneName).isLoaded)
@@ -72,6 +73,7 @@ namespace VelocityRush.Tests.PlayMode
         [UnityTearDown]
         public IEnumerator TearDown()
         {
+            VelocityRush.Core.SelectionContext.Clear();
             if (SceneManager.GetSceneByName(SceneName).isLoaded)
             {
                 yield return SceneManager.UnloadSceneAsync(SceneName);
@@ -104,6 +106,24 @@ namespace VelocityRush.Tests.PlayMode
             presenter.Confirm();
             Assert.That(presenter.ConfirmedIndex, Is.EqualTo(1));
             yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator Confirm_WritesTheStableVehicleIdToSelectionContext()
+        {
+            // Remove the contained debug handoff first: this test exercises the selection write,
+            // not the Garage -> HandlingCourse scene load.
+            var launcher = Object.FindAnyObjectByType<GarageDebugLauncher>();
+            if (launcher != null)
+            {
+                Object.Destroy(launcher.gameObject);
+                yield return null;
+            }
+
+            _screen.Presenter.Next();
+            var expected = _screen.Presenter.Current.VehicleId;
+            Assert.That(_screen.ConfirmSelection(), Is.True);
+            Assert.That(VelocityRush.Core.SelectionContext.SelectedVehicleId, Is.EqualTo(expected));
         }
 
         [UnityTest]

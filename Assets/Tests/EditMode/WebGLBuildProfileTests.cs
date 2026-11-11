@@ -36,6 +36,19 @@ namespace VelocityRush.Tests.EditMode
         }
 
         [Test]
+        public void Phase8DebugProfile_TargetsGarageThenHandlingCourse()
+        {
+            var paths = VelocityRushWebGLBuilder.GetScenePaths(WebGLBuildProfile.Phase8Debug);
+
+            Assert.That(paths[0], Is.EqualTo("Assets/Scenes/Garage.unity"));
+            Assert.That(paths[1], Is.EqualTo(PrototypeSceneLoader.HandlingCourseScenePath));
+            Assert.That(paths.Length, Is.EqualTo(2));
+            Assert.That(
+                VelocityRushWebGLBuilder.DescribeSceneOrder(WebGLBuildProfile.Phase8Debug),
+                Is.EqualTo("Garage -> HandlingCourse"));
+        }
+
+        [Test]
         public void DescribeSceneOrder_NamesTheProfileScenes()
         {
             Assert.That(
@@ -63,6 +76,12 @@ namespace VelocityRush.Tests.EditMode
 
             Assert.That(VelocityRushWebGLBuilder.TryParseProfile("HandlingCourse", out var course), Is.True);
             Assert.That(course, Is.EqualTo(WebGLBuildProfile.VerticalSlice));
+
+            Assert.That(VelocityRushWebGLBuilder.TryParseProfile("phase8", out var phase8), Is.True);
+            Assert.That(phase8, Is.EqualTo(WebGLBuildProfile.Phase8Debug));
+
+            Assert.That(VelocityRushWebGLBuilder.TryParseProfile("Garage", out var garage), Is.True);
+            Assert.That(garage, Is.EqualTo(WebGLBuildProfile.Phase8Debug));
 
             Assert.That(VelocityRushWebGLBuilder.TryParseProfile("unknown", out _), Is.False);
             Assert.That(VelocityRushWebGLBuilder.TryParseProfile("  ", out _), Is.False);

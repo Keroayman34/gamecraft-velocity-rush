@@ -168,6 +168,28 @@ namespace VelocityRush.Gameplay
             Refresh();
         }
 
+        /// <summary>
+        /// Rebinds the development overlay to a runtime-spawned vehicle (T-8.11). The atlas and
+        /// buffers are reused; only the telemetry source changes.
+        /// </summary>
+        /// <param name="newTelemetrySource">MonoBehaviour implementing <see cref="IVehicleTelemetry"/>.</param>
+        /// <returns>True when the source implements the telemetry contract.</returns>
+        public bool Configure(MonoBehaviour newTelemetrySource)
+        {
+            var telemetry = newTelemetrySource as IVehicleTelemetry;
+            if (telemetry == null)
+            {
+                enabled = false;
+                return false;
+            }
+
+            telemetrySource = newTelemetrySource;
+            _telemetry = telemetry;
+            _wheelTelemetry = newTelemetrySource as IVehicleWheelTelemetry;
+            enabled = true;
+            return true;
+        }
+
         private void Update()
         {
             if (Input.GetKeyDown(toggleKey))

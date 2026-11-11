@@ -495,7 +495,7 @@ Justified additions 【Recommendation, mirroring existing GDD requirements only�
 | Championship progress | Progression | ApplyRaceResult | ChampionshipSelection UI | SaveModel |
 | Unlock state | Progression | ApplyRaceResult / rewards | Garage/race gate | SaveModel |
 | Language/settings state | Localization (language) / Settings UI (writes via the Settings persistence path into `SaveModel.settings`) | change events | UI mirroring | SaveModel.settings |
-| `SelectionContext` | GameFlow (§29 S10 pin — written exactly once per transition into PreEvent/race-scoped flows) | transitions | PreEvent/Race readers | no (session) |
+| `SelectionContext` | GameFlow (§29 S10 pin — written exactly once per transition into PreEvent/race-scoped flows); **Phase-8 debug exception:** the Garage is the temporary writer until Phase 11 | transitions | PreEvent/Race readers | no (session) |
 
 Binding guarantee: **any given fact has exactly one mutable home**; Save never mutates meanings, only snapshots. Runtime State containers remain session-scoped.
 
@@ -1256,3 +1256,24 @@ The measurement covers the synchronous navigation path used by a key press or bu
 **Scene and build contract.** `GarageSceneBuilder` generates `Assets/Scenes/Garage.unity` with a camera, a `UIDocument` using the existing `Assets/UI/Slice/SlicePanelSettings.asset`, the roster catalog, and `GarageScreen`. It deliberately does not modify `EditorBuildSettings`; PlayMode tests load the scene through `EditorSceneManager.LoadSceneAsyncInPlayMode`, and the approved `Bootstrap → TestTrack` prototype contract is unchanged.
 
 **Validation:** batch compile **0 errors / 0 warnings**; EditMode **299/299**; PlayMode **16/16**; new Stage-3/4 EditMode coverage is 11 tests (5 rig, 4 model, 2 view/allocation) and Stage-4 PlayMode coverage is 2 tests.
+
+### 47.12 Phase-8 Stage-5 debug spawn and repeated-cycle profile (T-8.11–T-8.13, 2026-11-11)
+
+**Selection contract.** `SelectionContext` (`Assets/Scripts/Core/SelectionContext.cs`) is the TDD §34.3 session holder. It stores only the stable `VehicleId` string; no `UnityEngine.Object`, prefab, profile, or collection is retained. The Garage writes on confirm through `GarageScreen.ConfirmSelection()`; the debug spawner only reads. Phase 11 replaces the write site with the GameFlow transition and can delete the debug seam without touching the contract.
+
+**Definition-to-prefab mapping.** `VehicleRigCatalog` (`Assets/Scripts/Data/VehicleRigCatalog.cs`) holds one `(VehicleDefinition, GameObject rigPrefab)` pair per roster entry. `HandlingCourseBuilder` generates it from `VehicleRigBuilder.GetVariantPath(definition)`, then validates: at least one entry, valid definition, non-null prefab, unique stable ids. Runtime resolution is an ordinal id comparison over a scene-authored array; there is no `Resources`/Addressables load and no new loading-strategy decision (D-035 stays open).
+
+**Debug spawn flow.** `VehicleSelectionSpawner` runs in `Start`, after `RaceController.Awake` captured the template body. With a selection it:
+
+1. instantiates the matching rig variant under an inactive holder;
+2. binds input (`TrySetInputSource`) and the definition's physics profile (`TryApplyProfile`) before activation, so `VehicleController.Awake` sees a complete rig;
+3. disables the template, transfers `Engine Audio`, `Tyre Audio`, `Vfx Tyre Smoke`, `Vfx Ground Dust`, and `Vfx Impact Sparks`, adds a runtime `VehicleVfxController` and `ImpactAudioController`, and rebinds every telemetry consumer;
+4. activates the selected rig, rebinds `VehicleCameraRig`, `SliceHudPresenter`, `VehicleTelemetryOverlay`, and `RaceController` (participant body + retry pose), then destroys the template.
+
+Without a selection the spawner returns before touching the scene, so the approved slice template and every existing slice PlayMode suite remain valid. `GarageDebugLauncher` (Garage → course) and the spawner's Escape return (course → Garage) are wrapped in `UNITY_EDITOR || DEVELOPMENT_BUILD` and are not the GameFlow.
+
+**WebGL build contract.** `WebGLBuildProfile.Phase8Debug` adds `Garage → HandlingCourse` as opt-in data; the default remains `Bootstrap → TestTrack`. Batch helpers `ApplyPhase8DebugScenesFromCommandLine` and `RestorePrototypeScenesFromCommandLine` make the build reproducible, and the committed `EditorBuildSettings` is restored to the prototype order afterwards.
+
+**Measured build (real, Unity 6000.6.8f1, WebGL Development):** `61,186,251 B = 61.19 MB` five-artifact payload, `34.0 s`, `0 errors`, 4 known emcc/Firefox advisory warnings. Details and the simulated 10-cycle memory table are in `docs/PLAYGAMA_CONSTRAINTS.md` §5.
+
+**Validation:** batch compile **0 errors / 0 warnings**; EditMode **304/304**; PlayMode **19/19**; 0 failed, 0 skipped. New coverage: 4 `SelectionContextTests`, 1 `WebGLBuildProfileTests` Phase-8 profile test, 1 `GaragePlayModeTests` confirmation-write test, and 2 `VehicleSelectionSpawnerPlayModeTests` (selected spawn + no-selection fallback).

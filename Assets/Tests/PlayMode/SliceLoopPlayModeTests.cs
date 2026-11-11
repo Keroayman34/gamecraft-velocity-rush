@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
+using VelocityRush.Core;
 using VelocityRush.Gameplay;
 
 namespace VelocityRush.Tests.PlayMode
@@ -29,6 +30,7 @@ namespace VelocityRush.Tests.PlayMode
         [UnitySetUp]
         public IEnumerator SetUp()
         {
+            SelectionContext.Clear();
             RestoreEngineGlobals();
 
             // Other PlayMode suites leave Bootstrap + TestTrack resident in the shared play

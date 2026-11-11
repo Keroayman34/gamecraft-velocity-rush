@@ -1,5 +1,7 @@
+using System;
 using UnityEngine;
 using UnityEngine.UIElements;
+using VelocityRush.Core;
 using VelocityRush.Data;
 
 namespace VelocityRush.Gameplay
@@ -31,6 +33,12 @@ namespace VelocityRush.Gameplay
 
         /// <summary>The active presenter, or null before <see cref="Start"/>.</summary>
         public GaragePresenter Presenter => _presenter;
+
+        /// <summary>
+        /// Raised after a confirmed selection is written to <see cref="SelectionContext"/>. The
+        /// Phase-8 debug launcher subscribes; Phase 11's GameFlow replaces it.
+        /// </summary>
+        public event Action<string> SelectionConfirmed;
 
         private void Start()
         {
@@ -111,7 +119,32 @@ namespace VelocityRush.Gameplay
 
         private void HandleConfirm()
         {
-            _presenter?.Confirm();
+            ConfirmSelection();
+        }
+
+        /// <summary>
+        /// Confirms the highlighted vehicle, records its stable id in
+        /// <see cref="SelectionContext"/>, and notifies debug-flow listeners (T-8.11). Ownership,
+        /// unlock checks, and the production GameFlow handoff remain Phase 11 work.
+        /// </summary>
+        /// <returns>True when a vehicle id was recorded.</returns>
+        public bool ConfirmSelection()
+        {
+            if (_presenter == null)
+            {
+                return false;
+            }
+
+            _presenter.Confirm();
+            var vehicleId = _presenter.Current.VehicleId;
+            if (!SelectionContext.SetSelection(vehicleId))
+            {
+                Debug.LogError(LogPrefix + "Confirmed vehicle has no stable id.", this);
+                return false;
+            }
+
+            SelectionConfirmed?.Invoke(vehicleId);
+            return true;
         }
 
         private void ReleaseButtons()

@@ -43,6 +43,26 @@ namespace VelocityRush.Gameplay
             _lastState = RaceState.Countdown;
         }
 
+        /// <summary>
+        /// Rebinds the HUD telemetry stream to a runtime-spawned vehicle (T-8.11). The view and the
+        /// race subscription stay unchanged.
+        /// </summary>
+        /// <param name="newTelemetrySource">MonoBehaviour implementing <see cref="IVehicleTelemetry"/>.</param>
+        /// <returns>True when the source implements the telemetry contract.</returns>
+        public bool Configure(MonoBehaviour newTelemetrySource)
+        {
+            var telemetry = newTelemetrySource as IVehicleTelemetry;
+            if (telemetry == null)
+            {
+                return false;
+            }
+
+            telemetrySource = newTelemetrySource;
+            _telemetry = telemetry;
+            _refreshRequested = true;
+            return true;
+        }
+
         private void Start()
         {
             EnsureView();

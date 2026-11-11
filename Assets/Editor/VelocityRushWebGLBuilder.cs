@@ -23,7 +23,10 @@ namespace VelocityRush.EditorTools
         Prototype = 0,
 
         /// <summary>Phase-7 vertical slice: Bootstrap → HandlingCourse.</summary>
-        VerticalSlice = 1
+        VerticalSlice = 1,
+
+        /// <summary>Phase-8 debug loop: Garage → HandlingCourse (Garage selects, course spawns).</summary>
+        Phase8Debug = 2
     }
 
     /// <summary>
@@ -105,6 +108,13 @@ namespace VelocityRush.EditorTools
             "Assets/Scenes/HandlingCourse.unity"
         };
 
+        /// <summary>Phase-8 debug selection loop scene order.</summary>
+        public static readonly string[] Phase8DebugScenePaths =
+        {
+            "Assets/Scenes/Garage.unity",
+            "Assets/Scenes/HandlingCourse.unity"
+        };
+
         private static readonly ArtifactCategory[] Categories =
         {
             new ArtifactCategory("indexHtml", "index.html"),
@@ -164,13 +174,29 @@ namespace VelocityRush.EditorTools
         /// <summary>Returns the approved scene order for a profile.</summary>
         public static string[] GetScenePaths(WebGLBuildProfile profile)
         {
-            return profile == WebGLBuildProfile.VerticalSlice ? VerticalSliceScenePaths : PrototypeScenePaths;
+            switch (profile)
+            {
+                case WebGLBuildProfile.VerticalSlice:
+                    return VerticalSliceScenePaths;
+                case WebGLBuildProfile.Phase8Debug:
+                    return Phase8DebugScenePaths;
+                default:
+                    return PrototypeScenePaths;
+            }
         }
 
         /// <summary>Stable, human-readable profile name used in reports and dialogs.</summary>
         public static string GetProfileDisplayName(WebGLBuildProfile profile)
         {
-            return profile == WebGLBuildProfile.VerticalSlice ? "Vertical Slice" : "Prototype";
+            switch (profile)
+            {
+                case WebGLBuildProfile.VerticalSlice:
+                    return "Vertical Slice";
+                case WebGLBuildProfile.Phase8Debug:
+                    return "Phase 8 Debug";
+                default:
+                    return "Prototype";
+            }
         }
 
         /// <summary>Scene-order summary used in preflight detail and dialogs.</summary>
@@ -212,6 +238,16 @@ namespace VelocityRush.EditorTools
                 return true;
             }
 
+            if (string.Equals(token, "phase8", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "phase8debug", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "garage", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "debug", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "2", StringComparison.Ordinal))
+            {
+                profile = WebGLBuildProfile.Phase8Debug;
+                return true;
+            }
+
             return false;
         }
 
@@ -234,7 +270,7 @@ namespace VelocityRush.EditorTools
             }
 
             throw new InvalidOperationException(
-                "Unknown WebGL build profile '" + token + "'. Use 'prototype' or 'slice'.");
+                "Unknown WebGL build profile '" + token + "'. Use 'prototype', 'slice', or 'phase8'.");
         }
 
         /// <summary>
@@ -244,6 +280,11 @@ namespace VelocityRush.EditorTools
         public static WebGLBuildProfile DetectConfiguredProfile()
         {
             var configured = EditorBuildSettings.scenes;
+            if (MatchesSceneOrder(configured, Phase8DebugScenePaths))
+            {
+                return WebGLBuildProfile.Phase8Debug;
+            }
+
             if (MatchesSceneOrder(configured, VerticalSliceScenePaths))
             {
                 return WebGLBuildProfile.VerticalSlice;
@@ -359,6 +400,20 @@ namespace VelocityRush.EditorTools
                 WebGLBuildProfile.Prototype,
                 "Restore prototype build scenes?",
                 "This rewrites EditorBuildSettings back to Bootstrap -> TestTrack (the Phase-5/6 contract).");
+        }
+
+        /// <summary>Batch helper: applies the Phase-8 debug scene set (Garage → HandlingCourse).</summary>
+        public static void ApplyPhase8DebugScenesFromCommandLine()
+        {
+            ApplySceneSet(WebGLBuildProfile.Phase8Debug, string.Empty, string.Empty);
+            EditorApplication.Exit(0);
+        }
+
+        /// <summary>Batch helper: restores the prototype scene set (Bootstrap → TestTrack).</summary>
+        public static void RestorePrototypeScenesFromCommandLine()
+        {
+            ApplySceneSet(WebGLBuildProfile.Prototype, string.Empty, string.Empty);
+            EditorApplication.Exit(0);
         }
 
         /// <summary>

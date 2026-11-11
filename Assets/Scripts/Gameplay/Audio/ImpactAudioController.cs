@@ -42,6 +42,22 @@ namespace VelocityRush.Gameplay
             _pool = new AudioSourcePool(transform, "ImpactPool", PoolSize, spatial: true, minDistance: 3f, maxDistance: 70f);
         }
 
+        /// <summary>The authored impact clip, used when the runtime spawner transfers presentation.</summary>
+        public AudioClip ImpactClip => impactClip;
+
+        /// <summary>
+        /// Configures a runtime-added impact controller on a spawned vehicle (T-8.11).
+        /// </summary>
+        /// <param name="clip">One-shot impact clip.</param>
+        /// <param name="vfx">Spark receiver on the same spawned root; may be null.</param>
+        public void Configure(AudioClip clip, VehicleVfxController vfx)
+        {
+            impactClip = clip;
+            sparkTarget = vfx;
+            _impactCount = 0;
+            _nextAllowedTime = 0f;
+        }
+
         private void OnCollisionEnter(Collision collision)
         {
             if (collision == null)

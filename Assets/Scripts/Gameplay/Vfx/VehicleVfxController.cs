@@ -66,6 +66,42 @@ namespace VelocityRush.Gameplay
             PlayIfPresent(sparks);
         }
 
+        /// <summary>
+        /// Rebinds a runtime-added VFX controller to a spawned vehicle and its transferred systems
+        /// (T-8.11 debug selection flow).
+        /// </summary>
+        /// <param name="newTelemetrySource">MonoBehaviour implementing <see cref="IVehicleTelemetry"/>.</param>
+        /// <param name="smokeSystem">Transferred tyre-smoke system.</param>
+        /// <param name="dustSystem">Transferred ground-dust system.</param>
+        /// <param name="sparkSystem">Transferred impact-spark system.</param>
+        /// <param name="anchors">Rear wheel anchors on the selected rig.</param>
+        /// <param name="origin">Optional spark origin; null uses the root offset.</param>
+        public void Configure(
+            MonoBehaviour newTelemetrySource,
+            ParticleSystem smokeSystem,
+            ParticleSystem dustSystem,
+            ParticleSystem sparkSystem,
+            Transform[] anchors,
+            Transform origin)
+        {
+            telemetrySource = newTelemetrySource;
+            _telemetry = newTelemetrySource as IVehicleTelemetry;
+            _wheelTelemetry = newTelemetrySource as IVehicleWheelTelemetry;
+            smoke = smokeSystem;
+            dust = dustSystem;
+            sparks = sparkSystem;
+            smokeAnchors = anchors;
+            sparkOrigin = origin;
+            _smokeBudget = 0f;
+            _dustBudget = 0f;
+            _smokeAnchorIndex = 0;
+            _sparkCount = 0;
+
+            PlayIfPresent(smoke);
+            PlayIfPresent(dust);
+            PlayIfPresent(sparks);
+        }
+
         private void Update()
         {
             var deltaTime = Time.deltaTime;
