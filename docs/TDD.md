@@ -1109,7 +1109,7 @@ Stage 2 builds T-7.6…T-7.13 on the frozen Stage-1 composition (D-044) and tech
 
 ### 47.10 Stage-3 profiling, budget derivation, and quality review (T-7.14–T-7.17, 2026-11-11)
 
-> Status: **T-7.14/T-7.15 executed against a real VerticalSlice WebGL build and a real Chromium/WebGL 2.0 runtime capture; T-7.16 draft criteria applied; T-7.17 compile/tests green.** The baked-lighting row remains the one open item: the repository does not yet contain a `LightingData` asset, lightmap textures, or reflection-probe data, so no bake is claimed in this section. M5/Phase 7 closeout is therefore recorded only after the owner's bake artifacts are present and verified.
+> Status: **T-7.14/T-7.15 executed against a real VerticalSlice WebGL build and a real Chromium/WebGL 2.0 runtime capture; T-7.16 draft criteria applied; T-7.17 compile/tests green.** The baked-lighting row is **explicitly waived for M5** by the owner under D-048 (2026-11-11): no `LightingData`, lightmap, or reflection-probe data exists, and no bake is claimed anywhere in this section. M5 and Phase 7 are recorded **COMPLETE** on that basis; a verified bake moves to Phases 8–9 production, where OQ-A10 remains open.
 
 **T-7.14 build matrix (real, this project):**
 
@@ -1148,7 +1148,7 @@ Stage 2 builds T-7.6…T-7.13 on the frozen Stage-1 composition (D-044) and tech
 | Vehicle | Pass against the draft | Hero kit reads as a Sport-class car at gameplay distance; material separation and exact collider parity; captured at 960×600 in the slice scene. Production mesh/LOD remains Phase 8. |
 | Environment | Pass against the draft | Desert identity, road edge/barrier/gantry/rock landmarks readable; non-colliding decor; no repeated-kit monotony inside the section. |
 | Materials | Pass against the draft | Asphalt, sand, metal, hazard, hero paint, dark trim, rubber, chrome, lamps, and VFX materials are distinct; generated textures; no magenta/error shader. |
-| Lighting | **Pending** | Procedural skybox, skybox ambient, warm mixed directional light, and linear fog are wired and visible in the capture; **no baked lightmap/reflection-probe data is present in the repository**, so the baked-indirect criterion cannot pass yet. |
+| Lighting | **Waived for M5 (D-048)** | Procedural skybox, skybox ambient, warm mixed directional light, and linear fog are wired and visible in the capture, and a two-height probe grid is configured; **no baked lightmap/reflection-probe data is present**, so the baked-indirect criterion is explicitly waived for M5 rather than passed. No bake is claimed. |
 | UI | Pass against the draft | HUD/countdown/pause/results are legible in the 960×600 capture; results bind once; numeric HUD path is 0 B/frame by EditMode guard. 1280×720/1920×1080 captures were not produced in this run. |
 | VFX | Pass with a stated limit | Smoke/dust/sparks are capped and allocation-bounded; the capture was stationary, so at-speed overdraw was not visually stress-tested. |
 | Audio | Partial — implementation audit only | Synthesized engine/tyre/impact/UI clips, pooled sources, `ignoreListenerPause` UI pool, and pure response math are implemented and tested; no listening pass was possible in this headless capture. |
@@ -1156,5 +1156,5 @@ Stage 2 builds T-7.6…T-7.13 on the frozen Stage-1 composition (D-044) and tech
 
 **No silent downgrade:** every deviation (bake, audio listening, at-speed VFX, 1080p/720p captures, repeated-cycle memory, owner desktop matrix) is explicit above and in `OPEN_QUESTIONS.md`; no quality reduction was made to fit a budget, and no budget was invented.
 
-**T-7.17 closeout evidence:** final batch compile **0 errors / 0 warnings**; EditMode **241/241**; PlayMode **13/13** (0 failed, 0 skipped); `EditorBuildSettings` restored to `Bootstrap` (0) → `TestTrack` (1). The slice build above is the first real WebGL slice build and is not committed as a binary artifact.
+**T-7.17 closeout evidence:** final batch compile **0 errors / 0 warnings**; EditMode **241/241**; PlayMode **13/13** (0 failed, 0 skipped); `EditorBuildSettings` restored to `Bootstrap` (0) → `TestTrack` (1). The slice build above is the first real WebGL slice build and is not committed as a binary artifact. **M5/Phase 7 are COMPLETE (2026-11-11) under D-048**: the baked-indirect criterion is waived for M5, no bake is claimed, and the realtime-only lighting route is the accepted M5 evidence.
 
