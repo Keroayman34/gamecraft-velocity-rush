@@ -621,6 +621,14 @@ Rigidbody-with-custom-tire-forces (own suspension integration + lateral/longitud
 - **Upgrades integration:** the upgrade system computes `UpgradeModifiers` (delta multipliers per D-011 category) from progression levels + `UpgradeDefinition` curve points; the controller composes profile × modifiers. Upgrade effects alter handling within skill-preserving bounds — modifiers apply small caps; formula values OQ-07 Open.
 - Runtime separation (D-035): profiles never mutated; modifiers are plain C# values rebuilt when upgrade levels change.
 
+#### 36.7.1 Phase-8 Stage-1 data contract (implemented 2026-11-11)
+
+- **`VehicleClass`** (`Assets/Scripts/Data/VehicleClass.cs`): `Starter = 0`, `Sport = 1`, `Drift = 2`, `Supercar = 3`. Values are serialized by index; append rather than reorder.
+- **`VehicleDefinition`** (`Assets/Scripts/Data/VehicleDefinition.cs`): read-only roster template with `CurrentSchemaVersion = 1`; `vehicleId` (stable lowercase ASCII id, letter start, single hyphens, ≤40 chars); `displayNameEn`/`displayNameAr` (non-empty, trimmed, ≤80 chars, no control characters); `vehicleClass`; and a **reference** to `VehiclePhysicsProfile`. The definition never duplicates handling values, so physics has exactly one authored home. Visual-rig and upgrade bindings are deferred to a later schema bump (Stage 3 / Phase 11).
+- **Validation:** `TryValidate` fails loudly on unknown schema versions, malformed ids, missing/whitespace-only localized names, undefined classes, null profiles, and invalid profiles. `VehicleRosterRules` (Unity-independent) validates the complete set: exactly 10 entries, 2/3/2/3 distribution, case-insensitive unique ids, non-null entries, and all per-entry rules; it reports every issue at once.
+- **Authoring tool:** `VehicleRosterBuilder` (`Assets/Editor/VehicleRosterBuilder.cs`) provides the menu `Tools/GameCraft Studio/Velocity Rush/Validate Vehicle Roster`, the batch entry `ValidateFromCommandLine` (exit `1` on any defect), and `CreateDefinition(...)`, which validates before writing and creates `Assets/Data/Vehicles/<Class>/<vehicleId>/<vehicleId>_Definition.asset`. It creates only owner-supplied identities; it never invents names, classes, or statistics.
+- **Status:** schema and tooling are implemented and tested (43 new EditMode tests; suite **284/284**, compile **0 errors / 0 warnings**). No `VehicleDefinition` or vehicle-profile asset exists yet: `T-8.0` (OQ-14/OQ-06 owner freeze) gates `T-8.3`/`T-8.4`, and an empty roster intentionally fails validation.
+
 ### 36.8 Runtime tuning boundaries
 - Tunable live: all profile fields (EditMode inspector + Play Mode tweak); assist strengths; input filtering curves.
 - Not runtime-mutable: definition templates (frozen at runtime per D-035); anything owner-gated (assist depth, drift philosophy).

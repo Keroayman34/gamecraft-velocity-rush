@@ -17,7 +17,7 @@ The development **scope model** (D-030): the *Development Prototype* validates f
 | 5 | Core driving prototype | First controllable vehicle with driving feedback on a test vehicle + test environment (temporary prototype content only, D-030) | Not started |
 | 6 | Driving-feel validation | Driving feel proven enjoyable through playtests (D-023) — gates large-scale production | Not started |
 | 7 | High-quality vertical slice | Production-quality representative section proving the intended commercial quality bar (vehicle, environment, driving, lighting, UI, audio, gameplay, performance) before mass asset production | **In progress — Stage 1 complete 2026-11-10; Stage 2 complete 2026-11-11; Stage 3 executed 2026-11-11:** real slice build **60.995 MB / 62.9 s / 0 errors**, real capture **59.0 fps / 394 draw calls / 131.5 MiB WASM heap**, compile 0/0, EditMode 241/241, PlayMode 13/13. M5 closeout pending verification of the owner's baked-lighting artifacts (no bake is present in the repo yet) |
-| 8 | Vehicle production — 10 vehicles | Full commercial roster (2/3/2/3 per D-014) produced against approved references and quality criteria | Not started |
+| 8 | Vehicle production — 10 vehicles | Full commercial roster (2/3/2/3 per D-014) produced against approved references and quality criteria | **In progress — Stage 0 owner-gated; Stage 1 data contract/tooling complete 2026-11-11:** `VehicleClass` + `VehicleDefinition` schema (stable id, en/ar names, class, physics-profile reference; no duplicated stats), pure 2/3/2/3 roster validator, editor builder/validator, and 43 new EditMode tests (suite 284/284). No vehicle identity or statistic has been authored (OQ-14/OQ-06 remain the gate) |
 | 9 | Environment production — five themes | All five environments (Desert Circuit, Neon City, Mountain Pass, Coastal Circuit, World Arena) produced as distinct, high-quality packages | Not started |
 | 10 | Championship & event production | ≥3 championships designed (names/identities/structure — OQ-15/16), events designed & built, track/config per environment (OQ-18/19/21) | Not started |
 | 11 | Gameplay, progression, garage, upgrades & UI integration | Full systems integration: progression, unlocks, scoring, save, garage/upgrades, complete commercial UI | Not started |
@@ -271,3 +271,42 @@ Status note (2026-11-11, Phase 7 Stage 3 — **T-7.14/T-7.15/T-7.17 executed; T-
 - **T-7.16 quality review:** vehicle, environment, materials, UI, and performance pass the draft criteria; VFX passes with the stated stationary-capture limit; audio is an implementation audit only. The **lighting/baked-indirect row is pending** because no `LightingData`, lightmap, or reflection-probe asset exists in the repository or on `origin/main` (the scene still references Unity's built-in empty lighting data). No silent downgrade was made; deviations are explicit in `OPEN_QUESTIONS.md`.
 - **T-7.17 validation:** final batch compile **0 errors / 0 warnings**; EditMode **241/241**; PlayMode **13/13** (0 failed, 0 skipped). Documentation was updated only in existing files.
 - **M5/Phase 7 status:** the slice is built, profiled, reviewed against the draft criteria, and regression-clean, but **M5 and Phase 7 stay unchecked** until the owner's baked-lighting artifacts are present and verified. The Stage-3 evidence does not claim a bake.
+
+---
+
+**Phase 8 — Vehicle production (10 vehicles) — IN PROGRESS; Stage 0 owner-gated, Stage 1 data contract complete (2026-11-11); no roster content invented**
+
+**Scope guard:** Phase 8 delivers the ten vehicle packages and the Garage *foundation* only. Progression, unlocks, upgrade purchase, save, and the final Garage screens remain Phase 11 (OQ-07/OQ-09/OQ-A03). Roster identities and statistics are owner-gated (OQ-14/OQ-06); the data contract intentionally ships without invented values.
+
+*Stage 0 — Governance and roster freeze (OWNER-GATED; not started)*
+- `T-8.0` Owner freezes OQ-14 identities, OQ-06 stat envelopes, OQ-A09 vehicle quality bar, OQ-A03 Garage-foundation contract, and OQ-T08 budgets; approvals are recorded in `docs/DECISIONS.md`/`docs/OPEN_QUESTIONS.md`. No vehicle content authoring before this gate.
+
+*Stage 1 — Data contract, validation, and authoring tooling (COMPLETE 2026-11-11)*
+- `T-8.1` `VehicleClass` + `VehicleDefinition` schema in `VelocityRush.Data`: schema version, stable lowercase id, en/ar display names, class, and a physics-profile **reference** (no duplicated handling values) — **COMPLETE.** Assets: `Assets/Scripts/Data/VehicleClass.cs`, `Assets/Scripts/Data/VehicleDefinition.cs`.
+- `T-8.2` Pure roster rules + editor builder/validator: unique ids, exact 2/3/2/3 distribution, non-null physics references, en/ar completeness, schema/version/id checks, deterministic diagnostics, menu and batch entry points — **COMPLETE.** Assets: `Assets/Scripts/Data/VehicleRosterRules.cs`, `Assets/Editor/VehicleRosterBuilder.cs`; 43 new EditMode tests, suite **284/284**.
+
+*Stage 2 — Physics profiles (PENDING OQ-14/OQ-06)*
+- `T-8.3` Author the 10 `VehicleDefinition` assets from owner-approved identities (2/3/2/3), each referencing its own physics profile — PENDING.
+- `T-8.4` Author the 10 `VehiclePhysicsProfile` assets within the approved class envelopes and curve sets; no invented statistics — PENDING.
+- `T-8.5` Class-balance validation: schema/range tests, deterministic lap-variance harness, telemetry review, and owner sign-off on per-class differentiation — PENDING.
+
+*Stage 3 — Visual rigs (PENDING OQ-A09/OQ-A05)*
+- `T-8.6` Shared `VehicleRigBase` + 10 visual variants with LOD0/LOD1, identical wheel/collider layout, and class-distinct silhouettes — PENDING.
+- `T-8.7` Per-vehicle provenance register and quality review at 960×540/1920×1080 against the approved OQ-A09 bar — PENDING.
+- `T-8.8` Per-vehicle WebGL budget evidence (materials, textures, draw calls, triangles) inside the OQ-T08 ceilings — PENDING.
+
+*Stage 4 — Garage foundation (UI Toolkit only; PENDING)*
+- `T-8.9` Data-driven Garage foundation: catalog/detail/select panels built programmatically with UI Toolkit, no uGUI/TextMeshPro manifest change; **no** progression, save, or upgrade purchase — PENDING.
+- `T-8.10` Zero-allocation and localization guard: 0 B/refresh EditMode proof, en/ar fields present, no per-frame string allocation — PENDING.
+
+*Stage 5 — Integration, profiling, and M6 evidence (PENDING)*
+- `T-8.11` Debug race spawn + read-only selection context for the chosen vehicle; full GameFlow integration remains Phase 11 — PENDING.
+- `T-8.12` Repeated-cycle WebGL profiling across vehicle/Garage swaps; archive, heap, and frame-pacing evidence against OQ-T08 — PENDING.
+- `T-8.13` M6 evidence package: all ten vehicle checklists, quality review, provenance, approved roster statistics, no unlicensed identity — PENDING.
+
+**Stage-1 implementation note (2026-11-11):**
+- **Schema:** `VehicleDefinition` is a `ScriptableObject` with `CurrentSchemaVersion = 1`, a stable `vehicleId` contract (lowercase ASCII letter start; lowercase letters/digits/single hyphens; max 40), en/ar display names (non-empty, trimmed, max 80, no control characters), a defined `VehicleClass`, and a non-null, valid `VehiclePhysicsProfile`. Unknown schema versions fail loudly. Visual-rig and upgrade bindings are deliberately deferred to a later schema bump.
+- **Roster rules:** `VehicleRosterRules` is Unity-independent and returns **all** issues: exactly 10 entries, 2 Starter / 3 Sport / 2 Drift / 3 Supercar, case-insensitive unique ids, non-null entries, and per-entry schema validation.
+- **Authoring tool:** `Tools/GameCraft Studio/Velocity Rush/Validate Vehicle Roster` reports pass/fail with per-issue diagnostics; batch mode uses `-executeMethod VelocityRush.EditorTools.VehicleRosterBuilder.ValidateFromCommandLine` and exits `1` on any defect. `CreateDefinition(...)` validates before writing and creates `Assets/Data/Vehicles/<Class>/<vehicleId>/<vehicleId>_Definition.asset`; it never invents names or stats.
+- **Validation:** batch compile **0 errors / 0 warnings**; EditMode **284/284** (241 baseline + 43 new), 0 failed, 0 skipped. A clean tree intentionally reports the roster as incomplete (0/10) until `T-8.0` unblocks `T-8.3`.
+- **No content:** no `VehicleDefinition` or vehicle profile asset was created in this stage. The validator's failure on an empty roster is the correct fail-closed behaviour.
