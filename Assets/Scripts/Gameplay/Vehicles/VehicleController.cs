@@ -148,6 +148,68 @@ namespace VelocityRush.Gameplay
         }
 
         /// <summary>
+        /// Validates and applies a different handling profile to an existing rig. Used by the
+        /// Phase-8 balance harness and by future vehicle-selection flows; the profile remains the
+        /// only source of handling values (TDD §36.7).
+        /// </summary>
+        /// <param name="newProfile">Validated profile to apply.</param>
+        /// <param name="error">Diagnostic when the profile is null or invalid.</param>
+        /// <returns>True when the profile was applied and the rig reconfigured.</returns>
+        public bool TryApplyProfile(VehiclePhysicsProfile newProfile, out string error)
+        {
+            if (newProfile == null)
+            {
+                error = "Cannot apply a null VehiclePhysicsProfile.";
+                return false;
+            }
+
+            if (!newProfile.TryValidate(out var profileError))
+            {
+                error = "Cannot apply an invalid VehiclePhysicsProfile: " + profileError;
+                return false;
+            }
+
+            profile = newProfile;
+            error = null;
+
+            if (isActiveAndEnabled && chassis != null)
+            {
+                ConfigureRig();
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Replaces the driving input source at runtime after validating that it implements
+        /// <see cref="IVehicleInput"/>. The balance harness uses this to drive one rig with a
+        /// scripted input without changing the scene's keyboard adapter.
+        /// </summary>
+        /// <param name="source">MonoBehaviour implementing <see cref="IVehicleInput"/>.</param>
+        /// <param name="error">Diagnostic when the source is missing or incompatible.</param>
+        /// <returns>True when the input source was bound.</returns>
+        public bool TrySetInputSource(MonoBehaviour source, out string error)
+        {
+            if (source == null)
+            {
+                error = "Cannot bind a null input source.";
+                return false;
+            }
+
+            var candidate = source as IVehicleInput;
+            if (candidate == null)
+            {
+                error = "Assigned input source does not implement IVehicleInput.";
+                return false;
+            }
+
+            inputSource = source;
+            _input = candidate;
+            error = null;
+            return true;
+        }
+
+        /// <summary>
         /// Teleports the chassis to a known pose and clears motion and drive state for an in-scene
         /// prototype retry (T5.4; TDD §35.5). Does not reload the scene or rebuild the rig.
         /// </summary>

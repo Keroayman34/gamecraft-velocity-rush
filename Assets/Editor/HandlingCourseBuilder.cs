@@ -116,6 +116,7 @@ namespace VelocityRush.EditorTools
             var vehiclePrefab = LoadRequired<GameObject>(VehiclePrefabPath, "vehicle prefab");
             var vehicleProfile = LoadRequired<VehiclePhysicsProfile>(DefaultVehicleProfilePath, "tuning preset");
             var baselineCamera = LoadRequired<CameraProfile>(BaselineCameraPath, "tuning preset");
+            var roster = LoadRosterDefinitions();
 
             var trackRoot = new GameObject("Track").transform;
 
@@ -290,6 +291,22 @@ namespace VelocityRush.EditorTools
 
             var spawn = new GameObject("SpawnPoint");
             spawn.transform.SetPositionAndRotation(spawnPosition, spawnRotation);
+
+            var rosterGo = new GameObject("VehicleRoster");
+            var catalog = rosterGo.AddComponent<VehicleRosterCatalog>();
+            var catalogSerialized = new SerializedObject(catalog);
+            var catalogArray = catalogSerialized.FindProperty("vehicles");
+            catalogArray.arraySize = roster.Length;
+            for (var i = 0; i < roster.Length; i++)
+            {
+                catalogArray.GetArrayElementAtIndex(i).objectReferenceValue = roster[i];
+            }
+
+            catalogSerialized.ApplyModifiedPropertiesWithoutUndo();
+            if (!catalog.TryValidate(out var catalogError))
+            {
+                throw new InvalidOperationException("Generated roster catalog is invalid: " + catalogError);
+            }
 
             EditorSceneManager.MarkSceneDirty(scene);
             if (!EditorSceneManager.SaveScene(scene, ScenePath))
@@ -652,6 +669,30 @@ namespace VelocityRush.EditorTools
 
             property.objectReferenceValue = value;
             serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>
+        /// Loads every generated Phase-8 definition in the roster folder, sorted by id so the
+        /// catalog order is deterministic.
+        /// </summary>
+        private static VehicleDefinition[] LoadRosterDefinitions()
+        {
+            var guids = AssetDatabase.FindAssets("t:VehicleDefinition", new[] { VehicleRosterBuilder.RosterFolder });
+            var paths = new List<string>(guids.Length);
+            for (var i = 0; i < guids.Length; i++)
+            {
+                paths.Add(AssetDatabase.GUIDToAssetPath(guids[i]));
+            }
+
+            paths.Sort(StringComparer.Ordinal);
+
+            var definitions = new VehicleDefinition[paths.Count];
+            for (var i = 0; i < paths.Count; i++)
+            {
+                definitions[i] = LoadRequired<VehicleDefinition>(paths[i], "vehicle definition");
+            }
+
+            return definitions;
         }
 
         /// <summary>

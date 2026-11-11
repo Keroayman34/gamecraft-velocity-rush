@@ -652,6 +652,52 @@ Rigidbody-with-custom-tire-forces (own suspension integration + lateral/longitud
 - **Drivetrain limit:** `VehiclePhysicsProfile` has no layout field. "FWD-feel" (Nova Hatch: front brake bias 0.62, low CoM) and "AWD-feel" (Nebula X: high mass, steep early torque endpoint 0.72, heavier high-speed steering) are approximations only.
 - **Status:** roster validation **PASS** (10 definitions, 2/3/2/3); batch compile 0 errors / 0 warnings; EditMode **288/288**; PlayMode **13/13**. Visual rigs, Garage, and upgrades are out of scope for this stage.
 
+#### 36.7.3 Phase-8 Stage-3 visual rigs and LOD0 budgets (implemented 2026-11-11)
+
+`VehicleRigBuilder` (`Assets/Editor/VehicleRigBuilder.cs`) produces one shared physics rig and ten data-driven visual variants. It never edits `PrototypeVehicle.prefab`.
+
+- **Base rig:** `Assets/Prefabs/Vehicles/VehicleRigBase.prefab` is a copy of the validated prototype rig — `Rigidbody`, one chassis `BoxCollider` on `ChassisBody` (1.5 × 0.6 × 3.6 primitive with a unit box), four `WheelCollider`s, four visual wheel transforms, and the `VehicleController` wiring.
+- **Variants:** `Assets/Prefabs/Vehicles/<Class>/<id>_Rig.prefab` are real prefab variants (`m_SourcePrefab` set). Each binds its own `VehiclePhysicsProfile`, serializes that profile's wheel radius/mass/suspension/friction values, and adds `KitPart_*` primitive body parts whose primitive colliders are destroyed immediately.
+- **Collider parity:** every variant contains exactly **one `BoxCollider` + four `WheelCollider`s**; no kit part has a collider. `VehicleRigPrefabTests` asserts this over the real assets, together with the canonical chassis bounds and profile/wheel serialization.
+- **Class silhouettes (D-051):** Starter uses a tall hatch cabin with `RearHatch` and short nose; Sport uses `LongHood`, fastback, splitter and wing; Drift uses `BigWing`, wide fenders and front lip; Supercar uses `WedgeNose`, side blades, diffuser and rear wing. Each class has a named signature part asserted by test.
+- **Provenance (D-050):** eight materials under `Assets/Materials/Vehicles/` use the Built-in `Standard` shader with flat colours. No texture, external mesh, package, or per-vehicle script is used. LOD0 only; LOD1 is deferred, not silently omitted.
+
+**Measured LOD0 budget (real prefab assets, 2026-11-11):**
+
+| Class | Vehicles | Renderers | Material slots | Unique materials | Triangles | Textures | Draw calls (batched / worst case) |
+|---|---|---|---|---|---|---|---|
+| Starter | Apex-V, Nova Hatch | 15 | 15 | 6 | 452 | 0 | ≤6 / 15 |
+| Sport | Velocity GT, Aero Coupe, Pulse R | 16 | 16 | 6 | 464 | 0 | ≤6 / 16 |
+| Drift | Sidewinder, Kuma DX | 17 | 17 | 6 | 476 | 0 | ≤6 / 17 |
+| Supercar | Vortex V10, Eclipse, Nebula X | 18 | 18 | 6 | 488 | 0 | ≤6 / 18 |
+
+The batched figure assumes Built-in dynamic batching groups the small primitive meshes by shared material; the worst case counts one draw call per material slot. Both are far below the candidate 500-draw-call OQ-T08 ceiling, and even ten unbatched vehicles would total only 150–180 draw calls. Triangles are per vehicle, not per scene; a race with one player vehicle adds under 0.5k triangles.
+
+#### 36.7.4 Phase-8 T-8.5 deterministic balance harness (implemented 2026-11-11)
+
+`VehicleBalancePlayModeTests` (`Assets/Tests/PlayMode/VehicleBalancePlayModeTests.cs`) is the executable balance gate.
+
+- **Setup:** loads the real `HandlingCourse` scene through `PrototypeSceneLoader`, resolves the scene's `VehicleRosterCatalog`, clones the canonical prototype rig, and disables race, camera, HUD, lip-sync/presentation, and audio systems. A hidden 600 × 600 m plane at y = −200 gives a flat, bounded surface independent of course geometry.
+- **Drive script:** every profile gets an identical sequence — neutral settle (1 s), full throttle straight (1.5 s), full throttle with 0.7 steering (2.5 s), neutral settle (10 fixed steps). The harness uses `WaitForFixedUpdate` with `Time.timeScale = 2`, and applies the profile through `VehicleController.TryApplyProfile` and a scripted `IVehicleInput` through `TrySetInputSource`.
+- **Assertions:** no profile may end on its side or roof (final chassis `up.y > 0.2`), no profile may invert below `up.y = −0.5`, every profile must travel more than 8 m (no permanent stall), Drift average turn slip must exceed Sport, and Supercar average top speed must exceed Starter.
+- **Measured run (committed evidence):**
+
+| Vehicle | Class | Distance (m) | Top speed (m/s) | Avg turn slip | Final up.y |
+|---|---|---|---|---|---|
+| drift-kuma-dx | Drift | 22.3 | 11.5 | 0.964 | 1.00 |
+| drift-sidewinder | Drift | 19.9 | 11.0 | 0.958 | 1.00 |
+| sport-aero-coupe | Sport | 19.7 | 13.1 | 0.511 | 1.00 |
+| sport-pulse-r | Sport | 19.5 | 14.2 | 0.408 | 1.00 |
+| sport-velocity-gt | Sport | 18.4 | 12.7 | 0.495 | 1.00 |
+| starter-apex-v | Starter | 16.8 | 12.0 | 0.441 | 1.00 |
+| starter-nova-hatch | Starter | 17.8 | 12.3 | 0.433 | 1.00 |
+| supercar-eclipse | Supercar | 24.8 | 17.7 | 0.373 | 1.00 |
+| supercar-nebula-x | Supercar | 21.9 | 16.1 | 0.909 | 1.00 |
+| supercar-vortex-v10 | Supercar | 22.0 | 16.7 | 0.918 | 1.00 |
+
+- **Interpretation:** Drift slip (mean ≈ 0.961) is clearly separated from Sport (mean ≈ 0.471), and Supercar speed (mean ≈ 16.8 m/s) from Starter (mean ≈ 12.2 m/s), so the class envelopes are measurably distinct. The harness measures stability and class separation; it is **not** a feel verdict and does not replace the owner playtest or final numeric sign-off (OQ-06).
+- **Limits:** the manoeuvre is a short scripted stability/variance probe on a flat surface, not a full lap of `HandlingCourse`, so it cannot prove lap-time parity or course-specific balance. Those remain Stage-5/owner evidence.
+
 ### 36.8 Runtime tuning boundaries
 - Tunable live: all profile fields (EditMode inspector + Play Mode tweak); assist strengths; input filtering curves.
 - Not runtime-mutable: definition templates (frozen at runtime per D-035); anything owner-gated (assist depth, drift philosophy).
@@ -671,12 +717,12 @@ Physics step: default fixed timestep initially; whether 0.02 s (default) or alte
 - Dev-build overlay (editor & web debug builds only): per-wheel contact/slip renderers, CoM gizmo, suspension-travel bars, speed/velocity vectors. Debug tooling authoring is owner-gated (Phase 4+ deliverable under explicit authorization).
 - `TelemetryProvider` exposes a read-only struct snapshot (speed, accel, drift state, grounded, per-wheel slip, stuck flag, obstacle contact) — single source for camera look-ahead, HUD, engine sound, Race Rules scoring inputs. No per-frame event emission (polled interface, per §32.3).
 
-### 36.11 Validation strategy (planned — nothing exists yet)
+### 36.11 Validation strategy (implemented layers)
 | Layer | Test type | Content |
 |---|---|---|
 | Profile/schema integrity | EditMode | schema test: non-zero travel, curve sanity, no null surfaces — catches authoring errors |
 | Pure math (steer filter, upgrade compose) | EditMode | extracted static functions with synthetic inputs — deterministic, scene-less |
-| Repeatability lap | PlayMode | scripted-input harness drives N identical laps; asserts result variance within bounds (determinism/instability, not feel) |
+| Repeatability/stability | PlayMode | `VehicleBalancePlayModeTests` drives all 10 profiles through one identical scripted manoeuvre on a controlled surface; asserts no flips, no permanent stalls, and class telemetry separation (determinism/instability, not feel). Implemented T-8.5 (§36.7.4) |
 | Feel | Manual D-023 playtest | human validation per milestone M4; recordings + owner feedback; authoritative, not automatable |
 | WebGL perf | Profiler ritual | wheel-substep/frame cost at OQ-T07/T08 evidence steps |
 
@@ -1181,3 +1227,32 @@ Stage 2 builds T-7.6…T-7.13 on the frozen Stage-1 composition (D-044) and tech
 
 **T-7.17 closeout evidence:** final batch compile **0 errors / 0 warnings**; EditMode **241/241**; PlayMode **13/13** (0 failed, 0 skipped); `EditorBuildSettings` restored to `Bootstrap` (0) → `TestTrack` (1). The slice build above is the first real WebGL slice build and is not committed as a binary artifact. **M5/Phase 7 are COMPLETE (2026-11-11) under D-048**: the baked-indirect criterion is waived for M5, no bake is claimed, and the realtime-only lighting route is the accepted M5 evidence.
 
+### 47.11 Phase-8 Stage-4 Garage foundation (UI Toolkit, 2026-11-11)
+
+The Garage foundation is a UI-only demonstrator: browse the ten vehicles, read class and profile-derived stats, select, and confirm. Progression, unlocks, upgrades, ownership, save, and the final Garage screens remain Phase 11 (OQ-07/OQ-09/OQ-A03).
+
+**Architecture**
+
+| Type | Responsibility |
+|---|---|
+| `GarageVehicleSummary` | Immutable struct projection of one `VehicleDefinition` (id, en/ar names, class, mass, torque, forward/sideways grip, brake bias, steering angle). Copies references only; never a second authored stat source. |
+| `GarageCatalogModel` | Fixed `GarageVehicleSummary[]`, `SelectedIndex`, `ConfirmedIndex`, wrap-around `Next`/`Previous`, validated `Select`, `Confirm`. Pure C#, no events or LINQ. |
+| `IGarageView` | Presentation seam: `Refresh(in summary, index, count)` and `ShowConfirmation(in summary)`. |
+| `GarageView` | Builds the UI Toolkit tree once: header, ten cached rows, ten cached detail panels, three named buttons (`GaragePrevious`/`GarageNext`/`GarageConfirm`), and a cached confirmation label. |
+| `GaragePresenter` | Maps model navigation/confirmation to the view; plain C# so the hot path is measurable in EditMode and PlayMode. |
+| `GarageScreen` | Scene adapter: resolves the `UIDocument` root and `VehicleRosterCatalog`, builds the model/view/presenter once, and forwards keyboard/button intents. |
+
+**Zero-allocation design (T-8.10).** All strings — row names, class labels, stat values, and confirmation text — are constructed once in the `GarageView` constructor. Navigation calls only toggle `DisplayStyle` on cached panels and assign two cached `Color` values to the previously/currently selected row. There is no interpolation, `ToString`, lookup, or tree rebuild on the path.
+
+**Measured evidence:**
+
+| Guard | Measurement |
+|---|---|
+| `GarageViewAllocationTests.RepeatedSelection_AfterWarmup_AllocatesZeroBytes` (EditMode) | **0 B** over 600 selections after 240 warm-up iterations |
+| `GaragePlayModeTests.RepeatedSelection_InPlayMode_AllocatesZeroBytes` (PlayMode, generated scene) | **0 B** over 600 selections after 240 warm-up iterations |
+
+The measurement covers the synchronous navigation path used by a key press or button click. UI Toolkit's own panel layout/repaint work happens outside that block and is not attributed to roster navigation.
+
+**Scene and build contract.** `GarageSceneBuilder` generates `Assets/Scenes/Garage.unity` with a camera, a `UIDocument` using the existing `Assets/UI/Slice/SlicePanelSettings.asset`, the roster catalog, and `GarageScreen`. It deliberately does not modify `EditorBuildSettings`; PlayMode tests load the scene through `EditorSceneManager.LoadSceneAsyncInPlayMode`, and the approved `Bootstrap → TestTrack` prototype contract is unchanged.
+
+**Validation:** batch compile **0 errors / 0 warnings**; EditMode **299/299**; PlayMode **16/16**; new Stage-3/4 EditMode coverage is 11 tests (5 rig, 4 model, 2 view/allocation) and Stage-4 PlayMode coverage is 2 tests.
