@@ -6,12 +6,13 @@ namespace VelocityRush.Gameplay
 {
     /// <summary>
     /// Connects a <see cref="RaceController"/> and the vehicle telemetry stream to the UI Toolkit
-    /// slice HUD (T-7.5b).
+    /// slice HUD (T-7.10).
     /// </summary>
     /// <remarks>
     /// <para>
     /// State is polled at a low, inspector-configurable refresh rate (10 Hz by default) so the HUD
-    /// is decoupled from the render rate; results are event-driven and shown exactly once.
+    /// is decoupled from the render rate. Race results and pause transitions are event-driven and
+    /// force an immediate refresh, so an overlay never lags a state change by a refresh interval.
     /// </para>
     /// <para>
     /// The presenter is deliberately independent of the concrete vehicle type: it consumes
@@ -32,16 +33,20 @@ namespace VelocityRush.Gameplay
         private float _refreshInterval;
         private float _elapsedSinceRefresh;
         private bool _subscribed;
+        private bool _refreshRequested;
+        private RaceState _lastState;
 
         private void Awake()
         {
             _telemetry = telemetrySource as IVehicleTelemetry;
             _refreshInterval = 1f / Mathf.Max(1f, refreshHz);
+            _lastState = RaceState.Countdown;
         }
 
         private void Start()
         {
             EnsureView();
+            RefreshNow();
         }
 
         private void OnEnable()
@@ -52,6 +57,7 @@ namespace VelocityRush.Gameplay
             }
 
             race.RaceFinished += HandleRaceFinished;
+            race.PausedChanged += HandlePausedChanged;
             _subscribed = true;
         }
 
@@ -60,6 +66,7 @@ namespace VelocityRush.Gameplay
             if (_subscribed && race != null)
             {
                 race.RaceFinished -= HandleRaceFinished;
+                race.PausedChanged -= HandlePausedChanged;
             }
 
             _subscribed = false;
@@ -77,20 +84,22 @@ namespace VelocityRush.Gameplay
                 return;
             }
 
+            // A retry rewinds Finished -> Countdown; treat any lifecycle change as immediate so the
+            // results overlay cannot survive into the new countdown.
+            if (race.State != _lastState)
+            {
+                _lastState = race.State;
+                RefreshNow();
+                return;
+            }
+
             _elapsedSinceRefresh += Time.unscaledDeltaTime;
-            if (_elapsedSinceRefresh < _refreshInterval)
+            if (!_refreshRequested && _elapsedSinceRefresh < _refreshInterval)
             {
                 return;
             }
 
-            _elapsedSinceRefresh = 0f;
-            var snapshot = SliceHudModel.Evaluate(
-                _telemetry.Telemetry,
-                race.State,
-                race.ElapsedSeconds,
-                race.AcceptedCheckpointCount,
-                race.RequiredCheckpointCount);
-            _view.Apply(snapshot);
+            RefreshNow();
         }
 
         private void HandleRaceFinished(RaceResult result)
@@ -104,6 +113,32 @@ namespace VelocityRush.Gameplay
             {
                 _view.ShowResults(result);
             }
+        }
+
+        private void HandlePausedChanged(bool paused)
+        {
+            _refreshRequested = true;
+        }
+
+        private void RefreshNow()
+        {
+            _refreshRequested = false;
+            _elapsedSinceRefresh = 0f;
+
+            if (_view == null || race == null || _telemetry == null)
+            {
+                return;
+            }
+
+            var snapshot = SliceHudModel.Evaluate(
+                _telemetry.Telemetry,
+                race.State,
+                race.ElapsedSeconds,
+                race.AcceptedCheckpointCount,
+                race.RequiredCheckpointCount,
+                race.CountdownRemainingSeconds,
+                race.IsPaused);
+            _view.Apply(snapshot);
         }
 
         private void EnsureView()

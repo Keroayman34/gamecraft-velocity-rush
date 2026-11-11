@@ -5,7 +5,8 @@ using UnityEngine.UIElements;
 namespace VelocityRush.Gameplay
 {
     /// <summary>
-    /// UI Toolkit implementation of the vertical-slice HUD and results overlay.
+    /// UI Toolkit implementation of the vertical-slice HUD, countdown, pause overlay, and results
+    /// screen.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -16,7 +17,8 @@ namespace VelocityRush.Gameplay
     /// </para>
     /// <para>
     /// No UXML or USS asset is required: this keeps the slice free of new package or importer
-    /// dependencies while still using the engine-native UI Toolkit runtime.
+    /// dependencies while still using the engine-native UI Toolkit runtime. Every overlay uses
+    /// <see cref="PickingMode.Ignore"/> so the HUD can never intercept driving input.
     /// </para>
     /// </remarks>
     public sealed class SliceHudView : ISliceHudView
@@ -31,12 +33,15 @@ namespace VelocityRush.Gameplay
         private readonly DigitDisplay _timeFraction;
         private readonly DigitDisplay _checkpointAccepted;
         private readonly DigitDisplay _checkpointRequired;
-        private readonly Label _countdown;
+        private readonly VisualElement _countdownGroup;
+        private readonly DigitDisplay _countdown;
+        private readonly VisualElement _pauseOverlay;
         private readonly VisualElement _results;
         private readonly Label _resultsTitle;
         private readonly Label _resultsTime;
         private readonly Label _resultsCheckpoints;
         private bool _countdownVisible = true;
+        private bool _pauseVisible;
         private bool _resultsVisible;
 
         /// <summary>Builds the HUD inside <paramref name="root"/>, replacing any existing children.</summary>
@@ -85,66 +90,43 @@ namespace VelocityRush.Gameplay
             timePanel.Add(CreateCaption("S"));
             topBar.Add(timePanel);
 
-            _countdown = new Label("GET READY");
-            _countdown.style.position = Position.Absolute;
-            _countdown.style.left = 0f;
-            _countdown.style.right = 0f;
-            _countdown.style.top = Length.Percent(30f);
-            _countdown.style.fontSize = 46f;
-            _countdown.style.unityFontStyleAndWeight = FontStyle.Bold;
-            _countdown.style.unityTextAlign = TextAnchor.MiddleCenter;
-            _countdown.style.color = AccentColor;
-            _countdown.pickingMode = PickingMode.Ignore;
-            root.Add(_countdown);
+            _countdownGroup = new VisualElement();
+            _countdownGroup.name = "CountdownGroup";
+            _countdownGroup.style.position = Position.Absolute;
+            _countdownGroup.style.left = 0f;
+            _countdownGroup.style.right = 0f;
+            _countdownGroup.style.top = Length.Percent(28f);
+            _countdownGroup.style.alignItems = Align.Center;
+            _countdownGroup.pickingMode = PickingMode.Ignore;
 
-            _results = new VisualElement();
-            _results.style.position = Position.Absolute;
-            _results.style.left = Length.Percent(25f);
-            _results.style.right = Length.Percent(25f);
-            _results.style.top = Length.Percent(22f);
-            _results.style.paddingLeft = 28f;
-            _results.style.paddingRight = 28f;
-            _results.style.paddingTop = 24f;
-            _results.style.paddingBottom = 24f;
-            _results.style.backgroundColor = PanelColor;
-            _results.style.borderTopLeftRadius = 10f;
-            _results.style.borderTopRightRadius = 10f;
-            _results.style.borderBottomLeftRadius = 10f;
-            _results.style.borderBottomRightRadius = 10f;
-            _results.style.alignItems = Align.Center;
-            _results.pickingMode = PickingMode.Ignore;
+            var readyLabel = new Label("GET READY");
+            readyLabel.style.fontSize = 30f;
+            readyLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            readyLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            readyLabel.style.color = AccentColor;
+            _countdownGroup.Add(readyLabel);
 
-            _resultsTitle = new Label("FINISHED");
-            _resultsTitle.style.fontSize = 34f;
-            _resultsTitle.style.unityFontStyleAndWeight = FontStyle.Bold;
-            _resultsTitle.style.color = AccentColor;
-            _resultsTitle.style.unityTextAlign = TextAnchor.MiddleCenter;
-            _results.Add(_resultsTitle);
+            _countdown = new DigitDisplay(_countdownGroup, 2, true, 64f);
+            _countdown.Root.style.marginTop = 4f;
+            _countdown.Root.style.unityTextAlign = TextAnchor.MiddleCenter;
+            root.Add(_countdownGroup);
 
-            _resultsTime = new Label("000.00 S");
-            _resultsTime.style.fontSize = 30f;
-            _resultsTime.style.marginTop = 12f;
-            _resultsTime.style.color = ValueColor;
-            _resultsTime.style.unityTextAlign = TextAnchor.MiddleCenter;
-            _results.Add(_resultsTime);
-
-            _resultsCheckpoints = new Label("CHECKPOINTS 0 / 0");
-            _resultsCheckpoints.style.fontSize = 18f;
-            _resultsCheckpoints.style.marginTop = 8f;
-            _resultsCheckpoints.style.color = CaptionColor;
-            _resultsCheckpoints.style.unityTextAlign = TextAnchor.MiddleCenter;
-            _results.Add(_resultsCheckpoints);
-
-            var retryHint = new Label("PRESS R TO RETRY");
-            retryHint.style.fontSize = 15f;
-            retryHint.style.marginTop = 18f;
-            retryHint.style.color = CaptionColor;
-            retryHint.style.unityTextAlign = TextAnchor.MiddleCenter;
-            _results.Add(retryHint);
-
-            _results.style.display = DisplayStyle.None;
-            root.Add(_results);
+            _pauseOverlay = CreateOverlay(root, "PAUSED", "PRESS P TO RESUME", 30f);
+            _pauseOverlay.name = "PauseOverlay";
+            _results = CreateResults(root, out _resultsTitle, out _resultsTime, out _resultsCheckpoints);
         }
+
+        /// <summary>True when the countdown group is currently shown.</summary>
+        public bool IsCountdownVisible => _countdownVisible;
+
+        /// <summary>True when the pause overlay is currently shown.</summary>
+        public bool IsPauseVisible => _pauseVisible;
+
+        /// <summary>True when the results overlay is currently shown.</summary>
+        public bool IsResultsVisible => _resultsVisible;
+
+        /// <summary>The value currently drawn in the countdown cell.</summary>
+        public int DisplayedCountdownSeconds { get; private set; }
 
         /// <inheritdoc />
         public void Apply(in SliceHudSnapshot snapshot)
@@ -155,14 +137,27 @@ namespace VelocityRush.Gameplay
             _checkpointAccepted.SetValue(snapshot.AcceptedCheckpoints);
             _checkpointRequired.SetValue(snapshot.RequiredCheckpoints);
 
-            var showCountdown = snapshot.State == RaceState.Countdown;
+            var showCountdown = snapshot.State == RaceState.Countdown && !snapshot.IsPaused;
             if (showCountdown != _countdownVisible)
             {
                 _countdownVisible = showCountdown;
-                _countdown.style.display = showCountdown ? DisplayStyle.Flex : DisplayStyle.None;
+                _countdownGroup.style.display = showCountdown ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
-            if (snapshot.State != RaceState.Finished)
+            if (showCountdown)
+            {
+                _countdown.SetValue(snapshot.CountdownSeconds);
+                DisplayedCountdownSeconds = snapshot.CountdownSeconds;
+            }
+
+            var showPause = snapshot.IsPaused && snapshot.State != RaceState.Finished;
+            if (showPause != _pauseVisible)
+            {
+                _pauseVisible = showPause;
+                _pauseOverlay.style.display = showPause ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (snapshot.State != RaceState.Finished || snapshot.IsPaused)
             {
                 HideResults();
             }
@@ -179,11 +174,8 @@ namespace VelocityRush.Gameplay
                 " / " +
                 result.RequiredCheckpointCount.ToString(CultureInfo.InvariantCulture);
 
-            if (_countdownVisible)
-            {
-                _countdownVisible = false;
-                _countdown.style.display = DisplayStyle.None;
-            }
+            HideCountdown();
+            HidePause();
 
             if (!_resultsVisible)
             {
@@ -202,6 +194,126 @@ namespace VelocityRush.Gameplay
 
             _resultsVisible = false;
             _results.style.display = DisplayStyle.None;
+        }
+
+        private void HideCountdown()
+        {
+            if (!_countdownVisible)
+            {
+                return;
+            }
+
+            _countdownVisible = false;
+            _countdownGroup.style.display = DisplayStyle.None;
+        }
+
+        private void HidePause()
+        {
+            if (!_pauseVisible)
+            {
+                return;
+            }
+
+            _pauseVisible = false;
+            _pauseOverlay.style.display = DisplayStyle.None;
+        }
+
+        private static VisualElement CreateOverlay(VisualElement root, string title, string hint, float titleSize)
+        {
+            var overlay = new VisualElement();
+            overlay.style.position = Position.Absolute;
+            overlay.style.left = Length.Percent(30f);
+            overlay.style.right = Length.Percent(30f);
+            overlay.style.top = Length.Percent(34f);
+            overlay.style.paddingLeft = 28f;
+            overlay.style.paddingRight = 28f;
+            overlay.style.paddingTop = 22f;
+            overlay.style.paddingBottom = 22f;
+            overlay.style.backgroundColor = PanelColor;
+            overlay.style.borderTopLeftRadius = 10f;
+            overlay.style.borderTopRightRadius = 10f;
+            overlay.style.borderBottomLeftRadius = 10f;
+            overlay.style.borderBottomRightRadius = 10f;
+            overlay.style.alignItems = Align.Center;
+            overlay.pickingMode = PickingMode.Ignore;
+
+            var titleLabel = new Label(title);
+            titleLabel.style.fontSize = titleSize;
+            titleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            titleLabel.style.color = AccentColor;
+            titleLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            overlay.Add(titleLabel);
+
+            var hintLabel = new Label(hint);
+            hintLabel.style.fontSize = 16f;
+            hintLabel.style.marginTop = 10f;
+            hintLabel.style.color = CaptionColor;
+            hintLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            overlay.Add(hintLabel);
+
+            overlay.style.display = DisplayStyle.None;
+            root.Add(overlay);
+            return overlay;
+        }
+
+        private static VisualElement CreateResults(
+            VisualElement root,
+            out Label title,
+            out Label time,
+            out Label checkpoints)
+        {
+            var results = new VisualElement();
+            results.name = "ResultsPanel";
+            results.style.position = Position.Absolute;
+            results.style.left = Length.Percent(25f);
+            results.style.right = Length.Percent(25f);
+            results.style.top = Length.Percent(22f);
+            results.style.paddingLeft = 28f;
+            results.style.paddingRight = 28f;
+            results.style.paddingTop = 24f;
+            results.style.paddingBottom = 24f;
+            results.style.backgroundColor = PanelColor;
+            results.style.borderTopLeftRadius = 10f;
+            results.style.borderTopRightRadius = 10f;
+            results.style.borderBottomLeftRadius = 10f;
+            results.style.borderBottomRightRadius = 10f;
+            results.style.alignItems = Align.Center;
+            results.pickingMode = PickingMode.Ignore;
+
+            title = new Label("FINISHED");
+            title.name = "ResultsTitle";
+            title.style.fontSize = 34f;
+            title.style.unityFontStyleAndWeight = FontStyle.Bold;
+            title.style.color = AccentColor;
+            title.style.unityTextAlign = TextAnchor.MiddleCenter;
+            results.Add(title);
+
+            time = new Label("000.00 S");
+            time.name = "ResultsTime";
+            time.style.fontSize = 30f;
+            time.style.marginTop = 12f;
+            time.style.color = ValueColor;
+            time.style.unityTextAlign = TextAnchor.MiddleCenter;
+            results.Add(time);
+
+            checkpoints = new Label("CHECKPOINTS 0 / 0");
+            checkpoints.name = "ResultsCheckpoints";
+            checkpoints.style.fontSize = 18f;
+            checkpoints.style.marginTop = 8f;
+            checkpoints.style.color = CaptionColor;
+            checkpoints.style.unityTextAlign = TextAnchor.MiddleCenter;
+            results.Add(checkpoints);
+
+            var retryHint = new Label("PRESS R TO RETRY");
+            retryHint.style.fontSize = 15f;
+            retryHint.style.marginTop = 18f;
+            retryHint.style.color = CaptionColor;
+            retryHint.style.unityTextAlign = TextAnchor.MiddleCenter;
+            results.Add(retryHint);
+
+            results.style.display = DisplayStyle.None;
+            root.Add(results);
+            return results;
         }
 
         private static VisualElement CreatePanel()

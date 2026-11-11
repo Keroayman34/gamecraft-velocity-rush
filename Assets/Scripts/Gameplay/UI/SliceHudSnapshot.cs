@@ -27,13 +27,21 @@ namespace VelocityRush.Gameplay
         /// <summary>Current race lifecycle state.</summary>
         public RaceState State { get; }
 
+        /// <summary>Whole countdown seconds remaining, 0–99; zero outside Countdown.</summary>
+        public int CountdownSeconds { get; }
+
+        /// <summary>True while the attempt is paused.</summary>
+        public bool IsPaused { get; }
+
         public SliceHudSnapshot(
             int speedKph,
             int timeWholeSeconds,
             int timeHundredths,
             int acceptedCheckpoints,
             int requiredCheckpoints,
-            RaceState state)
+            RaceState state,
+            int countdownSeconds = 0,
+            bool isPaused = false)
         {
             SpeedKph = speedKph;
             TimeWholeSeconds = timeWholeSeconds;
@@ -41,6 +49,8 @@ namespace VelocityRush.Gameplay
             AcceptedCheckpoints = acceptedCheckpoints;
             RequiredCheckpoints = requiredCheckpoints;
             State = state;
+            CountdownSeconds = countdownSeconds;
+            IsPaused = isPaused;
         }
     }
 }

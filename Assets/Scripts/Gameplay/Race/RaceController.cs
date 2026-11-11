@@ -52,8 +52,14 @@ namespace VelocityRush.Gameplay
         /// <summary>Current prototype race state; Countdown before initialization.</summary>
         public RaceState State => _rules != null ? _rules.State : RaceState.Countdown;
 
-        /// <summary>Live/frozen elapsed race seconds, excluding countdown.</summary>
+        /// <summary>Live/frozen elapsed race seconds, excluding countdown and paused time.</summary>
         public double ElapsedSeconds => _rules != null ? _rules.ElapsedSeconds : 0d;
+
+        /// <summary>Remaining countdown seconds (zero once running or finished).</summary>
+        public double CountdownRemainingSeconds => _rules != null ? _rules.CountdownRemainingSeconds : 0d;
+
+        /// <summary>True while the attempt is paused; the HUD and pause driver read this.</summary>
+        public bool IsPaused => _rules != null && _rules.IsPaused;
 
         /// <summary>Accepted checkpoint count (also the next expected index).</summary>
         public int AcceptedCheckpointCount => _rules != null ? _rules.AcceptedCheckpointCount : 0;
@@ -69,6 +75,12 @@ namespace VelocityRush.Gameplay
         /// explicit test/logger observer. No UI or progression system is attached in T5.4.
         /// </summary>
         public event Action<RaceResult> RaceFinished;
+
+        /// <summary>
+        /// Raised exactly once per accepted pause or resume transition, after the rules accepted
+        /// it. The HUD and the pause driver subscribe; no per-frame polling of the intent is needed.
+        /// </summary>
+        public event Action<bool> PausedChanged;
 
         private void Awake()
         {
@@ -135,7 +147,12 @@ namespace VelocityRush.Gameplay
 
             _rules.Tick();
 
-            // Single logical reader of the adapter's one-frame retry intent (TDD §37.1).
+            // Single logical reader of the adapter's one-frame pause/retry intents (TDD §37.1).
+            if (_appInput.PausePressed)
+            {
+                TogglePause();
+            }
+
             if (_appInput.RetryPressed)
             {
                 Retry();
@@ -171,6 +188,31 @@ namespace VelocityRush.Gameplay
         }
 
         /// <summary>
+        /// Freezes or resumes the attempt. Pausing is refused after a valid finish, so a completed
+        /// result can never be altered by the pause key.
+        /// </summary>
+        /// <param name="paused">True to pause, false to resume.</param>
+        public void SetPaused(bool paused)
+        {
+            if (_rules == null)
+            {
+                return;
+            }
+
+            var changed = paused ? _rules.Pause() : _rules.Resume();
+            if (changed)
+            {
+                PausedChanged?.Invoke(_rules.IsPaused);
+            }
+        }
+
+        /// <summary>Toggles the pause state and reports it through <see cref="PausedChanged"/>.</summary>
+        public void TogglePause()
+        {
+            SetPaused(!IsPaused);
+        }
+
+        /// <summary>
         /// Resets the race in the resident scene: Countdown, zero progress, zero elapsed time,
         /// cleared result/finish guards, vehicle returned to its captured spawn pose with zero
         /// linear/angular velocity. No scene load, additive reload, or object recreation.
@@ -180,6 +222,14 @@ namespace VelocityRush.Gameplay
             if (!_initialized)
             {
                 return;
+            }
+
+            // A retry always leaves pause first; otherwise Time.timeScale could stay frozen and
+            // the new countdown could run invisibly.
+            if (_rules.IsPaused)
+            {
+                _rules.Resume();
+                PausedChanged?.Invoke(false);
             }
 
             _rules.Reset();

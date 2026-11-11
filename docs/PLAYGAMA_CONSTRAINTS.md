@@ -117,6 +117,8 @@ Both passes stay inside the recorded Playgama limits (300 MB archive, 2 GB memor
 
 **Stage-1 profiling-harness note (T-7.4, 2026-11-10):** the Stage-0 baseline is the Built-in Pass-A row above; it is prototype evidence, not a product guarantee or an approved budget. The dev-only `PrototypePerformanceProbe` and `FrameTimeStatistics` are wired into the slice scene (`HandlingCourse.unity`) and deliberately excluded from release builds at runtime. The two-scene `Bootstrap → TestTrack` WebGL payload is unchanged by Stage 1. The first high-quality slice capture, the per-feature cost rows (lighting/shadows/textures/VFX/UI/audio), and the owner-approved budget proposal remain T-7.14/T-7.15, after the reviewed slice scene profile is added in T-7.12.
 
+**Phase-7 Stage-2 build-contract note (2026-11-11):** `VelocityRushWebGLBuilder` now exposes `WebGLBuildProfile.VerticalSlice` (`Bootstrap → HandlingCourse`) as opt-in data while `Prototype` (`Bootstrap → TestTrack`) remains the default, so the measured Pass-A payload above is still the reference contract. The tool never writes `EditorBuildSettings`; only the explicit `Apply Vertical Slice Build Scenes`/`Restore Prototype Build Scenes` menu actions change it, and the project currently remains `Bootstrap` (0) → `TestTrack` (1). Prototype preflight automation still passes (`VALIDATION PASS`, JSON report, no build). No WebGL slice build or in-browser capture has been produced yet, so **no slice payload/memory/FPS figure is claimed**; the profiling matrix and repeated-cycle memory measurement remain T-7.14, and the derived budgets remain T-7.15.
+
 ## 6. Submission checklist
 
 - [ ] Bridge integration completed against the current SDK and official documentation.

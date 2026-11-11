@@ -10,6 +10,23 @@ using UnityEngine;
 namespace VelocityRush.EditorTools
 {
     /// <summary>
+    /// Selects which approved two-scene build contract a WebGL build targets (T-7.12).
+    /// </summary>
+    /// <remarks>
+    /// The profiles are opt-in data, not a global switch: the tool never edits
+    /// <c>EditorBuildSettings</c> by itself. A build validates that the project's configured scene
+    /// list exactly matches the selected profile and fails closed otherwise.
+    /// </remarks>
+    public enum WebGLBuildProfile
+    {
+        /// <summary>Phase-5/6 prototype: Bootstrap → TestTrack.</summary>
+        Prototype = 0,
+
+        /// <summary>Phase-7 vertical slice: Bootstrap → HandlingCourse.</summary>
+        VerticalSlice = 1
+    }
+
+    /// <summary>
     /// Permanent editor-only WebGL <b>Development</b> build tool for Velocity Rush (T5.5.1).
     /// </summary>
     /// <remarks>
@@ -40,6 +57,14 @@ namespace VelocityRush.EditorTools
         /// <summary>Non-destructive preflight-only menu entry.</summary>
         public const string ValidateMenuPath = "Tools/GameCraft Studio/Velocity Rush/Validate WebGL Setup";
 
+        /// <summary>Explicit menu entry that switches the build-scene list to the slice profile.</summary>
+        public const string ApplySliceScenesMenuPath =
+            "Tools/GameCraft Studio/Velocity Rush/Apply Vertical Slice Build Scenes";
+
+        /// <summary>Explicit menu entry that restores the prototype build-scene list.</summary>
+        public const string RestorePrototypeScenesMenuPath =
+            "Tools/GameCraft Studio/Velocity Rush/Restore Prototype Build Scenes";
+
         private const string LogPrefix = "[VelocityRush.WebGL] ";
         private const string BuildReportFileName = "velocity-rush-webgl-build-report.json";
         private const string PreflightReportFileName = "velocity-rush-webgl-preflight-report.json";
@@ -57,11 +82,27 @@ namespace VelocityRush.EditorTools
         /// <summary>Batch command-line argument that opts in to overwriting a non-empty output folder.</summary>
         public const string AllowNonEmptyArgument = "-vrAllowNonEmptyOutput";
 
-        /// <summary>The approved build-scene order (T5.5 scene validation contract).</summary>
-        public static readonly string[] ApprovedScenePaths =
+        /// <summary>Batch command-line argument selecting the build profile (<c>prototype</c> or <c>slice</c>).</summary>
+        public const string ProfileArgument = "-vrProfile";
+
+        /// <summary>Environment variable selecting the build profile (lower precedence than <c>-vrProfile</c>).</summary>
+        public const string ProfileEnvironmentVariable = "VR_WEBGL_PROFILE";
+
+        /// <summary>The prototype build-scene order (kept as the default contract, T5.5).</summary>
+        public static string[] ApprovedScenePaths => PrototypeScenePaths;
+
+        /// <summary>Phase-5/6 prototype scene order.</summary>
+        public static readonly string[] PrototypeScenePaths =
         {
             "Assets/Scenes/Bootstrap.unity",
             "Assets/Scenes/TestTrack.unity"
+        };
+
+        /// <summary>Phase-7 vertical slice scene order.</summary>
+        public static readonly string[] VerticalSliceScenePaths =
+        {
+            "Assets/Scenes/Bootstrap.unity",
+            "Assets/Scenes/HandlingCourse.unity"
         };
 
         private static readonly ArtifactCategory[] Categories =
@@ -120,6 +161,115 @@ namespace VelocityRush.EditorTools
             }
         }
 
+        /// <summary>Returns the approved scene order for a profile.</summary>
+        public static string[] GetScenePaths(WebGLBuildProfile profile)
+        {
+            return profile == WebGLBuildProfile.VerticalSlice ? VerticalSliceScenePaths : PrototypeScenePaths;
+        }
+
+        /// <summary>Stable, human-readable profile name used in reports and dialogs.</summary>
+        public static string GetProfileDisplayName(WebGLBuildProfile profile)
+        {
+            return profile == WebGLBuildProfile.VerticalSlice ? "Vertical Slice" : "Prototype";
+        }
+
+        /// <summary>Scene-order summary used in preflight detail and dialogs.</summary>
+        public static string DescribeSceneOrder(WebGLBuildProfile profile)
+        {
+            var paths = GetScenePaths(profile);
+            var last = paths[paths.Length - 1];
+            return Path.GetFileNameWithoutExtension(paths[0]) + " -> " + Path.GetFileNameWithoutExtension(last);
+        }
+
+        /// <summary>
+        /// Parses a profile token. Accepts <c>prototype</c>/<c>testtrack</c> and
+        /// <c>slice</c>/<c>verticalslice</c>/<c>handlingcourse</c> (case-insensitive).
+        /// </summary>
+        public static bool TryParseProfile(string value, out WebGLBuildProfile profile)
+        {
+            profile = WebGLBuildProfile.Prototype;
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            var token = value.Trim();
+            if (string.Equals(token, "prototype", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "testtrack", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "0", StringComparison.Ordinal))
+            {
+                profile = WebGLBuildProfile.Prototype;
+                return true;
+            }
+
+            if (string.Equals(token, "slice", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "verticalslice", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "vertical-slice", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "handlingcourse", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "1", StringComparison.Ordinal))
+            {
+                profile = WebGLBuildProfile.VerticalSlice;
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Resolves the batch profile with argument precedence over environment. Defaults to the
+        /// prototype contract when neither is set, preserving the T5.5 behaviour.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">Thrown for an unrecognized profile token.</exception>
+        public static WebGLBuildProfile ResolveProfile(string argumentValue, string environmentValue)
+        {
+            var token = !string.IsNullOrWhiteSpace(argumentValue) ? argumentValue : environmentValue;
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return WebGLBuildProfile.Prototype;
+            }
+
+            if (TryParseProfile(token, out var profile))
+            {
+                return profile;
+            }
+
+            throw new InvalidOperationException(
+                "Unknown WebGL build profile '" + token + "'. Use 'prototype' or 'slice'.");
+        }
+
+        /// <summary>
+        /// Returns the profile whose scene order exactly matches the current build settings, or
+        /// <see cref="WebGLBuildProfile.Prototype"/> when nothing matches.
+        /// </summary>
+        public static WebGLBuildProfile DetectConfiguredProfile()
+        {
+            var configured = EditorBuildSettings.scenes;
+            if (MatchesSceneOrder(configured, VerticalSliceScenePaths))
+            {
+                return WebGLBuildProfile.VerticalSlice;
+            }
+
+            return WebGLBuildProfile.Prototype;
+        }
+
+        private static bool MatchesSceneOrder(EditorBuildSettingsScene[] configured, string[] expected)
+        {
+            if (configured == null || configured.Length != expected.Length)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < expected.Length; i++)
+            {
+                if (configured[i].path != expected[i] || !configured[i].enabled)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         private static string MakeUniqueOutputPath(string candidate)
         {
             if (!Directory.Exists(candidate) && !File.Exists(candidate))
@@ -159,16 +309,19 @@ namespace VelocityRush.EditorTools
         [MenuItem(ValidateMenuPath, false, 101)]
         public static void ValidateFromMenu()
         {
-            var report = RunPreflight(CreateDefaultOutputDirectory(), false, false);
+            var profile = DetectConfiguredProfile();
+            var report = RunPreflight(CreateDefaultOutputDirectory(), false, false, profile);
 
             if (report.Passed)
             {
-                Debug.Log(LogPrefix + "Preflight passed for the approved WebGL development build setup.");
+                Debug.Log(LogPrefix + "Preflight passed for the approved WebGL development build setup (" + profile + ").");
                 if (!Application.isBatchMode)
                 {
                     EditorUtility.DisplayDialog(
                         "Velocity Rush WebGL preflight",
-                        "Preflight passed.\n\nScenes: Bootstrap -> TestTrack\nWebGL module: present\nActive target: WebGL\n\nNo build was started and no files were changed.",
+                        "Preflight passed.\n\nProfile: " + GetProfileDisplayName(profile) +
+                        "\nScenes: " + DescribeSceneOrder(profile) +
+                        "\nWebGL module: present\nActive target: WebGL\n\nNo build was started and no files were changed.",
                         "OK");
                 }
 
@@ -184,15 +337,69 @@ namespace VelocityRush.EditorTools
         }
 
         /// <summary>
+        /// Explicitly switches the build-scene list to Bootstrap → HandlingCourse. Never called
+        /// automatically: builds and tests rely on the prototype list by default.
+        /// </summary>
+        [MenuItem(ApplySliceScenesMenuPath, false, 102)]
+        public static void ApplyVerticalSliceScenesFromMenu()
+        {
+            ApplySceneSet(
+                WebGLBuildProfile.VerticalSlice,
+                "Apply vertical slice build scenes?",
+                "This rewrites EditorBuildSettings to Bootstrap -> HandlingCourse so a WebGL slice build can run.\n\n" +
+                "The Phase-5/6 EditMode suite asserts the prototype scene list; run '" +
+                RestorePrototypeScenesMenuPath + "' before that suite.");
+        }
+
+        /// <summary>Explicitly restores Bootstrap → TestTrack in the build-scene list.</summary>
+        [MenuItem(RestorePrototypeScenesMenuPath, false, 103)]
+        public static void RestorePrototypeScenesFromMenu()
+        {
+            ApplySceneSet(
+                WebGLBuildProfile.Prototype,
+                "Restore prototype build scenes?",
+                "This rewrites EditorBuildSettings back to Bootstrap -> TestTrack (the Phase-5/6 contract).");
+        }
+
+        /// <summary>
+        /// Applies a profile's scene list to <c>EditorBuildSettings</c> after an explicit user
+        /// confirmation. This is the only code path that writes build settings.
+        /// </summary>
+        /// <returns>True when the scene list was written.</returns>
+        public static bool ApplySceneSet(
+            WebGLBuildProfile profile,
+            string dialogTitle,
+            string dialogMessage)
+        {
+            if (!Application.isBatchMode && !EditorUtility.DisplayDialog(dialogTitle, dialogMessage, "Apply", "Cancel"))
+            {
+                return false;
+            }
+
+            var paths = GetScenePaths(profile);
+            var scenes = new EditorBuildSettingsScene[paths.Length];
+            for (var i = 0; i < paths.Length; i++)
+            {
+                scenes[i] = new EditorBuildSettingsScene(paths[i], true);
+            }
+
+            EditorBuildSettings.scenes = scenes;
+            Debug.Log(LogPrefix + "Applied " + GetProfileDisplayName(profile) + " build scenes: " + DescribeSceneOrder(profile));
+            return true;
+        }
+
+        /// <summary>
         /// Runs every blocking pre-build check. Read-only: it never creates, deletes, or writes files.
         /// </summary>
         /// <param name="outputDirectory">Chosen output folder (validated, not created).</param>
         /// <param name="isBuildRequest">True when the caller intends to build (adds the non-empty-output guard).</param>
         /// <param name="allowNonEmptyOutput">True only after the user explicitly confirmed overwrite.</param>
+        /// <param name="profile">Approved two-scene contract to validate against.</param>
         public static WebGLPreflightReport RunPreflight(
             string outputDirectory,
             bool isBuildRequest,
-            bool allowNonEmptyOutput)
+            bool allowNonEmptyOutput,
+            WebGLBuildProfile profile = WebGLBuildProfile.Prototype)
         {
             var report = new WebGLPreflightReport();
 
@@ -230,19 +437,26 @@ namespace VelocityRush.EditorTools
                     ? "Active target: WebGL."
                     : "Active target is " + activeTarget + ". Switch it in Build Settings; this tool never switches targets automatically.");
 
-            ValidateScenes(report);
+            ValidateScenes(report, profile);
             ValidateOutput(report, outputDirectory, isBuildRequest, allowNonEmptyOutput);
 
             return report;
         }
 
         /// <summary>
-        /// Builds the approved scene set as a WebGL Development player into a validated folder and
-        /// writes the JSON report. Callers must have confirmed a non-empty output folder explicitly.
+        /// Builds the selected approved scene set as a WebGL Development player into a validated
+        /// folder and writes the JSON report. Callers must have confirmed a non-empty output folder
+        /// explicitly.
         /// </summary>
-        public static WebGLBuildOutcome Build(string outputDirectory, bool allowNonEmptyOutput)
+        /// <param name="outputDirectory">Chosen output folder.</param>
+        /// <param name="allowNonEmptyOutput">True only after explicit overwrite confirmation.</param>
+        /// <param name="profile">Approved two-scene contract to build.</param>
+        public static WebGLBuildOutcome Build(
+            string outputDirectory,
+            bool allowNonEmptyOutput,
+            WebGLBuildProfile profile = WebGLBuildProfile.Prototype)
         {
-            var preflight = RunPreflight(outputDirectory, true, allowNonEmptyOutput);
+            var preflight = RunPreflight(outputDirectory, true, allowNonEmptyOutput, profile);
             if (!preflight.Passed)
             {
                 return new WebGLBuildOutcome
@@ -258,7 +472,7 @@ namespace VelocityRush.EditorTools
             var fullOutput = Path.GetFullPath(outputDirectory);
             var options = new BuildPlayerOptions
             {
-                scenes = ApprovedScenePaths,
+                scenes = GetScenePaths(profile),
                 locationPathName = fullOutput,
                 target = BuildTarget.WebGL,
                 targetGroup = BuildTargetGroup.WebGL,
@@ -289,7 +503,7 @@ namespace VelocityRush.EditorTools
                     FailureReason = exception.Message,
                     OutputDirectory = fullOutput
                 };
-                TryWriteReport(fullOutput, preflight, null, failed);
+                TryWriteReport(fullOutput, preflight, null, failed, profile);
                 return failed;
             }
             finally
@@ -301,7 +515,7 @@ namespace VelocityRush.EditorTools
             }
 
             var outcome = CreateOutcome(buildReport, fullOutput);
-            TryWriteReport(fullOutput, preflight, buildReport, outcome);
+            TryWriteReport(fullOutput, preflight, buildReport, outcome, profile);
             LogOutcome(outcome);
             ShowOutcomeDialog(outcome);
             return outcome;
@@ -326,14 +540,29 @@ namespace VelocityRush.EditorTools
 
             var outputDirectory = ResolveBatchOutputDirectory();
             var allowNonEmptyOutput = ResolveBatchNonEmptyOutputFlag();
+
+            WebGLBuildProfile profile;
+            try
+            {
+                profile = ResolveBatchProfile();
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError(LogPrefix + exception.Message);
+                EditorApplication.Exit(1);
+                return;
+            }
+
             Debug.Log(
-                LogPrefix + "Batch build requested | output " + outputDirectory +
+                LogPrefix + "Batch build requested | profile " + GetProfileDisplayName(profile) +
+                " (" + DescribeSceneOrder(profile) + ")" +
+                " | output " + outputDirectory +
                 " | allowNonEmptyOutput " + (allowNonEmptyOutput ? "true" : "false"));
 
             WebGLBuildOutcome outcome;
             try
             {
-                outcome = Build(outputDirectory, allowNonEmptyOutput);
+                outcome = Build(outputDirectory, allowNonEmptyOutput, profile);
             }
             catch (Exception exception)
             {
@@ -382,6 +611,18 @@ namespace VelocityRush.EditorTools
                    && !string.Equals(value, "false", StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Resolves <c>-vrProfile</c> / <c>VR_WEBGL_PROFILE</c>. Absent input keeps the prototype
+        /// contract, so existing automation is unchanged.
+        /// </summary>
+        public static WebGLBuildProfile ResolveBatchProfile()
+        {
+            var arguments = Environment.GetCommandLineArgs();
+            var fromArgument = FindArgumentValue(arguments, ProfileArgument);
+            var fromEnvironment = Environment.GetEnvironmentVariable(ProfileEnvironmentVariable);
+            return ResolveProfile(fromArgument, fromEnvironment);
+        }
+
         private static string FindArgumentValue(string[] arguments, string name)
         {
             if (arguments == null)
@@ -416,6 +657,19 @@ namespace VelocityRush.EditorTools
         {
             var failures = new List<string>();
 
+            WebGLBuildProfile profile;
+            try
+            {
+                profile = ResolveBatchProfile();
+            }
+            catch (Exception exception)
+            {
+                profile = WebGLBuildProfile.Prototype;
+                failures.Add(exception.Message);
+            }
+
+            Debug.Log(LogPrefix + "Automation validation profile: " + GetProfileDisplayName(profile));
+
             var menuResolved = EditorApplication.ExecuteMenuItem(MenuPath);
             if (menuResolved)
             {
@@ -430,7 +684,7 @@ namespace VelocityRush.EditorTools
                 Path.GetTempPath(),
                 "VelocityRushWebGLPreflight-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture));
 
-            var preflight = RunPreflight(outputDirectory, false, false);
+            var preflight = RunPreflight(outputDirectory, false, false, profile);
             foreach (var check in preflight.Checks)
             {
                 var line = LogPrefix + (check.Passed ? "PASS " : "FAIL ") + check.Name + " -- " + check.Detail;
@@ -461,7 +715,7 @@ namespace VelocityRush.EditorTools
             {
                 Directory.CreateDirectory(outputDirectory);
                 var reportPath = Path.Combine(outputDirectory, PreflightReportFileName);
-                WriteReport(reportPath, preflight, null, outcome);
+                WriteReport(reportPath, preflight, null, outcome, profile);
                 Debug.Log(LogPrefix + "Preflight report: " + reportPath);
             }
             catch (Exception exception)
@@ -474,7 +728,7 @@ namespace VelocityRush.EditorTools
             // overwrite confirmation must clear only the non-empty guard. Nothing outside the temp
             // folder is touched.
             var insideProject = Path.Combine(ProjectRoot, "WebGLBuildOutputMustBeRejected");
-            var insideProjectPreflight = RunPreflight(insideProject, false, false);
+            var insideProjectPreflight = RunPreflight(insideProject, false, false, profile);
             if (!insideProjectPreflight.HasFailure(WebGLPreflightCode.OutputInsideProject))
             {
                 failures.Add("Output-inside-project guard did not trigger.");
@@ -484,7 +738,7 @@ namespace VelocityRush.EditorTools
                 Debug.Log(LogPrefix + "PASS Negative guard: output inside the project is rejected.");
             }
 
-            var refusedBuild = Build(insideProject, false);
+            var refusedBuild = Build(insideProject, false, profile);
             if (refusedBuild.Attempted || refusedBuild.Result != "PreflightFailed")
             {
                 failures.Add("Build with an unsafe output path was not refused.");
@@ -498,7 +752,7 @@ namespace VelocityRush.EditorTools
                 ProjectRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
             if (!string.IsNullOrEmpty(containingProject))
             {
-                var containingProjectPreflight = RunPreflight(containingProject, false, false);
+                var containingProjectPreflight = RunPreflight(containingProject, false, false, profile);
                 if (!containingProjectPreflight.HasFailure(WebGLPreflightCode.OutputContainsProject))
                 {
                     failures.Add("Output-containing-project guard did not trigger.");
@@ -593,16 +847,17 @@ namespace VelocityRush.EditorTools
             Debug.Log(LogPrefix + "VALIDATION PASS: menu resolved, preflight passed, JSON report generated (no build).");
         }
 
-        private static void ValidateScenes(WebGLPreflightReport report)
+        private static void ValidateScenes(WebGLPreflightReport report, WebGLBuildProfile profile)
         {
+            var scenePaths = GetScenePaths(profile);
             var configured = EditorBuildSettings.scenes;
-            var matches = configured != null && configured.Length == ApprovedScenePaths.Length;
+            var matches = configured != null && configured.Length == scenePaths.Length;
 
             if (matches)
             {
-                for (var i = 0; i < ApprovedScenePaths.Length; i++)
+                for (var i = 0; i < scenePaths.Length; i++)
                 {
-                    if (configured[i].path != ApprovedScenePaths[i] || !configured[i].enabled)
+                    if (configured[i].path != scenePaths[i] || !configured[i].enabled)
                     {
                         matches = false;
                         break;
@@ -612,18 +867,18 @@ namespace VelocityRush.EditorTools
 
             Add(
                 report,
-                "Build scenes match the approved order exactly",
+                "Build scenes match the approved " + GetProfileDisplayName(profile) + " order exactly",
                 matches,
                 WebGLPreflightCode.SceneConfigurationMismatch,
                 matches
-                    ? "Bootstrap (enabled) -> TestTrack (enabled)."
-                    : "Expected exactly: [0] " + ApprovedScenePaths[0] + " (enabled), [1] " + ApprovedScenePaths[1] +
+                    ? DescribeSceneOrder(profile) + " (both enabled)."
+                    : "Expected exactly: [0] " + scenePaths[0] + " (enabled), [1] " + scenePaths[1] +
                       " (enabled). Actual: " + DescribeScenes(configured) +
                       ". The tool never adds, removes, reorders, or enables scenes.");
 
-            for (var i = 0; i < ApprovedScenePaths.Length; i++)
+            for (var i = 0; i < scenePaths.Length; i++)
             {
-                var path = ApprovedScenePaths[i];
+                var path = scenePaths[i];
                 var absolute = Path.Combine(ProjectRoot, path);
                 var exists = File.Exists(absolute) && AssetDatabase.LoadAssetAtPath<SceneAsset>(path) != null;
                 Add(
@@ -768,7 +1023,8 @@ namespace VelocityRush.EditorTools
             string outputDirectory,
             WebGLPreflightReport preflight,
             BuildReport buildReport,
-            WebGLBuildOutcome outcome)
+            WebGLBuildOutcome outcome,
+            WebGLBuildProfile profile)
         {
             try
             {
@@ -778,7 +1034,7 @@ namespace VelocityRush.EditorTools
                 // Set the path before serializing: the report includes its own location, and writing
                 // it afterwards produced an empty "build.reportPath" (T5.5.3 defect).
                 outcome.ReportPath = path;
-                WriteReport(path, preflight, buildReport, outcome);
+                WriteReport(path, preflight, buildReport, outcome, profile);
                 Debug.Log(LogPrefix + "JSON report: " + path);
             }
             catch (Exception exception)
@@ -982,8 +1238,10 @@ namespace VelocityRush.EditorTools
             string path,
             WebGLPreflightReport preflight,
             BuildReport buildReport,
-            WebGLBuildOutcome outcome)
+            WebGLBuildOutcome outcome,
+            WebGLBuildProfile profile)
         {
+            var scenePaths = GetScenePaths(profile);
             var json = new StringBuilder(8192);
             json.Append("{\n");
             Property(json, 1, "schemaVersion", SchemaVersion.ToString(CultureInfo.InvariantCulture), true);
@@ -993,22 +1251,24 @@ namespace VelocityRush.EditorTools
             StringProperty(json, 1, "unityVersion", Application.unityVersion, true);
             StringProperty(json, 1, "projectRoot", ProjectRoot, true);
             StringProperty(json, 1, "buildTarget", "WebGL", true);
+            StringProperty(json, 1, "profile", profile.ToString(), true);
+            StringProperty(json, 1, "profileScenes", DescribeSceneOrder(profile), true);
             Property(json, 1, "developmentBuild", "true", true);
             Property(json, 1, "playerSettingsModified", "false", true);
             StringProperty(json, 1, "outputDirectory", outcome.OutputDirectory, true);
 
             json.Append("  \"scenes\": [\n");
             var configured = EditorBuildSettings.scenes;
-            for (var i = 0; i < ApprovedScenePaths.Length; i++)
+            for (var i = 0; i < scenePaths.Length; i++)
             {
                 var enabled = configured != null && i < configured.Length && configured[i].enabled;
                 var actualPath = configured != null && i < configured.Length ? configured[i].path : string.Empty;
                 json.Append("    {\n");
                 Property(json, 3, "order", i.ToString(CultureInfo.InvariantCulture), true);
-                StringProperty(json, 3, "approvedPath", ApprovedScenePaths[i], true);
+                StringProperty(json, 3, "approvedPath", scenePaths[i], true);
                 StringProperty(json, 3, "configuredPath", actualPath, true);
                 Property(json, 3, "configuredEnabled", enabled ? "true" : "false", false);
-                json.Append("    }").Append(i == ApprovedScenePaths.Length - 1 ? "\n" : ",\n");
+                json.Append("    }").Append(i == scenePaths.Length - 1 ? "\n" : ",\n");
             }
 
             json.Append("  ],\n");
@@ -1312,6 +1572,7 @@ namespace VelocityRush.EditorTools
         private Vector2 _scroll;
         private string _message;
         private MessageType _messageType = MessageType.Info;
+        private WebGLBuildProfile _profile = WebGLBuildProfile.Prototype;
 
         private void OnEnable()
         {
@@ -1326,6 +1587,7 @@ namespace VelocityRush.EditorTools
                 _outputDirectory = VelocityRushWebGLBuilder.CreateDefaultOutputDirectory();
             }
 
+            _profile = VelocityRushWebGLBuilder.DetectConfiguredProfile();
             _displayedOutputDirectory = VelocityRushWebGLBuilder.NormalizeOutputPath(_outputDirectory);
         }
 
@@ -1348,6 +1610,22 @@ namespace VelocityRush.EditorTools
                 "Editor-only tool. Validates the approved scene order and WebGL setup, builds a Development WebGL player, " +
                 "and writes a JSON report. It never edits ProjectSettings/PlayerSettings, packages, scenes, or previous builds.",
                 MessageType.Info);
+
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Build profile (scene contract)");
+            var selectedProfile = (WebGLBuildProfile)EditorGUILayout.EnumPopup(_profile);
+            if (selectedProfile != _profile)
+            {
+                _profile = selectedProfile;
+                _preflight = null;
+                _outcome = null;
+                _message = null;
+                _confirmedOutputDirectory = null;
+            }
+
+            EditorGUILayout.LabelField(
+                "Required build scenes: " + VelocityRushWebGLBuilder.DescribeSceneOrder(_profile),
+                EditorStyles.miniLabel);
 
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Output folder (must be outside the Unity project)");
@@ -1381,7 +1659,7 @@ namespace VelocityRush.EditorTools
             {
                 if (GUILayout.Button("Run Preflight (no build)", GUILayout.Height(30f)))
                 {
-                    _preflight = VelocityRushWebGLBuilder.RunPreflight(_outputDirectory, false, false);
+                    _preflight = VelocityRushWebGLBuilder.RunPreflight(_outputDirectory, false, false, _profile);
                     _outcome = null;
                     _confirmedOutputDirectory = null;
                     _message = _preflight.Passed ? "Preflight passed. No build was started." : "Preflight failed.";
@@ -1442,7 +1720,7 @@ namespace VelocityRush.EditorTools
         private void BuildWithConfirmation()
         {
             var outputPath = VelocityRushWebGLBuilder.NormalizeOutputPath(_outputDirectory);
-            var preflight = VelocityRushWebGLBuilder.RunPreflight(_outputDirectory, true, false);
+            var preflight = VelocityRushWebGLBuilder.RunPreflight(_outputDirectory, true, false, _profile);
 
             if (!preflight.Passed && preflight.HasFailure(WebGLPreflightCode.OutputNotEmpty))
             {
@@ -1462,7 +1740,7 @@ namespace VelocityRush.EditorTools
                 }
 
                 _confirmedOutputDirectory = outputPath;
-                preflight = VelocityRushWebGLBuilder.RunPreflight(_outputDirectory, true, true);
+                preflight = VelocityRushWebGLBuilder.RunPreflight(_outputDirectory, true, true, _profile);
             }
 
             _preflight = preflight;
@@ -1480,7 +1758,7 @@ namespace VelocityRush.EditorTools
                 !string.IsNullOrEmpty(_confirmedOutputDirectory) &&
                 string.Equals(outputPath, _confirmedOutputDirectory, StringComparison.Ordinal);
 
-            _outcome = VelocityRushWebGLBuilder.Build(_outputDirectory, allowNonEmptyOutput);
+            _outcome = VelocityRushWebGLBuilder.Build(_outputDirectory, allowNonEmptyOutput, _profile);
             if (_outcome.Succeeded)
             {
                 _confirmedOutputDirectory = null;

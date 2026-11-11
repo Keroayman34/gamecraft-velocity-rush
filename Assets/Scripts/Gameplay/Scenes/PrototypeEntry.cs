@@ -5,7 +5,8 @@ namespace VelocityRush.Gameplay
 {
     /// <summary>
     /// Temporary prototype entry point: after the Bootstrap composition root completes its
-    /// startup sequence, request the additive TestTrack scene (T5.2.1).
+    /// startup sequence, request the additive content scene for the active build profile
+    /// (TestTrack for the prototype, HandlingCourse for the vertical slice) (T5.2.1, T-7.12).
     /// </summary>
     /// <remarks>
     /// Deliberately a separate component (not part of <see cref="Bootstrapper"/>) so the
@@ -32,18 +33,18 @@ namespace VelocityRush.Gameplay
             // has already completed (or failed) by this point.
             if (_bootstrapper == null)
             {
-                Debug.LogError(LogPrefix + "Bootstrapper missing; TestTrack will not load.", this);
+                Debug.LogError(LogPrefix + "Bootstrapper missing; content scene will not load.", this);
                 return;
             }
 
             if (!_bootstrapper.StartupSucceeded)
             {
                 // Fail closed: never load content when boot composition failed.
-                Debug.LogWarning(LogPrefix + "Bootstrap startup did not complete; TestTrack not loaded.", this);
+                Debug.LogWarning(LogPrefix + "Bootstrap startup did not complete; content scene not loaded.", this);
                 return;
             }
 
-            if (!PrototypeSceneLoader.TryLoadTestTrack(out var error))
+            if (!PrototypeSceneLoader.TryLoadContentScene(out var error))
             {
                 Debug.LogError(LogPrefix + error, this);
             }

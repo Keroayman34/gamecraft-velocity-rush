@@ -28,11 +28,19 @@ namespace VelocityRush.Gameplay
         private double _countdownStartedAt;
         private double _runningStartedAt;
         private double _frozenElapsedSeconds;
+        private double _pausedAt;
+        private double _pausedCountdownRemaining;
         private int _acceptedCheckpointCount;
         private RaceResult? _result;
 
         /// <summary>Current lifecycle state. A new instance starts in Countdown.</summary>
         public RaceState State { get; private set; }
+
+        /// <summary>
+        /// True while the attempt is paused. A paused attempt keeps its state, progress, and
+        /// elapsed value frozen; no checkpoint, finish, or countdown transition is accepted.
+        /// </summary>
+        public bool IsPaused { get; private set; }
 
         /// <summary>Next expected checkpoint index (also the number accepted so far).</summary>
         public int AcceptedCheckpointCount => _acceptedCheckpointCount;
@@ -48,12 +56,39 @@ namespace VelocityRush.Gameplay
         {
             get
             {
+                if (IsPaused)
+                {
+                    return _frozenElapsedSeconds;
+                }
+
                 if (State == RaceState.Running)
                 {
                     return Math.Max(0d, _clock.NowSeconds - _runningStartedAt);
                 }
 
                 return _frozenElapsedSeconds;
+            }
+        }
+
+        /// <summary>
+        /// Remaining countdown seconds, or zero once the run is live or finished. While paused the
+        /// value captured at the pause transition is reported, so the HUD cannot advance.
+        /// </summary>
+        public double CountdownRemainingSeconds
+        {
+            get
+            {
+                if (State != RaceState.Countdown)
+                {
+                    return 0d;
+                }
+
+                if (IsPaused)
+                {
+                    return _pausedCountdownRemaining;
+                }
+
+                return Math.Max(0d, _countdownSeconds - (_clock.NowSeconds - _countdownStartedAt));
             }
         }
 
@@ -99,7 +134,7 @@ namespace VelocityRush.Gameplay
         /// </summary>
         public void Tick()
         {
-            if (State != RaceState.Countdown)
+            if (IsPaused || State != RaceState.Countdown)
             {
                 return;
             }
@@ -121,7 +156,7 @@ namespace VelocityRush.Gameplay
         /// </summary>
         public bool TryAcceptCheckpoint(int checkpointIndex)
         {
-            if (State != RaceState.Running)
+            if (IsPaused || State != RaceState.Running)
             {
                 return false;
             }
@@ -146,7 +181,7 @@ namespace VelocityRush.Gameplay
         /// </summary>
         public bool TryFinish()
         {
-            if (State != RaceState.Running || _acceptedCheckpointCount < _checkpointCount)
+            if (IsPaused || State != RaceState.Running || _acceptedCheckpointCount < _checkpointCount)
             {
                 return false;
             }
@@ -167,6 +202,61 @@ namespace VelocityRush.Gameplay
         }
 
         /// <summary>
+        /// Freezes the attempt in Countdown or Running. Returns false when already paused or when
+        /// the attempt is finished (a finished result is immutable and must not be pausable).
+        /// </summary>
+        public bool Pause()
+        {
+            if (IsPaused || State == RaceState.Finished)
+            {
+                return false;
+            }
+
+            var now = _clock.NowSeconds;
+            IsPaused = true;
+            _pausedAt = now;
+
+            if (State == RaceState.Running)
+            {
+                _frozenElapsedSeconds = Math.Max(0d, now - _runningStartedAt);
+            }
+            else
+            {
+                _pausedCountdownRemaining = Math.Max(0d, _countdownSeconds - (now - _countdownStartedAt));
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Resumes a paused attempt. The countdown and run origins shift by the paused duration so
+        /// no paused time is ever counted. Returns false when the attempt is not paused.
+        /// </summary>
+        public bool Resume()
+        {
+            if (!IsPaused)
+            {
+                return false;
+            }
+
+            var now = _clock.NowSeconds;
+            var pausedSeconds = Math.Max(0d, now - _pausedAt);
+            _countdownStartedAt += pausedSeconds;
+            _runningStartedAt += pausedSeconds;
+
+            IsPaused = false;
+            _pausedAt = 0d;
+            _pausedCountdownRemaining = 0d;
+
+            if (State == RaceState.Running)
+            {
+                _frozenElapsedSeconds = 0d;
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Starts a fresh attempt in the same session: Countdown state, zero progress, zero
         /// elapsed time, and no result. Does not raise a result or perform any scene work.
         /// </summary>
@@ -176,8 +266,11 @@ namespace VelocityRush.Gameplay
             _countdownStartedAt = _clock.NowSeconds;
             _runningStartedAt = 0d;
             _frozenElapsedSeconds = 0d;
+            _pausedAt = 0d;
+            _pausedCountdownRemaining = 0d;
             _acceptedCheckpointCount = 0;
             _result = null;
+            IsPaused = false;
         }
     }
 }

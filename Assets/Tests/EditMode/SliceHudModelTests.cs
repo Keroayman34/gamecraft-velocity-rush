@@ -62,5 +62,44 @@ namespace VelocityRush.Tests.EditMode
             var after = GC.GetAllocatedBytesForCurrentThread();
             Assert.That(after - before, Is.EqualTo(0));
         }
+
+        [Test]
+        public void Evaluate_CountdownUsesCeilingAndIsZeroOutsideCountdown()
+        {
+            var telemetry = new VehicleTelemetry(0f, 0f, 0f, 0f, false);
+
+            Assert.That(
+                SliceHudModel.Evaluate(telemetry, RaceState.Countdown, 0d, 0, 3, 2.1d).CountdownSeconds,
+                Is.EqualTo(3));
+            Assert.That(
+                SliceHudModel.Evaluate(telemetry, RaceState.Countdown, 0d, 0, 3, 0.001d).CountdownSeconds,
+                Is.EqualTo(1));
+            Assert.That(
+                SliceHudModel.Evaluate(telemetry, RaceState.Countdown, 0d, 0, 3, 500d).CountdownSeconds,
+                Is.EqualTo(SliceHudModel.MaxCountdownSeconds));
+            Assert.That(
+                SliceHudModel.Evaluate(telemetry, RaceState.Running, 0d, 0, 3, 2d).CountdownSeconds,
+                Is.EqualTo(0));
+        }
+
+        [Test]
+        public void Evaluate_PropagatesPauseState()
+        {
+            var telemetry = new VehicleTelemetry(0f, 0f, 0f, 0f, false);
+
+            var snapshot = SliceHudModel.Evaluate(telemetry, RaceState.Running, 4d, 1, 3, 0d, isPaused: true);
+
+            Assert.That(snapshot.IsPaused, Is.True);
+            Assert.That(snapshot.TimeWholeSeconds, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void CountdownSeconds_HandlesNonFiniteAndNegativeValues()
+        {
+            Assert.That(SliceHudModel.CountdownSeconds(RaceState.Countdown, double.NaN), Is.EqualTo(0));
+            Assert.That(SliceHudModel.CountdownSeconds(RaceState.Countdown, double.PositiveInfinity), Is.EqualTo(0));
+            Assert.That(SliceHudModel.CountdownSeconds(RaceState.Countdown, -1d), Is.EqualTo(0));
+            Assert.That(SliceHudModel.CountdownSeconds(RaceState.Finished, 2d), Is.EqualTo(0));
+        }
     }
 }

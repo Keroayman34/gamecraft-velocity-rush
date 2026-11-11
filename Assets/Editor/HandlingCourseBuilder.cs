@@ -38,8 +38,6 @@ namespace VelocityRush.EditorTools
         private const string CourseFolder = GeneratedFolder + "/HandlingCourse";
         private const string RoadMeshPath = CourseFolder + "/HandlingCourseRoad.asset";
         private const string BarrierMeshPath = CourseFolder + "/HandlingCourseBarrier.asset";
-        private const string RoadMaterialPath = CourseFolder + "/HandlingCourseRoad.mat";
-        private const string BarrierMaterialPath = CourseFolder + "/HandlingCourseBarrier.mat";
         private const string VehiclePrefabPath = "Assets/Prefabs/PrototypeVehicle.prefab";
         private const string DefaultVehicleProfilePath = "Assets/Data/Tuning/CandidateA_Grip_Vehicle.asset";
         private const string BaselineCameraPath = "Assets/Data/Tuning/Baseline_Camera.asset";
@@ -97,24 +95,25 @@ namespace VelocityRush.EditorTools
             EnsureFolder(GeneratedFolder);
             EnsureFolder(CourseFolder);
 
-            var vehiclePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(VehiclePrefabPath);
-            if (vehiclePrefab == null)
-            {
-                throw new InvalidOperationException("Missing vehicle prefab: " + VehiclePrefabPath);
-            }
+            // Procedural art and audio are written before any scene object is created: the
+            // DeleteAsset/CreateAsset cycles below unload unreferenced assets, so every later load
+            // must happen after the last generated asset has been refreshed.
+            var materials = SliceTextureKit.EnsureMaterialSet();
+            var audioClips = SliceAudioKit.EnsureClips();
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var centerline = HandlingCourseLayout.BuildCenterline();
 
             var roadMesh = SaveMeshAsset(BuildRoadMesh(centerline), RoadMeshPath);
             var barrierMesh = SaveMeshAsset(BuildBarrierMesh(centerline), BarrierMeshPath);
-            var roadMaterial = SaveMaterialAsset(CreateRoadMaterial(), RoadMaterialPath);
-            var barrierMaterial = SaveMaterialAsset(CreateBarrierMaterial(), BarrierMaterialPath);
+            var roadMaterial = materials.Asphalt;
+            var barrierMaterial = materials.Metal;
 
             // Presets must be (re)generated and loaded only after every generated asset has been
             // written: the DeleteAsset/CreateAsset import cycles below unload unreferenced assets,
             // which would leave earlier preset references as fake-null Unity objects.
             TuningPresetBuilder.EnsurePresets();
+            var vehiclePrefab = LoadRequired<GameObject>(VehiclePrefabPath, "vehicle prefab");
             var vehicleProfile = LoadRequired<VehiclePhysicsProfile>(DefaultVehicleProfilePath, "tuning preset");
             var baselineCamera = LoadRequired<CameraProfile>(BaselineCameraPath, "tuning preset");
 
@@ -136,10 +135,11 @@ namespace VelocityRush.EditorTools
             barriers.AddComponent<MeshRenderer>().sharedMaterial = barrierMaterial;
             barriers.AddComponent<MeshCollider>().sharedMesh = barrierMesh;
 
-            CreateGround(trackRoot, centerline, roadMaterial);
-            CreateBrakingMarkers(trackRoot, centerline, barrierMaterial);
+            CreateGround(trackRoot, centerline, materials.Sand);
+            CreateBrakingMarkers(trackRoot, centerline, materials.Hazard);
             CreateLightProbes(trackRoot, centerline);
             CreateLighting();
+            SliceEnvironmentKit.Decorate(trackRoot, centerline, materials);
 
             var spawnPoint = HandlingCourseLayout.SampleAtDistance(centerline, 0f, out var spawnTangent);
             var spawnPosition = spawnPoint + (Vector3.up * 0.5f);
@@ -156,10 +156,56 @@ namespace VelocityRush.EditorTools
             SetObject(vehicle, "profile", vehicleProfile);
             SetObject(vehicle, "inputSource", input);
 
+            // Hero presentation and slice systems are scene-local additions on the prefab instance:
+            // the shared prefab, its colliders, and every physics value remain untouched.
+            SliceHeroVehicleKit.Apply(vehicleGo, materials);
+
+            var smokeAnchors = new[]
+            {
+                vehicleGo.transform.Find("Wheel RL Visual"),
+                vehicleGo.transform.Find("Wheel RR Visual")
+            };
+            var vfx = SliceVfxKit.Build(vehicleGo, materials, smokeAnchors);
+
+            var engineGo = new GameObject("Engine Audio");
+            engineGo.transform.SetParent(vehicleGo.transform, false);
+            var engineSource = engineGo.AddComponent<AudioSource>();
+            engineSource.clip = audioClips.EngineLoop;
+            engineSource.loop = true;
+            engineSource.playOnAwake = false;
+            engineSource.spatialBlend = 1f;
+            engineSource.rolloffMode = AudioRolloffMode.Linear;
+            engineSource.minDistance = 4f;
+            engineSource.maxDistance = 80f;
+            engineSource.dopplerLevel = 0f;
+            var engineAudio = engineGo.AddComponent<EngineAudioController>();
+            SetObject(engineAudio, "telemetrySource", vehicle);
+            SetObject(engineAudio, "source", engineSource);
+
+            var tyreGo = new GameObject("Tyre Audio");
+            tyreGo.transform.SetParent(vehicleGo.transform, false);
+            tyreGo.transform.localPosition = new Vector3(0f, -0.15f, -1.2f);
+            var tyreSource = tyreGo.AddComponent<AudioSource>();
+            tyreSource.clip = audioClips.TyreScreechLoop;
+            tyreSource.loop = true;
+            tyreSource.playOnAwake = false;
+            tyreSource.spatialBlend = 1f;
+            tyreSource.rolloffMode = AudioRolloffMode.Linear;
+            tyreSource.minDistance = 3f;
+            tyreSource.maxDistance = 55f;
+            tyreSource.dopplerLevel = 0f;
+            var tyreAudio = tyreGo.AddComponent<TyreAudioController>();
+            SetObject(tyreAudio, "telemetrySource", vehicle);
+            SetObject(tyreAudio, "source", tyreSource);
+
+            var impactAudio = vehicleGo.AddComponent<ImpactAudioController>();
+            SetObject(impactAudio, "impactClip", audioClips.Impact);
+            SetObject(impactAudio, "sparkTarget", vfx);
+
             var cameraGo = new GameObject("Main Camera");
             cameraGo.tag = "MainCamera";
             var camera = cameraGo.AddComponent<Camera>();
-            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.clearFlags = CameraClearFlags.Skybox;
             camera.backgroundColor = new Color(0.07f, 0.08f, 0.11f);
             camera.nearClipPlane = 0.1f;
             camera.farClipPlane = 1500f;
@@ -176,9 +222,20 @@ namespace VelocityRush.EditorTools
 
             var raceGo = new GameObject("Race");
             var race = raceGo.AddComponent<RaceController>();
-            SetFloat(race, "countdownSeconds", 2f);
+            SetFloat(race, "countdownSeconds", 3f);
             SetObject(race, "vehicle", vehicle);
             SetObject(race, "appInputSource", input);
+
+            var pauseDriver = raceGo.AddComponent<SlicePauseDriver>();
+            SetObject(pauseDriver, "race", race);
+
+            var uiAudio = raceGo.AddComponent<SliceUiAudioController>();
+            SetObject(uiAudio, "race", race);
+            SetObject(uiAudio, "countdownBeep", audioClips.CountdownBeep);
+            SetObject(uiAudio, "countdownGo", audioClips.CountdownGo);
+            SetObject(uiAudio, "pauseBeep", audioClips.PauseBeep);
+            SetObject(uiAudio, "resumeBeep", audioClips.ResumeBeep);
+            SetObject(uiAudio, "finishSting", audioClips.FinishSting);
 
             var gateRoot = new GameObject("Race Gates").transform;
             var checkpoints = new CheckpointTrigger[HandlingCourseLayout.CheckpointCount];
@@ -250,7 +307,8 @@ namespace VelocityRush.EditorTools
                 " | length " + HandlingCourseLayout.TotalLength.ToString("0.0") + " m" +
                 " | checkpoints " + checkpoints.Length +
                 " | layer " + TrackLayer +
-                " | bakedGI=true lightProbes=true ui=UIToolkit");
+                " | lighting=skybox+ambient+fog lightmapBake=explicitDeferred lightProbes=true ui=UIToolkit" +
+                " | audio=engine+tyre+impact+ui vfx=smoke+dust+sparks pause=P");
             Selection.activeObject = AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath);
         }
 
@@ -311,24 +369,25 @@ namespace VelocityRush.EditorTools
             var light = lightGo.AddComponent<Light>();
             light.type = LightType.Directional;
             light.lightmapBakeType = LightmapBakeType.Mixed;
-            light.intensity = 1.25f;
+            light.intensity = 1.35f;
             light.color = new Color(1.0f, 0.93f, 0.82f);
             light.shadows = LightShadows.Soft;
-            light.shadowStrength = 0.82f;
+            light.shadowStrength = 0.85f;
             light.shadowBias = 0.05f;
             lightGo.transform.rotation = Quaternion.Euler(48f, -32f, 0f);
 
-            RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.55f, 0.62f, 0.72f);
-            RenderSettings.ambientEquatorColor = new Color(0.52f, 0.46f, 0.36f);
-            RenderSettings.ambientGroundColor = new Color(0.30f, 0.24f, 0.18f);
-            RenderSettings.ambientIntensity = 0.9f;
+            // Skybox-based ambient ties dynamic props (the vehicle) to the baked environment and
+            // removes the flat tri-light look from the Phase-6 prototype (T-7.8).
+            RenderSettings.skybox = SliceLightingBaker.EnsureSkyboxMaterial();
+            RenderSettings.sun = light;
+            RenderSettings.ambientMode = AmbientMode.Skybox;
+            RenderSettings.ambientIntensity = 1.05f;
 
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogColor = new Color(0.82f, 0.72f, 0.55f);
-            RenderSettings.fogStartDistance = 180f;
-            RenderSettings.fogEndDistance = 520f;
+            RenderSettings.fogColor = new Color(0.80f, 0.71f, 0.57f);
+            RenderSettings.fogStartDistance = 170f;
+            RenderSettings.fogEndDistance = 640f;
         }
 
         /// <summary>
@@ -463,6 +522,7 @@ namespace VelocityRush.EditorTools
         private static Mesh BuildBarrierMesh(Vector3[] points)
         {
             var vertices = new List<Vector3>(points.Length * 16);
+            var uvs = new List<Vector2>(points.Length * 16);
             var triangles = new List<int>(points.Length * 24);
             var halfWidth = HandlingCourseLayout.RoadWidth * 0.5f;
             var halfThickness = HandlingCourseLayout.BarrierThickness * 0.5f;
@@ -492,15 +552,16 @@ namespace VelocityRush.EditorTools
                     var top1Inner = bottom1Inner + height;
                     var top1Outer = bottom1Outer + height;
 
-                    AddQuad(vertices, triangles, bottom0Inner, top0Inner, top1Inner, bottom1Inner);
-                    AddQuad(vertices, triangles, bottom0Outer, bottom1Outer, top1Outer, top0Outer);
-                    AddQuad(vertices, triangles, top0Inner, top0Outer, top1Outer, top1Inner);
-                    AddQuad(vertices, triangles, bottom0Inner, bottom1Inner, bottom1Outer, bottom0Outer);
+                    AddQuad(vertices, uvs, triangles, bottom0Inner, top0Inner, top1Inner, bottom1Inner);
+                    AddQuad(vertices, uvs, triangles, bottom0Outer, bottom1Outer, top1Outer, top0Outer);
+                    AddQuad(vertices, uvs, triangles, top0Inner, top0Outer, top1Outer, top1Inner);
+                    AddQuad(vertices, uvs, triangles, bottom0Inner, bottom1Inner, bottom1Outer, bottom0Outer);
                 }
             }
 
             var mesh = new Mesh { name = "HandlingCourseBarrier" };
             mesh.SetVertices(vertices);
+            mesh.SetUVs(0, uvs);
             mesh.SetTriangles(triangles, 0);
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
@@ -509,6 +570,7 @@ namespace VelocityRush.EditorTools
 
         private static void AddQuad(
             List<Vector3> vertices,
+            List<Vector2> uvs,
             List<int> triangles,
             Vector3 a,
             Vector3 b,
@@ -520,6 +582,10 @@ namespace VelocityRush.EditorTools
             vertices.Add(b);
             vertices.Add(c);
             vertices.Add(d);
+            uvs.Add(new Vector2(0f, 0f));
+            uvs.Add(new Vector2(0f, 1f));
+            uvs.Add(new Vector2(1f, 1f));
+            uvs.Add(new Vector2(1f, 0f));
             triangles.Add(index);
             triangles.Add(index + 1);
             triangles.Add(index + 2);
@@ -572,44 +638,6 @@ namespace VelocityRush.EditorTools
 
             AssetDatabase.CreateAsset(mesh, path);
             return mesh;
-        }
-
-        private static Material SaveMaterialAsset(Material material, string path)
-        {
-            if (AssetDatabase.LoadAssetAtPath<Material>(path) != null)
-            {
-                AssetDatabase.DeleteAsset(path);
-            }
-
-            AssetDatabase.CreateAsset(material, path);
-            return material;
-        }
-
-        private static Material CreateRoadMaterial()
-        {
-            var shader = Shader.Find("Standard");
-            if (shader == null)
-            {
-                shader = Shader.Find("Diffuse");
-            }
-
-            var material = new Material(shader) { name = "HandlingCourseRoad" };
-            material.color = new Color(0.92f, 0.92f, 0.92f);
-            return material;
-        }
-
-        private static Material CreateBarrierMaterial()
-        {
-            var shader = Shader.Find("Standard");
-            if (shader == null)
-            {
-                shader = Shader.Find("Diffuse");
-            }
-
-            var material = new Material(shader) { name = "HandlingCourseBarrier" };
-            material.color = new Color(0.72f, 0.75f, 0.80f);
-            material.SetInt("_Cull", 0);
-            return material;
         }
 
         private static void SetObject(Object target, string propertyName, Object value)

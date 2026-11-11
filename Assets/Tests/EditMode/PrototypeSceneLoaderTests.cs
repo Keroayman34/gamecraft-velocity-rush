@@ -44,5 +44,44 @@ namespace VelocityRush.Tests.EditMode
             Assert.That(PrototypeSceneLoader.IsLoading, Is.False);
             Assert.That(PrototypeSceneLoader.LastError, Is.Null.Or.Empty);
         }
+
+        [Test]
+        public void SelectContentScene_PrefersTestTrack_WhenBothProfilesAreListed()
+        {
+            var selected = PrototypeSceneLoader.SelectContentScene(1, 2, out var name, out var path);
+
+            Assert.That(selected, Is.True);
+            Assert.That(name, Is.EqualTo(PrototypeSceneLoader.TestTrackSceneName));
+            Assert.That(path, Is.EqualTo(PrototypeSceneLoader.TestTrackScenePath));
+        }
+
+        [Test]
+        public void SelectContentScene_FallsBackToHandlingCourse_ForTheSliceProfile()
+        {
+            var selected = PrototypeSceneLoader.SelectContentScene(-1, 1, out var name, out var path);
+
+            Assert.That(selected, Is.True);
+            Assert.That(name, Is.EqualTo(PrototypeSceneLoader.HandlingCourseSceneName));
+            Assert.That(path, Is.EqualTo(PrototypeSceneLoader.HandlingCourseScenePath));
+        }
+
+        [Test]
+        public void SelectContentScene_ReturnsFalse_WhenNeitherProfileIsListed()
+        {
+            var selected = PrototypeSceneLoader.SelectContentScene(-1, -1, out var name, out var path);
+
+            Assert.That(selected, Is.False);
+            Assert.That(name, Is.Null);
+            Assert.That(path, Is.Null);
+        }
+
+        [Test]
+        public void HandlingCourseScene_IsImportable()
+        {
+            Assert.That(
+                AssetDatabase.LoadAssetAtPath<SceneAsset>(PrototypeSceneLoader.HandlingCourseScenePath),
+                Is.Not.Null,
+                "Rebuild the handling course via Tools > GameCraft Studio > Velocity Rush > Build Handling Course Scene.");
+        }
     }
 }

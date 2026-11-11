@@ -36,12 +36,57 @@ namespace VelocityRush.Tests.EditMode
             var result = new RaceResult(12.346d, 3, 3, true);
 
             view.ShowResults(result);
-            view.Apply(new SliceHudSnapshot(0, 0, 0, 0, 3, RaceState.Finished));
-            view.Apply(new SliceHudSnapshot(0, 0, 0, 0, 3, RaceState.Countdown));
+            Assert.That(view.IsResultsVisible, Is.True);
 
-            // Reaching this point without an exception proves the overlay transition path is safe;
-            // the display state is intentionally private so the view has no test-only surface.
-            Assert.Pass();
+            // A Finished snapshot keeps the overlay; the retry snapshot (Countdown) hides it.
+            view.Apply(new SliceHudSnapshot(0, 0, 0, 0, 3, RaceState.Finished));
+            Assert.That(view.IsResultsVisible, Is.True);
+
+            view.Apply(new SliceHudSnapshot(0, 0, 0, 0, 3, RaceState.Countdown));
+            Assert.That(view.IsResultsVisible, Is.False);
+        }
+
+        [Test]
+        public void Apply_CountdownSnapshot_ShowsCountdownGroup()
+        {
+            var view = new SliceHudView(new VisualElement());
+
+            view.Apply(new SliceHudSnapshot(0, 0, 0, 0, 3, RaceState.Countdown, countdownSeconds: 3));
+
+            Assert.That(view.IsCountdownVisible, Is.True);
+            Assert.That(view.IsPauseVisible, Is.False);
+            Assert.That(view.IsResultsVisible, Is.False);
+            Assert.That(view.DisplayedCountdownSeconds, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void Apply_PausedSnapshot_HidesCountdownAndShowsPauseOverlay()
+        {
+            var view = new SliceHudView(new VisualElement());
+            view.Apply(new SliceHudSnapshot(0, 0, 0, 0, 3, RaceState.Countdown, countdownSeconds: 2));
+
+            view.Apply(new SliceHudSnapshot(0, 0, 0, 0, 3, RaceState.Countdown, countdownSeconds: 2, isPaused: true));
+
+            Assert.That(view.IsCountdownVisible, Is.False);
+            Assert.That(view.IsPauseVisible, Is.True);
+
+            view.Apply(new SliceHudSnapshot(0, 0, 0, 0, 3, RaceState.Countdown, countdownSeconds: 2));
+            Assert.That(view.IsPauseVisible, Is.False);
+            Assert.That(view.IsCountdownVisible, Is.True);
+        }
+
+        [Test]
+        public void ShowResults_HidesCountdownAndPause()
+        {
+            var view = new SliceHudView(new VisualElement());
+            view.Apply(new SliceHudSnapshot(0, 0, 0, 0, 3, RaceState.Countdown, countdownSeconds: 1, isPaused: true));
+            Assert.That(view.IsPauseVisible, Is.True);
+
+            view.ShowResults(new RaceResult(20d, 3, 3, true));
+
+            Assert.That(view.IsCountdownVisible, Is.False);
+            Assert.That(view.IsPauseVisible, Is.False);
+            Assert.That(view.IsResultsVisible, Is.True);
         }
     }
 }

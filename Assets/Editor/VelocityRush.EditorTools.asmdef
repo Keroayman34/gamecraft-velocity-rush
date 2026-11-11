@@ -1,0 +1,20 @@
+{
+    "name": "VelocityRush.EditorTools",
+    "rootNamespace": "VelocityRush.EditorTools",
+    "references": [
+        "VelocityRush.Core",
+        "VelocityRush.Data",
+        "VelocityRush.Gameplay"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

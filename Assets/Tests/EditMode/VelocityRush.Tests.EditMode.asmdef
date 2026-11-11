@@ -6,7 +6,8 @@
         "UnityEditor.TestRunner",
         "VelocityRush.Core",
         "VelocityRush.Data",
-        "VelocityRush.Gameplay"
+        "VelocityRush.Gameplay",
+        "VelocityRush.EditorTools"
     ],
     "includePlatforms": [
         "Editor"
