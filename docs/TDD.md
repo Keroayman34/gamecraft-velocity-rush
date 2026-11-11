@@ -1098,3 +1098,55 @@ Stage 2 builds T-7.6…T-7.13 on the frozen Stage-1 composition (D-044) and tech
 - **No automatic build-settings writes.** The tool never edits `EditorBuildSettings`. The only writers are the explicit menu actions `Apply Vertical Slice Build Scenes` and `Restore Prototype Build Scenes`, each behind a confirmation dialog; the apply action warns that the Phase-5/6 EditMode suite asserts the prototype list.
 - **Selection:** `GetScenePaths`, `DescribeSceneOrder`, `TryParseProfile`, and `ResolveProfile` resolve profiles; batch selection uses `-vrProfile` with `VR_WEBGL_PROFILE` as lower-precedence fallback, defaulting to Prototype. Unknown tokens fail closed. Preflight, build, JSON report, and the build window validate/report against the selected profile, including `profile`/`profileScenes` fields in the report.
 - **Editor development affordance:** `PrototypeSceneLoader.SelectContentScene` prefers TestTrack when both scenes are listed and falls back to HandlingCourse. For editor play mode, a scene absent from build settings is loaded via `EditorSceneManager.LoadSceneAsyncInPlayMode`; player builds still require the selected profile to list the scene.
+
+### 47.10 Stage-3 profiling, budget derivation, and quality review (T-7.14–T-7.17, 2026-11-11)
+
+> Status: **T-7.14/T-7.15 executed against a real VerticalSlice WebGL build and a real Chromium/WebGL 2.0 runtime capture; T-7.16 draft criteria applied; T-7.17 compile/tests green.** The baked-lighting row remains the one open item: the repository does not yet contain a `LightingData` asset, lightmap textures, or reflection-probe data, so no bake is claimed in this section. M5/Phase 7 closeout is therefore recorded only after the owner's bake artifacts are present and verified.
+
+**T-7.14 build matrix (real, this project):**
+
+| Item | Value |
+|---|---|
+| Profile / scenes | `WebGLBuildProfile.VerticalSlice` — `Bootstrap` (0) → `HandlingCourse` (1) |
+| Build options | WebGL Development; Built-in Render Pipeline; `-vrProfile slice` batch entry |
+| Result / duration | Succeeded, **62.882 s** cold; 0 errors, 1 emcc JS-library advisory warning (+4 WebGPU/Firefox advisory lines) |
+| Payload | **60,995,033 B (60.995 MB / 58.17 MiB)** |
+| Artifacts | wasm 53,516,979 B; data 6,699,979 B; framework.js 694,835 B; loader.js 60,309 B; index.html 8,817 B |
+| Build-scene handling | applied through the explicit menu action for the build, then restored to `Bootstrap → TestTrack`; `EditorBuildSettings` is unchanged in the committed tree |
+| Report | `velocity-rush-webgl-build-report.json` in the output folder (outside the repository) |
+
+**T-7.14 runtime matrix (real Chromium 152.0.7977.167 / WebGL 2.0, ANGLE AMD REMBRANDT, OpenGL ES 3.2):**
+
+| Measure | Value |
+|---|---|
+| Page load / first frame | 1,578 ms / 1,602 ms |
+| Game startup / asset load / WASM startup | 107 ms / 1,423 ms / 1,426.6 ms |
+| WASM heap | **137,887,744 B total (131.50 MiB)**; 123,418,064 B used (117.70 MiB) |
+| JS heap | 16,734,431 B total (15.96 MiB); 16,398,039 B used (15.64 MiB) |
+| Probe window | 590 frames (run 1) / 589 frames (run 2), 3 s warm-up + 10 s sample |
+| Frame time | mean **16.95 ms**, p95 **18.00 ms**, min 9 ms, max **35 ms** (run 1); 17.00 / 18.00 / 11 / 35 (run 2) |
+| FPS | mean **59.0** (run 1), 58.8 (run 2); single-frame min 28.6 / max 111.1 |
+| Draw calls / triangles / vertices | **394** / 115,798 / 152,904 |
+| Managed memory / delta | 1.93 MB; 212 KB over 590 frames (≈0.36 KB/frame); run 2: 1.92 MB, 192 KB / 589 frames |
+| Janked frames | 11 cumulative (includes startup); no GC hitch >35 ms in the sample |
+| Console | no game/Unity/WebGL startup error; the one error line was a test-injected `HEAPU8` access, not the build |
+
+**T-7.15 proposed budgets (derived, not invented):** payload **≤250 MB** (warn 225 MB); WASM heap **≤192 MiB total** (warn 176 MiB; used ceiling 168 MiB); JS heap **≤64 MB**; draw calls **≤500** (warn 450); triangles **≤180k**; vertices **≤250k**; mean **≥58 fps**, p95 **≤20 ms**, max **≤50 ms**; page-to-first-frame **≤5 s**; asset load **≤3 s**; managed steady-state **≤1 KB/frame** with no GC hitch >50 ms. Full derivations are in `PLAYGAMA_CONSTRAINTS.md` §5. These are candidate budgets for owner sign-off; the desktop Chrome/Firefox matrix (OQ-P01) and repeated-cycle memory growth remain open.
+
+**T-7.16 draft-criteria review (OQ-A08/OQ-A09):**
+
+| Row | Result | Evidence / limit |
+|---|---|---|
+| Vehicle | Pass against the draft | Hero kit reads as a Sport-class car at gameplay distance; material separation and exact collider parity; captured at 960×600 in the slice scene. Production mesh/LOD remains Phase 8. |
+| Environment | Pass against the draft | Desert identity, road edge/barrier/gantry/rock landmarks readable; non-colliding decor; no repeated-kit monotony inside the section. |
+| Materials | Pass against the draft | Asphalt, sand, metal, hazard, hero paint, dark trim, rubber, chrome, lamps, and VFX materials are distinct; generated textures; no magenta/error shader. |
+| Lighting | **Pending** | Procedural skybox, skybox ambient, warm mixed directional light, and linear fog are wired and visible in the capture; **no baked lightmap/reflection-probe data is present in the repository**, so the baked-indirect criterion cannot pass yet. |
+| UI | Pass against the draft | HUD/countdown/pause/results are legible in the 960×600 capture; results bind once; numeric HUD path is 0 B/frame by EditMode guard. 1280×720/1920×1080 captures were not produced in this run. |
+| VFX | Pass with a stated limit | Smoke/dust/sparks are capped and allocation-bounded; the capture was stationary, so at-speed overdraw was not visually stress-tested. |
+| Audio | Partial — implementation audit only | Synthesized engine/tyre/impact/UI clips, pooled sources, `ignoreListenerPause` UI pool, and pure response math are implemented and tested; no listening pass was possible in this headless capture. |
+| Performance | Pass against the proposed budgets | 59.0 mean FPS, p95 18 ms, max 35 ms, 394 draw calls, 131.5 MiB WASM heap on the local Chromium capture. |
+
+**No silent downgrade:** every deviation (bake, audio listening, at-speed VFX, 1080p/720p captures, repeated-cycle memory, owner desktop matrix) is explicit above and in `OPEN_QUESTIONS.md`; no quality reduction was made to fit a budget, and no budget was invented.
+
+**T-7.17 closeout evidence:** final batch compile **0 errors / 0 warnings**; EditMode **241/241**; PlayMode **13/13** (0 failed, 0 skipped); `EditorBuildSettings` restored to `Bootstrap` (0) → `TestTrack` (1). The slice build above is the first real WebGL slice build and is not committed as a binary artifact.
+

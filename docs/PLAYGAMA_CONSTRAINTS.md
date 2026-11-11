@@ -117,7 +117,66 @@ Both passes stay inside the recorded Playgama limits (300 MB archive, 2 GB memor
 
 **Stage-1 profiling-harness note (T-7.4, 2026-11-10):** the Stage-0 baseline is the Built-in Pass-A row above; it is prototype evidence, not a product guarantee or an approved budget. The dev-only `PrototypePerformanceProbe` and `FrameTimeStatistics` are wired into the slice scene (`HandlingCourse.unity`) and deliberately excluded from release builds at runtime. The two-scene `Bootstrap → TestTrack` WebGL payload is unchanged by Stage 1. The first high-quality slice capture, the per-feature cost rows (lighting/shadows/textures/VFX/UI/audio), and the owner-approved budget proposal remain T-7.14/T-7.15, after the reviewed slice scene profile is added in T-7.12.
 
-**Phase-7 Stage-2 build-contract note (2026-11-11):** `VelocityRushWebGLBuilder` now exposes `WebGLBuildProfile.VerticalSlice` (`Bootstrap → HandlingCourse`) as opt-in data while `Prototype` (`Bootstrap → TestTrack`) remains the default, so the measured Pass-A payload above is still the reference contract. The tool never writes `EditorBuildSettings`; only the explicit `Apply Vertical Slice Build Scenes`/`Restore Prototype Build Scenes` menu actions change it, and the project currently remains `Bootstrap` (0) → `TestTrack` (1). Prototype preflight automation still passes (`VALIDATION PASS`, JSON report, no build). No WebGL slice build or in-browser capture has been produced yet, so **no slice payload/memory/FPS figure is claimed**; the profiling matrix and repeated-cycle memory measurement remain T-7.14, and the derived budgets remain T-7.15.
+**Phase-7 Stage-2 build-contract note (2026-11-11):** `VelocityRushWebGLBuilder` now exposes `WebGLBuildProfile.VerticalSlice` (`Bootstrap → HandlingCourse`) as opt-in data while `Prototype` (`Bootstrap → TestTrack`) remains the default, so the measured Pass-A payload above is still the reference contract. The tool never writes `EditorBuildSettings`; only the explicit `Apply Vertical Slice Build Scenes`/`Restore Prototype Build Scenes` menu actions change it, and the project currently remains `Bootstrap` (0) → `TestTrack` (1). Prototype preflight automation still passes (`VALIDATION PASS`, JSON report, no build). No WebGL slice build or in-browser capture had been produced at Stage-2 close, so **no slice payload/memory/FPS figure was claimed then**; the profiling matrix and repeated-cycle memory measurement were scheduled for T-7.14, and the derived budgets for T-7.15. **Superseded by the Stage-3 evidence below.**
+
+**Phase-7 Stage-3 profiling matrix and proposed budgets (T-7.14/T-7.15, 2026-11-11):**
+
+*Build (real, this project, Unity 6000.6.8f1, WebGL Development, `WebGLBuildProfile.VerticalSlice` `Bootstrap → HandlingCourse`):*
+
+| Measure | Measured value | Note |
+|---|---|---|
+| Build result / duration | Succeeded, **62.882 s** cold | 0 errors, 1 warning (emcc `$stackTrace` JS-library deprecation advisory; 4 WebGPU/Firefox advisory lines) |
+| Five-artifact payload | **60,995,033 B = 60.995 MB (58.17 MiB)** | 20.3% of the 300 MB platform limit; 24.4% of the proposed 250 MB budget |
+| `index.html` | 8,817 B | — |
+| `.wasm` | 53,516,979 B (53.517 MB / 51.04 MiB) | dominates payload |
+| `.data` | 6,699,979 B (6.70 MB / 6.39 MiB) | — |
+| `framework.js` | 694,835 B | — |
+| `loader.js` | 60,309 B | — |
+| Build scenes | `Bootstrap` (0) → `HandlingCourse` (1) | applied explicitly for the build and restored to prototype afterwards; `EditorBuildSettings` is unchanged in the committed tree |
+| Build report | `/tmp/opencode/vr-webgl-slice-20261111-040244/velocity-rush-webgl-build-report.json` | output outside the repository |
+
+*Runtime capture (real Chromium 152.0.7977.167 / WebGL 2.0, ANGLE AMD REMBRANDT, OpenGL ES 3.2, Linux x86_64; Development build served locally):*
+
+| Measure | Measured value | Note |
+|---|---|---|
+| Page load | 1,578 ms | `pageLoadTime` |
+| Page load to first frame | 1,602 ms | `pageLoadTimeToFrame1` |
+| Game startup | 107 ms | `gameStartupTime` |
+| Asset load | 1,423 ms | `assetLoadTime` |
+| WebAssembly startup | 1,426.6 ms | `webAssemblyStartupTime` |
+| Code download | 16 ms | `codeDownloadTime` |
+| WASM heap total | **137,887,744 B = 137.89 MB (131.50 MiB)** | `totalWASMHeapSize` |
+| WASM heap used | **123,418,064 B = 123.42 MB (117.70 MiB)** | `usedWASMHeapSize` |
+| JS heap total | 16,734,431 B (15.96 MiB) | `totalJSHeapSize` |
+| JS heap used | 16,398,039 B (15.64 MiB) | `usedJSHeapSize` |
+| Probe window | 590 frames / 589 frames (two runs) | 3 s warm-up + 10 s sample |
+| Mean frame / p95 / min / max | **16.95 ms / 18.00 ms / 9 ms / 35 ms** (run 1); 17.00 / 18.00 / 11 / 35 (run 2) | no frame above 35 ms in the sampled window |
+| Mean FPS | **59.0** (run 1); 58.8 (run 2) | min 28.6, max 111.1 (single-frame extrema) |
+| Draw calls | **394** | `batches=0` reported by the probe |
+| Triangles / vertices | 115,798 / 152,904 | — |
+| Managed memory | 1.93 MB (run 1), 1.92 MB (run 2) | steady-state |
+| Managed delta | 212 KB / 192 KB over 590 / 589 frames (≈0.33–0.36 KB/frame) | Development build including the dev telemetry overlay/probe; **not a zero-allocation claim for the whole loop** |
+| Total-allocation delta | 1.16 MB / 1.03 MB over the sample | profiler total; includes start-of-window warm-up |
+| Janked frames | 11 cumulative | includes startup; no GC hitch >35 ms observed in the sample |
+| Console errors | 0 game errors | the only error was test-injected `HEAPU8` access; no Unity/WebGL startup error |
+
+**Proposed Stage-3 budgets (derived from the slice measurement; owner review basis for Commercial V1.0):**
+
+| Budget | Proposed ceiling | Warn at | Basis |
+|---|---|---|---|
+| Archive / five-artifact payload | **250 MB** | 225 MB | 83% of the 300 MB platform limit; slice is 61 MB (24.4% of 250 MB) |
+| WASM heap total | **192 MiB** | 176 MiB | 1.46× the slice's 131.5 MiB; leaves ~60 MiB for 5-environment/10-vehicle content and streaming |
+| WASM heap used | **168 MiB** | 152 MiB | 1.43× the slice's 117.7 MiB |
+| JS heap used | **64 MB** | 48 MB | 3.9× the slice's 16.4 MB; far below the 4,192 MiB V8 limit |
+| Draw calls | **500** | 450 | 1.27× the slice's 394 |
+| Triangles | **180,000** | 160,000 | 1.55× the slice's 115,798 |
+| Vertices | **250,000** | 220,000 | 1.64× the slice's 152,904 |
+| Frame pacing (desktop) | mean **≥58 fps**, p95 **≤20 ms**, max **≤50 ms** | p95 >20 ms or max >50 ms | slice: 59.0 fps / 18 ms / 35 ms |
+| Page load to first frame | **≤5 s** | 4 s | slice: 1.602 s |
+| Asset load | **≤3 s** | 2.5 s | slice: 1.423 s |
+| Managed steady-state | **≤1 KB/frame**, no GC hitch >50 ms | 0.75 KB/frame | slice: 0.33–0.36 KB/frame; no >35 ms frame |
+
+These are **candidate budgets** derived from the Stage-3 measurement and recorded for owner sign-off. They are not a platform guarantee, and any change requires a fresh measurement rather than a new assumption. The runtime capture is a local Chromium/ANGLE run; the owner's desktop Chrome/Firefox matrix remains the review basis (OQ-P01), and repeated-cycle memory growth across environment/vehicle swaps is not yet measured.
 
 ## 6. Submission checklist
 
