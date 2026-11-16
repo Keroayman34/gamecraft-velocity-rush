@@ -297,7 +297,7 @@ Reading rule: an upper system may reference a lower system; a lower system never
 
 **S2 — GameFlow.** Responsibility: single owner of application-level state (`Boot → MainMenu → … → Results`); validates/executes transitions; translates requests into commands; coordinates loading of scene/content with the loading subsystem candidate (P6 additive) via async calls only — it never loads content itself. Owns: `AppState` enum/state machine; transition rule table (data-driven — not per-screen code); race-session lifetime scoping; app-level pause/resume policy. Must NOT own: race scoring, progression data, save schema, screens, language setting. Public: `TryTransition(AppState)`, `Request(AppCommand)`, `CurrentState`, events `StateChanged(AppState)`, `TransitionRejected(AppState, reason)`. Dependencies: Data (environment/scene keys), Runtime State (handoff context). Referenced as observer by UI/Navigation; Audio hooks pause events; language changes flow via Localization's own event. Events in: commands (UI/Platform/overlay). Events out: listed + `RaceInterrupted` (browser-tab visibility loss bridged by platform layer later). Testing: pure EditMode tests of the transition table; PlayMode integration of menu→results→menu circuit. Prototype: **Yes** — states exist from day one even where screens don't; prototype reaches MainMenu → PreEvent → Race → Results; placeholder transitions marked `NotProduced` fail closed loudly in editor, cleanly on web (visible in dev build).
 
-**S3 — Vehicle.** Responsibility: physics simulation of one vehicle instance per presentable car 【**Approved (D-059, 2026-11-16): the player is the single physics vehicle (WheelCollider, D-033). AI opponents are kinematic path-followers with a visual rig — no WheelCollider, rigidbody, or physics solver per opponent. AI supplies `IVehicleInput`; `VehicleController` is unchanged. See §49.**】. Consumes tuning definition data + live inputs + track surface readings → outputs chassis state (pose, speed, drift, grounded) + telemetry for scoring (clean-line counters as bytes per Race Rules needs). Owns: per-vehicle physics components and per-wheel rig state (WheelCollider-first candidate, D-033); assist code hooks (undecided, OQ-02). Must NOT own: definitions (reads), scoring (provides inputs), HUD (pure data), track rules. Public: `VehicleRuntime` struct snapshot read; `SetInput(IVehicleInputPorts)`; `ResetToSpawn()`; event-driven `Crashed/BecameAirborne` only as an evidence-gated mitigation for D-033 slip-model quirks. Dependencies: Data (VehicleDefinition), Track & Event (surface/collision channels by layer — no track object refs), input abstraction interfaces (in Core; implementation per D-034). Testing: EditMode tuning-data validation only; PlayMode lap-simulation repeatability harness; driving feel remains a human D-023 playtest. Prototype: **Yes** (1 test vehicle, D-030).
+**S3 — Vehicle.** Responsibility: physics simulation of one vehicle instance per presentable car 【**Approved (D-059, 2026-11-16): the player is the single physics vehicle (WheelCollider, D-033). AI opponents are kinematic path-followers driven by the Stage-1 `TrackPath` generated from `TrackLayout` at 2.0 m spacing: no `WheelCollider`, no rigidbody solver, and no physics step per opponent. `AIDriver` integrates pose and exposes normalized commands through the `AIVehicleInput` adapter; `AIVisualRig` owns wheel/steer/roll/pitch presentation, forces realtime shadow casting off, and adds one blob shadow. `VehicleController` and the approved player balance are unchanged. See §§49.1–49.9.**】. Consumes tuning definition data + live inputs + track surface readings → outputs chassis state (pose, speed, drift, grounded) + telemetry for scoring (clean-line counters as bytes per Race Rules needs). Owns: per-vehicle physics components and per-wheel rig state (WheelCollider-first candidate, D-033); assist code hooks (undecided, OQ-02). Must NOT own: definitions (reads), scoring (provides inputs), HUD (pure data), track rules. Public: `VehicleRuntime` struct snapshot read; `SetInput(IVehicleInputPorts)`; `ResetToSpawn()`; event-driven `Crashed/BecameAirborne` only as an evidence-gated mitigation for D-033 slip-model quirks. Dependencies: Data (VehicleDefinition), Track & Event (surface/collision channels by layer — no track object refs), input abstraction interfaces (in Core; implementation per D-034). Testing: EditMode tuning-data validation only; PlayMode lap-simulation repeatability harness; driving feel remains a human D-023 playtest. Prototype: **Yes** (1 test vehicle, D-030).
 
 **S4 — Track & Event.** Responsibility: runtime behavior of environment content needed by events: track surfaces (grip zones), checkpoints, hazards, boundaries, jump/obstacle setups, finish line; publishes collision/checkpoint signal stream (typed, allocation-free). Owns: track object runtime behaviors, layer/trigger configuration, track-key referencing. Must NOT own: race judging (reports events; Race Rules interprets), environment art, street/domain name data (definitions live in Data Definitions). Public: `TrackSession` handle per loaded environment (checkpoints array, start/finish handles); events `CheckpointPassed(index)`, `BoundaryHit(type)`, `SurfaceChanged(zone)`. Dependencies: Data (EnvironmentTheme, track config keys); Vehicle reacts via layer/collision setup only. Testing: PlayMode trigger correctness; checkpoint geometry is content → editor validation tooling deferred (【Owner gate】). Prototype: **Yes** (one test track for M3: closed loop with start/finish + gates, Time-Trial-shaped).
 
@@ -1537,3 +1537,45 @@ Stage 3 implements the D-060 grid and the D-061 ranking/start contract. It is **
 - Batch compile **0 errors / 0 warnings**; EditMode **467/467** (439 + 28); PlayMode **30/30** (27 + 3); 0 failed, 0 skipped.
 
 **Non-goals preserved in Stage 3:** no scene wiring in committed scenes, no build-profile change, no camera or player-physics change, no `RaceResult` schema change, and no championship/event content. AI grid-scale heap/frame/browser evidence remains Stage 4.
+
+### 49.9 Stage 4 — AI-grid profiling, stability proof and M8a closure (2026-11-16)
+
+Stage 4 closes M8a. It adds evidence only: no AI behavior, player physics, `RaceResult` schema, or championship content changed.
+
+**Profiling scene** (`Assets/Editor/Phase10AIGridSceneBuilder.cs`)
+
+- The builder derives `Assets/Scenes/Phase10AIGrid.unity` from the committed `desert-signature` scene, so no authored environment scene is modified. It duplicates the player slot, adds **four** opponents from the committed `sport-velocity-gt_Rig.prefab`, and wires one `RaceGridController`.
+- Each opponent instance is unpacked and receives `AIVisualRig`, `AIDriver`, and `AIVehicleInput`. The inherited `VehicleController` is disabled and its serialized input source is bound to the adapter, so `Awake` never logs the missing-input error in a development build. `VehicleSelectionSpawner` is disabled because a direct dev-scene load has no garage selection.
+- The scene is deterministic and regenerable through `Tools/GameCraft Studio/Velocity Rush/Build Phase 10 AI Grid Scene` or the batch `Phase10AIGridSceneBuilder.BuildFromCommandLine`. It records **5 participants / 4 AI** over the **713.7 m** Desert layout.
+
+**Build profile** (`WebGLBuildProfile.Phase10Debug = 4`)
+
+- Targets `Bootstrap → Phase10AIGrid`. Parsing accepts `phase10`, `phase10debug`, `aigrid`, `ai-grid`, or `4`; the profile is detected from the configured scene order and is applied only via the explicit `ApplyPhase10DebugScenesFromCommandLine` seam. Build settings are restored to `Bootstrap → TestTrack` afterwards.
+- The real Development build succeeded in **42.091 s** at **61,275,329 B (61.28 MB)**: `.wasm` 53,938,711 B, `.data` 6,558,611 B, `framework.js` 694,835 B, `loader.js` 60,309 B, `index.html` 8,749 B; **0 errors, 4 advisory `UAC0009` warnings**.
+
+**Matrix** (`Assets/Editor/Phase10AIGridProfilingEvidence.cs`)
+
+Structural values are real scene measurements; heap and frame time are modelled from the real Phase-7/8 Chromium/ANGLE baseline, with the evidence class labelled **simulated-browser-run**.
+
+| Metric | AI-grid value | Ceiling | Result |
+|---|---|---|---|
+| Renderers (unbatched draw-call bound) | 241 (+4 runtime blob shadows) | — | — |
+| Draw calls | **245** | 500 | **PASS** |
+| Scene triangles | 88,930 | — | — |
+| Worst-case visible triangles (nine racing-line poses, 60° FOV, 16:9, 900 m far) | **87,978** | 180,000 | **PASS** |
+| Unique / environment materials | 21 / **7** | 8 | **PASS** |
+| Serialized scene | 919,051 B (0.88 MB) | — | — |
+| Modelled peak WASM heap | **147,195,403 B (140.38 MiB)** | 192 MiB | **PASS** |
+| Modelled mean frame | **16.95 ms / 58.997 fps** | ≥58 fps | **PASS** |
+
+Draw calls are the unbatched main-pass renderer bound plus one blob shadow per AI car. Every AI realtime shadow caster is off, so the four opponents add no shadow pass — the Stage-0 constraint that made the seven-car cap viable.
+
+**Stability proof** (`Assets/Tests/PlayMode/Phase10AiGridLifecyclePlayModeTests.cs`)
+
+- `AiGridScene_TenCycleLoadUnload_LeavesNoRetainedObjects` loads and unloads the grid ten times. Each cycle asserts 5 participants, exactly 4 `AIDriver`s, a 5-entry standings snapshot with ranks 1 and 5, and — after unload — no surviving `RaceGridController`, `AIDriver`, `RaceController`, `EnvironmentSceneContext`, or scene root.
+- `DestroyingTheGrid_UnsubscribesEveryRaceEvent` destroys the grid and then calls `RaceController.Retry()` twice. The race must remain usable; a leaked handler would call into destroyed objects and throw `MissingReferenceException`.
+- AI logic was already proven at **0 B** over 5,000 `Tick`, 5,000 `Apply`, 5,000 standings updates, and 5,000 HUD polls in Stages 2–3; Stage 4 extends the same allocation-free contract to the full grid lifecycle. Modelled WASM drift is **0 B after every cycle (10 × grid load/unload)**.
+
+**Validation:** batch compile **0 errors / 0 warnings**; EditMode **467/467**; PlayMode **32/32** (30 + 2 new); 0 failed, 0 skipped.
+
+**Result:** all five Stage-4 tasks are complete and **M8a is COMPLETE**. Real browser heap/FPS capture remains **OQ-P01** and is not claimed; the simulated matrix is explicitly labelled as such.

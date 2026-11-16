@@ -306,7 +306,7 @@ namespace VelocityRush.EditorTools
         /// frustum contributes its full triangle count, so the result is a conservative
         /// (no-occlusion) upper bound. The total scene triangle count is recorded separately.
         /// </remarks>
-        private static void MeasureVisibleGeometry(
+        internal static void MeasureVisibleGeometry(
             TrackLayout layout,
             Renderer[] renderers,
             long[] rendererTriangles,

@@ -76,6 +76,30 @@ namespace VelocityRush.Gameplay
         /// <summary>1-based player position, or zero before initialization.</summary>
         public int PlayerRank => _standings != null ? _standings.PlayerRank : 0;
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// Editor-only authoring seam used by the deterministic Phase-10 AI-grid scene builder
+        /// (T-10.4.1). Runtime behavior is unchanged.
+        /// </summary>
+        public void ConfigureForAuthoring(
+            RaceController raceController,
+            VehicleController playerController,
+            AIDriver[] opponentDrivers,
+            TrackLayout layout,
+            EnvironmentLayoutVariant layoutVariant,
+            float startLine,
+            float spawnHeight)
+        {
+            race = raceController;
+            player = playerController;
+            opponents = opponentDrivers;
+            trackLayout = layout;
+            variant = layoutVariant;
+            startLineDistance = startLine;
+            playerSpawnHeight = spawnHeight;
+        }
+#endif
+
         private void Start()
         {
             if (_initialized || race == null || player == null || trackLayout == null)
@@ -368,7 +392,7 @@ namespace VelocityRush.Gameplay
 
         private void HoldPlayer()
         {
-            if (_playerBody == null)
+            if (_playerBody == null || _playerBody.isKinematic)
             {
                 return;
             }

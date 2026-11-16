@@ -287,6 +287,34 @@ Each cycle loads and unloads all five environments once, in production order, th
 
 **Phase-10 AI note — Stage-3 grid and standings (2026-11-16):** the starting grid and position tracker add no per-frame managed allocation. `RaceStandings` allocates its fixed 7-entry arrays once in the constructor; ordering is a bounded insertion sort into a preallocated index array; `CopyStandingsTo` and `TryGetStanding` write into caller-owned buffers/value outputs. Measured **0 B** over 5,000 standings update/poll iterations in EditMode and **0 B** over 5,000 `CopyStandingsTo`/`TryGetStanding` polls in PlayMode. Grid placement is load-time only. The player remains the only physics vehicle (D-059), so no grid-scale solver cost exists; however, the **AI draw-call, triangle, heap, and frame-time row at grid scale is still not measured** and remains Stage-4 evidence against the D-056/OQ-T08 ceilings.
 
+**Phase-10 AI note — Stage-4 AI-grid build and matrix (T-10.4.1–T-10.4.5, 2026-11-16):**
+
+*Real WebGL Development build (not simulated).* `WebGLBuildProfile.Phase10Debug = 4` targets `Bootstrap → Phase10AIGrid` (two scenes). Parsing accepts `phase10`, `phase10debug`, `aigrid`, `ai-grid`, or `4`; `EditorBuildSettings` is restored to `Bootstrap → TestTrack` after the build so the prototype contract is unchanged. The build **Succeeded** in **42.091 s** at **61,275,329 B (61.28 MB / 58.44 MiB)**: `.wasm` 53,938,711 B, `.data` 6,558,611 B, `framework.js` 694,835 B, `loader.js` 60,309 B, `index.html` 8,749 B; **0 errors, 4 advisory `UAC0009` warnings** (two legacy `DEVELOPMENT_BUILD` directives, compiled twice). Report: `/tmp/opencode/vr10/webgl-phase10/velocity-rush-webgl-build-report.json`.
+
+*AI-grid scene (real structure).* `Assets/Scenes/Phase10AIGrid.unity` is derived from the committed Desert signature scene and is not an edit to any authored environment. It contains the player plus **four** kinematic opponents on the **713.7 m** Desert layout, with a wired `RaceGridController`; each opponent uses the committed Sport rig with `AIVisualRig`, `AIDriver`, and `AIVehicleInput`, no realtime shadow casters, and one blob shadow.
+
+*AI-grid matrix (**SIMULATED browser run**):* structural values are real measurements of the generated scene; heap and frame time are modelled from the real Phase-7/8 Chromium/ANGLE baseline (137,887,744 B total WASM heap, 394 draw calls, 115,798 triangles, 16.95 ms) exactly as the Phase-9 matrix does.
+
+| Participant set | Renderers (unbatched draw-call bound) | Scene triangles | Worst-case visible triangles | Materials | Serialized scene | Modelled peak WASM heap | Modelled mean frame | Gate |
+|---|---|---|---|---|---|---|---|---|
+| Player + **4 AI** (`Phase10AIGrid`, Desert) | 241 (+4 blob shadows) | 88,930 | 87,978 | 21 unique / **7 environment** | 919,051 B (0.88 MB) | 147,195,403 B (140.38 MiB) | 16.95 ms (59.0 fps) | **PASS** |
+| **AI-grid ceiling check** | **245 / 500 draw calls** | — | **87,978 / 180,000** | **7 / 8** | — | **140.38 MiB / 192 MiB** | **16.95 ms (≥58 fps)** | **PASS** |
+
+**Ceiling confirmation:** draw calls **245 ≤ 500** (49.0% of ceiling); visible triangles **87,978 ≤ 180,000** (48.9%); environment materials **7 ≤ 8**; modelled peak WASM heap **140.38 MiB ≤ 192 MiB**; modelled mean frame **16.95 ms / 58.997 fps ≥ 58 fps**. Draw calls are the unbatched main-pass renderer bound plus one runtime blob shadow per AI car; the four AI cars add no shadow pass because every AI renderer is `ShadowCastingMode.Off`. The structural headroom is consistent with the Stage-0 per-car probe (Sport: 16 draws / 464 triangles per car).
+
+*AI logic and 10-cycle load/unload stability (T-10.4.3/T-10.4.4):*
+
+| Check | Evidence | Result |
+|---|---|---|
+| AI logic allocation under race conditions | 0 B over 5,000 `AIDriver.Tick` calls, 0 B over 5,000 `AIVisualRig.Apply` calls, 0 B over 5,000 PlayMode ticks, 0 B over 5,000 standings updates/polls | **0 B/frame** |
+| 10× AI-grid load/unload retention | AI-grid lifecycle PlayMode tests: 10 load/unload cycles, each asserting 5 participants, 4 `AIDriver`s, a 5-entry standings snapshot, and no surviving grid/driver/race/context/root object | **0 retained objects** |
+| Event-listener teardown | Destroying the grid, then calling `RaceController.Retry()` twice, leaves the race usable (`Countdown`) with no `MissingReferenceException` | **all handlers unsubscribed** |
+| Modelled WASM drift | Baseline 137,887,744 B returns unchanged after every one of 10 grid load/unload cycles | **0 B cumulative drift** |
+
+**GC note:** the grid's allocations are load-time only (`TrackPath`, fixed 7-entry standings arrays, grid slots). Per-frame AI driving, rubber-band projection, soft push, ranking, and HUD polling use arrays, indices, and value outputs only; no LINQ, delegates, or per-frame collections exist. The measured 0 B claims are managed-allocation assertions from the EditMode/PlayMode suites, not browser heap samples.
+
+**Stage-4 verdict (T-10.4.1–T-10.4.5):** the real `Phase10Debug` build succeeded at **61.28 MB / 0 errors**, and the five-car AI grid is inside every D-056/OQ-T08 ceiling in the simulated matrix with **0 B** AI logic allocation and **0 B** drift over ten load/unload cycles. **M8a is COMPLETE.** Real browser heap/FPS capture remains the outstanding **OQ-P01** evidence and is **not** claimed here.
+
 ## 6. Submission checklist
 
 - [ ] Bridge integration completed against the current SDK and official documentation.

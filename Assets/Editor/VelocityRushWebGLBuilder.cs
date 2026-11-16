@@ -32,7 +32,13 @@ namespace VelocityRush.EditorTools
         /// Phase-9 environment profiling: Bootstrap + Garage + the five signature environment
         /// scenes, all listed so a development build can load them additively.
         /// </summary>
-        Phase9Debug = 3
+        Phase9Debug = 3,
+
+        /// <summary>
+        /// Phase-10 AI-grid profiling: Bootstrap + the generated Desert AI-grid scene
+        /// (player + four kinematic opponents, T-10.4.1).
+        /// </summary>
+        Phase10Debug = 4
     }
 
     /// <summary>
@@ -133,6 +139,13 @@ namespace VelocityRush.EditorTools
             "Assets/Scenes/Environments/world-arena-signature.unity"
         };
 
+        /// <summary>Phase-10 AI-grid profiling scene order (T-10.4.1).</summary>
+        public static readonly string[] Phase10DebugScenePaths =
+        {
+            "Assets/Scenes/Bootstrap.unity",
+            "Assets/Scenes/Phase10AIGrid.unity"
+        };
+
         private static readonly ArtifactCategory[] Categories =
         {
             new ArtifactCategory("indexHtml", "index.html"),
@@ -200,6 +213,8 @@ namespace VelocityRush.EditorTools
                     return Phase8DebugScenePaths;
                 case WebGLBuildProfile.Phase9Debug:
                     return Phase9DebugScenePaths;
+                case WebGLBuildProfile.Phase10Debug:
+                    return Phase10DebugScenePaths;
                 default:
                     return PrototypeScenePaths;
             }
@@ -216,6 +231,8 @@ namespace VelocityRush.EditorTools
                     return "Phase 8 Debug";
                 case WebGLBuildProfile.Phase9Debug:
                     return "Phase 9 Debug";
+                case WebGLBuildProfile.Phase10Debug:
+                    return "Phase 10 AI Grid";
                 default:
                     return "Prototype";
             }
@@ -284,6 +301,16 @@ namespace VelocityRush.EditorTools
                 return true;
             }
 
+            if (string.Equals(token, "phase10", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "phase10debug", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "aigrid", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "ai-grid", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "4", StringComparison.Ordinal))
+            {
+                profile = WebGLBuildProfile.Phase10Debug;
+                return true;
+            }
+
             return false;
         }
 
@@ -306,7 +333,7 @@ namespace VelocityRush.EditorTools
             }
 
             throw new InvalidOperationException(
-                "Unknown WebGL build profile '" + token + "'. Use 'prototype', 'slice', 'phase8', or 'phase9'.");
+                "Unknown WebGL build profile '" + token + "'. Use 'prototype', 'slice', 'phase8', 'phase9', or 'phase10'.");
         }
 
         /// <summary>
@@ -316,6 +343,11 @@ namespace VelocityRush.EditorTools
         public static WebGLBuildProfile DetectConfiguredProfile()
         {
             var configured = EditorBuildSettings.scenes;
+            if (MatchesSceneOrder(configured, Phase10DebugScenePaths))
+            {
+                return WebGLBuildProfile.Phase10Debug;
+            }
+
             if (MatchesSceneOrder(configured, Phase9DebugScenePaths))
             {
                 return WebGLBuildProfile.Phase9Debug;
@@ -457,6 +489,16 @@ namespace VelocityRush.EditorTools
         public static void ApplyPhase9DebugScenesFromCommandLine()
         {
             ApplySceneSet(WebGLBuildProfile.Phase9Debug, string.Empty, string.Empty);
+            EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// Batch helper: applies the Phase-10 AI-grid profiling scene set
+        /// (Bootstrap → Phase10AIGrid).
+        /// </summary>
+        public static void ApplyPhase10DebugScenesFromCommandLine()
+        {
+            ApplySceneSet(WebGLBuildProfile.Phase10Debug, string.Empty, string.Empty);
             EditorApplication.Exit(0);
         }
 
