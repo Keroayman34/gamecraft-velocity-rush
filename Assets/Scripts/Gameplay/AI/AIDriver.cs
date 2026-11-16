@@ -73,6 +73,7 @@ namespace VelocityRush.Gameplay.AI
         private Transform _playerTarget;
 
         private bool _initialized;
+        private bool _startHold;
         private float _lateralBias;
         private float _speed;
         private float _previousSpeed;
@@ -90,6 +91,12 @@ namespace VelocityRush.Gameplay.AI
 
         /// <summary>Whether <see cref="Initialize"/> has completed.</summary>
         public bool IsInitialized => _initialized;
+
+        /// <summary>
+        /// True while the synchronized start gate is holding this car on the grid (T-10.3.2).
+        /// A held driver keeps its initialized pose and does not integrate or write commands.
+        /// </summary>
+        public bool IsStartHeld => _startHold;
 
         /// <summary>The path being followed, or null before initialization.</summary>
         public TrackPath Path => _path;
@@ -168,6 +175,7 @@ namespace VelocityRush.Gameplay.AI
             _playerDistance = 0f;
             _hasPlayerDistance = false;
             _pushOffset = Vector3.zero;
+            _startHold = false;
             _visualRig = GetComponent<AIVisualRig>();
             _rigidbody = GetComponent<Rigidbody>();
             _initialized = true;
@@ -179,6 +187,37 @@ namespace VelocityRush.Gameplay.AI
             }
 
             ApplyPose(0f);
+        }
+
+        /// <summary>
+        /// Holds or releases the car for the synchronized grid start (T-10.3.2). While held,
+        /// <see cref="Tick"/> is a no-op and the commands are neutralized so a held car cannot creep
+        /// forward. Releasing does not add speed or move the car; the normal path step starts on the
+        /// next tick.
+        /// </summary>
+        /// <param name="held">True to hold on the grid, false to allow driving.</param>
+        public void SetStartHold(bool held)
+        {
+            if (_startHold == held)
+            {
+                return;
+            }
+
+            _startHold = held;
+            if (!held)
+            {
+                return;
+            }
+
+            _speed = 0f;
+            _previousSpeed = 0f;
+            _throttle = 0f;
+            _brake = 0f;
+            _steering = 0f;
+            if (_initialized)
+            {
+                ApplyPose(0f);
+            }
         }
 
         /// <summary>Resets the driver to a distance on the same path without rebuilding it.</summary>
@@ -210,8 +249,9 @@ namespace VelocityRush.Gameplay.AI
         /// deterministic for identical inputs and allocates nothing.
         /// </summary>
         /// <param name="deltaTime">Step in seconds; non-positive values are ignored.</param>
-        public void Tick(float deltaTime)        {
-            if (!_initialized || deltaTime <= 0f)
+        public void Tick(float deltaTime)
+        {
+            if (!_initialized || deltaTime <= 0f || _startHold)
             {
                 return;
             }

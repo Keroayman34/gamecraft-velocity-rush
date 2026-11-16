@@ -489,6 +489,77 @@ namespace VelocityRush.Data
         }
 
         /// <summary>
+        /// Projects a world position onto the path and returns the nearest waypoint distance.
+        /// </summary>
+        /// <remarks>
+        /// Coarse stride-8 scan followed by a bounded refinement, matching the AI's deterministic
+        /// rubber-band projection. The result has waypoint resolution (2.0 m by default) and the
+        /// method never allocates, so a race-position tracker can poll it every fixed step.
+        /// </remarks>
+        /// <param name="worldPosition">World position to project; only X/Z are used.</param>
+        /// <returns>Path distance of the nearest waypoint, normalized for this path.</returns>
+        public float ProjectDistance(Vector3 worldPosition)
+        {
+            var count = _points.Length;
+            if (count < 2)
+            {
+                return 0f;
+            }
+
+            var stride = 8;
+            var bestIndex = 0;
+            var bestDistanceSquared = float.MaxValue;
+            for (var i = 0; i < count; i += stride)
+            {
+                var center = _points[i];
+                var dx = center.x - worldPosition.x;
+                var dz = center.z - worldPosition.z;
+                var distanceSquared = (dx * dx) + (dz * dz);
+                if (distanceSquared < bestDistanceSquared)
+                {
+                    bestDistanceSquared = distanceSquared;
+                    bestIndex = i;
+                }
+            }
+
+            if (IsClosedLoop)
+            {
+                for (var offset = -stride; offset <= stride; offset++)
+                {
+                    var index = ResolveIndex(bestIndex + offset);
+                    var center = _points[index];
+                    var dx = center.x - worldPosition.x;
+                    var dz = center.z - worldPosition.z;
+                    var distanceSquared = (dx * dx) + (dz * dz);
+                    if (distanceSquared < bestDistanceSquared)
+                    {
+                        bestDistanceSquared = distanceSquared;
+                        bestIndex = index;
+                    }
+                }
+            }
+            else
+            {
+                var from = Mathf.Max(0, bestIndex - stride);
+                var to = Mathf.Min(count - 1, bestIndex + stride);
+                for (var index = from; index <= to; index++)
+                {
+                    var center = _points[index];
+                    var dx = center.x - worldPosition.x;
+                    var dz = center.z - worldPosition.z;
+                    var distanceSquared = (dx * dx) + (dz * dz);
+                    if (distanceSquared < bestDistanceSquared)
+                    {
+                        bestDistanceSquared = distanceSquared;
+                        bestIndex = index;
+                    }
+                }
+            }
+
+            return _distances[bestIndex];
+        }
+
+        /// <summary>
         /// Creates a reusable cursor. The cursor stores only a path reference, index, and distance,
         /// so it does not allocate after construction of the path.
         /// </summary>

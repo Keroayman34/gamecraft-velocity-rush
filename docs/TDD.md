@@ -1493,3 +1493,47 @@ The player's position is projected onto the path at `playerProjectionInterval` (
 **T-10.2.7 (full-physics A/B) is skipped** by owner direction: D-059 already commits V1 to kinematic AI, so the A/B would benchmark a rejected architecture. A future full-physics AI requires a new decision and a measured dev-only benchmark per D-059.
 
 **Non-goals preserved in Stage 2:** no grid spawn, synchronized start, checkpoint/position tracking, `RaceStandings`, result-schema change, scene/build-profile change, camera change, player-physics change, or authored waypoint asset. Stage 3 owns grid and standings.
+
+### 49.8 Stage 3 — Grid, synchronized start, standings and multi-car results (2026-11-16)
+
+Stage 3 implements the D-060 grid and the D-061 ranking/start contract. It is **additive**: `RaceResult`, the solo `RaceController` flow, `VehicleController`, every scene, and every build profile are unchanged. A scene without `RaceGridController` behaves exactly as it did in Stages 1–2.
+
+**`RaceGridLayout`** (`Assets/Scripts/Data/RaceGridLayout.cs`)
+
+- `RaceGridSettings` holds row spacing (6 m), lateral spacing (2.4 m), vehicle half-width (0.9 m), vehicle half-length (2.2 m), the lateral margin (0.35 m), and a validation envelope that rejects spacing values that would overlap cars.
+- `RaceGridSlot` exposes participant order, row, column, path distance, lateral offset, world position, tangent, and rotation.
+- `RaceGridLayout.TryCreate(path, startLine, participantCount, settings, destination, out count, out error)` places participants in two-column rows behind the start line by path distance and side offset, centers the odd final car, and validates the whole field before returning. Slots must be on-road (lateral offset + vehicle half-width inside the path half-width) and pairwise non-overlapping; the first row must fit behind the line on an open path; closed loops wrap the row distance across the seam. The participant range is **1..7** (D-060).
+
+**`RaceStandings`** (`Assets/Scripts/Gameplay/Race/RaceStandings.cs`)
+
+- Fixed arrays sized to `MaxParticipants = 7` are allocated once in the constructor: active flags, player flags, checkpoint counts, path distances, finished flags, finish positions/times, plus a preallocated order index array.
+- Ranking is exactly D-061: finished participants first by finish position, then unfinished participants by **checkpoint count descending**, then by **remaining distance to the next gate ascending**, then by registration index. The order is a bounded insertion sort, stable and deterministic.
+- `UpdatePathDistance` normalizes and clamps distances (wrapping on closed loops); `TryAcceptCheckpoint` requires the next expected checkpoint and rejects stale/duplicate/out-of-range/finished/frozen reports; `TryFinish` requires every checkpoint and records the finish exactly once.
+- `Freeze()` closes the aggregate when the player finishes, so later progress cannot change the final order. `ResetProgress()` clears progress/finish order but keeps registrations for retry.
+- `CopyStandingsTo(RaceStandingEntry[])`, `TryGetStanding`, `GetRankOf`, `PlayerRank`, and `PlayerFinishPosition` are allocation-free; `CopyStandingsTo` returns zero for a null or too-small buffer.
+
+**`RaceGridController`** (`Assets/Scripts/Gameplay/Race/RaceGridController.cs`)
+
+- Scene wiring is explicit: `RaceController`, player `VehicleController`, an `AIDriver[]` of opponents (at most six), `TrackLayout`, and the layout variant. `Initialize(path, race, player, opponents, startLine, gateDistances, settings)` is also the test/authoring seam and builds no scene objects.
+- On initialization it creates the grid, registers the player and every opponent with both the race participant registry and `RaceStandings`, places the player via `VehicleController.ResetVehicleState` and each AI via `AIDriver.Initialize`, subscribes to `CheckpointAccepted`/`ParticipantFinished`/`Retried`, and holds the whole field.
+- The player stays the only physics vehicle (D-059): during the hold the controller disables `VehicleController`, zeroes velocities, and sets the chassis kinematic; AI cars are held by `AIDriver.SetStartHold(true)`. On `RaceState.Running` (or the explicit `ReleaseStart()` seam) both are restored.
+- `FixedUpdate` projects the player's position onto the path and feeds opponent `PathDistance` into the standings; `Update` performs the GO release. The HUD polls `CopyStandingsTo`/`TryGetStanding`/`PlayerRank`.
+
+**`RaceController` additions** (`Assets/Scripts/Gameplay/Race/RaceController.cs`)
+
+- The player is registered automatically in `Awake`; `RegisterParticipant(Rigidbody)` adds opponents up to the seven-car cap, `GetParticipantIndex` exposes the stable index, and `Retried` fires after the in-scene retry reset.
+- `ReportCheckpoint`/`ReportFinish` accept any registered participant. The player still goes through the solo `RaceRules` core and produces the unchanged `RaceResult`; opponents must pass their own ordered checkpoints and may only advance while the shared race is running and unpaused. `ParticipantFinished` fires exactly once per participant.
+
+**`AIDriver` and `TrackPath` additions**
+
+- `AIDriver.SetStartHold(bool)`/`IsStartHeld` freeze the car at its initialized pose without integrating, sampling, or writing commands; `Initialize` clears the hold so Stage-2 callers are unaffected.
+- `TrackPath.ProjectDistance(Vector3)` returns the nearest waypoint distance through a coarse/fine scan, allocation-free, for the player's standings distance.
+
+**Validation**
+
+- EditMode `RaceGridLayoutTests`: **13 tests** — five-car row/side placement, centered odd row, seven-car cap, cap/participant-count/buffer guards, open-path room, narrow-road rejection, overlap rejection, closed-loop wrap, one-car centerline, determinism, and `ProjectDistance`.
+- EditMode `RaceStandingsTests`: **15 tests** — stable registration/cap, checkpoint-before-distance, distance-within-count, registration tie-break, finish order, checkpoint requirement, exactly-once finish, finished-entry freeze, aggregate freeze, closed-loop wrap, retry reset, buffer filling/size guards, player rank/finish position, constructor validation, and **0 B** over 5,000 update/poll iterations.
+- PlayMode `RaceGridPlayModeTests`: **3 tests** — AI hold/release, exactly-once multi-car finish with an unchanged solo result, and grid release on GO with **0 B** over 5,000 standings polls.
+- Batch compile **0 errors / 0 warnings**; EditMode **467/467** (439 + 28); PlayMode **30/30** (27 + 3); 0 failed, 0 skipped.
+
+**Non-goals preserved in Stage 3:** no scene wiring in committed scenes, no build-profile change, no camera or player-physics change, no `RaceResult` schema change, and no championship/event content. AI grid-scale heap/frame/browser evidence remains Stage 4.

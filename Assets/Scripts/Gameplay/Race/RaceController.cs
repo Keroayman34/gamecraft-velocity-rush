@@ -1,5 +1,4 @@
 using System;
-using System.Globalization;
 using UnityEngine;
 using VelocityRush.Core;
 
@@ -49,6 +48,12 @@ namespace VelocityRush.Gameplay
         private Quaternion _spawnRotation;
         private bool _initialized;
 
+        private readonly Rigidbody[] _participantBodies = new Rigidbody[RaceStandings.MaxParticipants];
+        private readonly int[] _participantCheckpointCounts = new int[RaceStandings.MaxParticipants];
+        private readonly bool[] _participantFinished = new bool[RaceStandings.MaxParticipants];
+        private int _participantCount;
+        private int _playerParticipantIndex = -1;
+
         /// <summary>Current prototype race state; Countdown before initialization.</summary>
         public RaceState State => _rules != null ? _rules.State : RaceState.Countdown;
 
@@ -81,6 +86,26 @@ namespace VelocityRush.Gameplay
         /// it. The HUD and the pause driver subscribe; no per-frame polling of the intent is needed.
         /// </summary>
         public event Action<bool> PausedChanged;
+
+        /// <summary>
+        /// Raised once for each accepted, in-order checkpoint report from any registered
+        /// participant (T-10.3.3). Solo races have only the player registered, so behavior is
+        /// unchanged; the event is additive and has no subscribers in the solo stack.
+        /// </summary>
+        public event Action<int, Rigidbody> CheckpointAccepted;
+
+        /// <summary>
+        /// Raised exactly once per participant when that participant completes every checkpoint and
+        /// crosses the finish while running (T-10.3.4). The player's solo
+        /// <see cref="RaceFinished"/> result is unaffected.
+        /// </summary>
+        public event Action<Rigidbody> ParticipantFinished;
+
+        /// <summary>
+        /// Raised after <see cref="Retry"/> resets the rules and participant progress so a grid
+        /// controller can return every car to its slot (T-10.3.2).
+        /// </summary>
+        public event Action Retried;
 
         private void Awake()
         {
@@ -127,6 +152,7 @@ namespace VelocityRush.Gameplay
 
             _spawnPosition = _vehicleBody.position;
             _spawnRotation = _vehicleBody.rotation;
+            _playerParticipantIndex = RegisterParticipant(_vehicleBody);
             _initialized = true;
         }
 
@@ -156,7 +182,55 @@ namespace VelocityRush.Gameplay
             _vehicleBody = newBody;
             _spawnPosition = spawnPosition;
             _spawnRotation = spawnRotation;
+            if (_playerParticipantIndex >= 0)
+            {
+                _participantBodies[_playerParticipantIndex] = newBody;
+            }
+
             return true;
+        }
+
+        /// <summary>
+        /// Registers an additional race participant (T-10.3.3). The player is registered
+        /// automatically. Returns the stable participant index, or -1 when the seven-car cap is
+        /// reached. Solo races never register another body, so their behavior is unchanged.
+        /// </summary>
+        /// <param name="body">Participant chassis rigidbody; null is rejected.</param>
+        public int RegisterParticipant(Rigidbody body)
+        {
+            if (body == null)
+            {
+                return -1;
+            }
+
+            for (var i = 0; i < _participantCount; i++)
+            {
+                if (_participantBodies[i] == body)
+                {
+                    return i;
+                }
+            }
+
+            if (_participantCount >= RaceStandings.MaxParticipants)
+            {
+                return -1;
+            }
+
+            var index = _participantCount;
+            _participantCount++;
+            _participantBodies[index] = body;
+            _participantCheckpointCounts[index] = 0;
+            _participantFinished[index] = false;
+            return index;
+        }
+
+        /// <summary>
+        /// The participant index assigned to a registered body, or -1 when the body is not part of
+        /// this race. Never allocates.
+        /// </summary>
+        public int GetParticipantIndex(Rigidbody body)
+        {
+            return FindParticipant(body);
         }
 
         private void OnDestroy()
@@ -194,26 +268,86 @@ namespace VelocityRush.Gameplay
         /// </summary>
         public void ReportCheckpoint(int checkpointIndex, Rigidbody participant)
         {
-            if (!_initialized || !IsParticipant(participant))
+            if (!_initialized)
             {
                 return;
             }
 
-            _rules.TryAcceptCheckpoint(checkpointIndex);
+            var slot = FindParticipant(participant);
+            if (slot < 0)
+            {
+                return;
+            }
+
+            var accepted = false;
+            if (slot == _playerParticipantIndex)
+            {
+                accepted = _rules.TryAcceptCheckpoint(checkpointIndex);
+                if (accepted)
+                {
+                    _participantCheckpointCounts[slot] = _rules.AcceptedCheckpointCount;
+                }
+            }
+            else
+            {
+                // Opponents use the same ordered-checkpoint contract as the player, but their
+                // progress is independent of the player's solo RaceRules state. They may only
+                // advance while the shared race is live.
+                if (_rules.State == RaceState.Running && !_rules.IsPaused &&
+                    !_participantFinished[slot] &&
+                    checkpointIndex >= 0 && checkpointIndex < checkpoints.Length &&
+                    checkpointIndex == _participantCheckpointCounts[slot])
+                {
+                    _participantCheckpointCounts[slot] = checkpointIndex + 1;
+                    accepted = true;
+                }
+            }
+
+            if (accepted)
+            {
+                CheckpointAccepted?.Invoke(checkpointIndex, participant);
+            }
         }
 
         /// <summary>
-        /// Reports a finish-line contact. The rule core accepts at most one result per attempt and
-        /// only after every required checkpoint was accepted while running.
+        /// Reports a finish-line contact. The player's solo rule core accepts at most one result
+        /// per attempt and only after every required checkpoint. Every registered participant also
+        /// emits <see cref="ParticipantFinished"/> exactly once after its own ordered checkpoint
+        /// sequence (T-10.3.4).
         /// </summary>
         public void ReportFinish(Rigidbody participant)
         {
-            if (!_initialized || !IsParticipant(participant))
+            if (!_initialized)
             {
                 return;
             }
 
-            _rules.TryFinish();
+            var slot = FindParticipant(participant);
+            if (slot < 0)
+            {
+                return;
+            }
+
+            if (slot == _playerParticipantIndex)
+            {
+                if (_rules.TryFinish())
+                {
+                    _participantFinished[slot] = true;
+                    ParticipantFinished?.Invoke(participant);
+                }
+
+                return;
+            }
+
+            if (_rules.State != RaceState.Running || _rules.IsPaused ||
+                _participantFinished[slot] ||
+                _participantCheckpointCounts[slot] < checkpoints.Length)
+            {
+                return;
+            }
+
+            _participantFinished[slot] = true;
+            ParticipantFinished?.Invoke(participant);
         }
 
         /// <summary>
@@ -262,7 +396,9 @@ namespace VelocityRush.Gameplay
             }
 
             _rules.Reset();
+            ResetParticipantProgress();
             vehicle.ResetVehicleState(_spawnPosition, _spawnRotation);
+            Retried?.Invoke();
 
             Debug.Log(LogPrefix + "Retry: race reset to Countdown in the resident scene (no scene reload).", this);
         }
@@ -296,9 +432,31 @@ namespace VelocityRush.Gameplay
             return true;
         }
 
-        private bool IsParticipant(Rigidbody body)
+        private int FindParticipant(Rigidbody body)
         {
-            return body != null && body == _vehicleBody;
+            if (body == null)
+            {
+                return -1;
+            }
+
+            for (var i = 0; i < _participantCount; i++)
+            {
+                if (_participantBodies[i] == body)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private void ResetParticipantProgress()
+        {
+            for (var i = 0; i < _participantCount; i++)
+            {
+                _participantCheckpointCounts[i] = 0;
+                _participantFinished[i] = false;
+            }
         }
 
         private void HandleRaceFinished(RaceResult result)
