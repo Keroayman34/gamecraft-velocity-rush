@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba6e453c65eff4405956f261a815f3f4, type: 3}
+  m_Name: desert-signature_Definition
+  m_EditorClassIdentifier: VelocityRush.Data::VelocityRush.Data.EnvironmentDefinition
+  schemaVersion: 1
+  environmentId: desert-signature
+  displayNameEn: Desert Circuit
+  displayNameAr: "\u062D\u0644\u0628\u0629 \u0627\u0644\u0635\u062D\u0631\u0627\u0621"
+  theme: 0
+  productionOrder: 1
+  palette:
+    roadSurface: {r: 0.17, g: 0.16, b: 0.15, a: 1}
+    roadEdge: {r: 0.93, g: 0.9, b: 0.78, a: 1}
+    groundPrimary: {r: 0.72, g: 0.56, b: 0.34, a: 1}
+    groundSecondary: {r: 0.52, g: 0.36, b: 0.22, a: 1}
+    barrier: {r: 0.8, g: 0.42, b: 0.2, a: 1}
+    accent: {r: 0.92, g: 0.45, b: 0.14, a: 1}
+    emissive: {r: 2.2, g: 1, b: 0.35, a: 1}
+  lightingProfile: {fileID: 11400000, guid: 93028f5b9086d73038b654f22760915d, type: 2}
+  trackLayout: {fileID: 11400000, guid: 20525a68834cb3b11a5dae06e187a843, type: 2}

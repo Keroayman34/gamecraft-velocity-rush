@@ -1,0 +1,87 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1230f58ef5bbb559e9254271b82a7b7d, type: 3}
+  m_Name: neon-city-signature_TrackLayout
+  m_EditorClassIdentifier: VelocityRush.Data::VelocityRush.Data.TrackLayout
+  schemaVersion: 1
+  roadWidth: 9
+  barrierHeight: 1
+  barrierThickness: 0.3
+  sampleSpacing: 1
+  closedLoop: 0
+  segments:
+  - type: 0
+    length: 30
+    radius: 0
+    angleDegrees: 0
+    turnDirection: 0
+  - type: 1
+    length: 31.415926
+    radius: 20
+    angleDegrees: 90
+    turnDirection: 1
+  - type: 0
+    length: 40
+    radius: 0
+    angleDegrees: 0
+    turnDirection: 0
+  - type: 1
+    length: 34.557518
+    radius: 22
+    angleDegrees: 90
+    turnDirection: -1
+  - type: 0
+    length: 40
+    radius: 0
+    angleDegrees: 0
+    turnDirection: 0
+  - type: 1
+    length: 29.670597
+    radius: 20
+    angleDegrees: 85
+    turnDirection: 1
+  - type: 0
+    length: 40
+    radius: 0
+    angleDegrees: 0
+    turnDirection: 0
+  - type: 1
+    length: 39.793507
+    radius: 24
+    angleDegrees: 95
+    turnDirection: -1
+  - type: 0
+    length: 35
+    radius: 0
+    angleDegrees: 0
+    turnDirection: 0
+  - type: 1
+    length: 31.415926
+    radius: 20
+    angleDegrees: 90
+    turnDirection: 1
+  - type: 0
+    length: 40
+    radius: 0
+    angleDegrees: 0
+    turnDirection: 0
+  - type: 1
+    length: 34.557518
+    radius: 22
+    angleDegrees: 90
+    turnDirection: -1
+  - type: 0
+    length: 58.7
+    radius: 0
+    angleDegrees: 0
+    turnDirection: 0
+  elevationKeys: []

@@ -1278,9 +1278,9 @@ Without a selection the spawner returns before touching the scene, so the approv
 
 **Validation:** batch compile **0 errors / 0 warnings**; EditMode **304/304**; PlayMode **19/19**; 0 failed, 0 skipped. New coverage: 4 `SelectionContextTests`, 1 `WebGLBuildProfileTests` Phase-8 profile test, 1 `GaragePlayModeTests` confirmation-write test, and 2 `VehicleSelectionSpawnerPlayModeTests` (selected spawn + no-selection fallback).
 
-## 48. Phase 9 — Environment foundation (Stage 1, 2026-11-16)
+## 48. Phase 9 — Environment production (Stages 1–3, 2026-11-16)
 
-**Scope and governance.** Stage 1 implements the data contracts and shared kits for the five owner-approved environments; it deliberately generates **no environment definition asset and no environment scene**. Stage 0 resolutions are recorded in `DECISIONS.md` D-054–D-057: production order Desert → Coastal → Mountain Pass → Neon City → World Arena, one signature plus one reverse configuration per theme, internal-only provenance, realtime-only lighting, one scene per environment with additive loading, candidate budgets, and presentation-only grip/hazards. Phase 8 vehicle physics is untouched (D-052 remains the approved balance).
+**Scope and governance.** Stages 1–3 implement the data contracts, shared kits, five authored packages, and five generated signature scenes for the owner-approved environments. Stage 0 resolutions are recorded in `DECISIONS.md` D-054–D-057: production order Desert → Coastal → Mountain Pass → Neon City → World Arena, one signature plus one reverse configuration per theme, internal-only provenance, realtime-only lighting, one scene per environment with additive loading, candidate budgets, and presentation-only grip/hazards. Phase 8 vehicle physics is untouched (D-052 remains the approved balance). Stage 1 built the foundation only; Stages 2–3 author the five `EnvironmentDefinition`/`TrackLayout`/`EnvironmentLightingProfile` packages and all five scenes.
 
 ### 48.1 Environment data contracts (T-9.1)
 
@@ -1305,17 +1305,17 @@ Without a selection the spawner returns before touching the scene, so the approv
 
 ### 48.3 Shared environment kit (T-9.3)
 
-`EnvironmentMaterialKit` creates seven palette-driven Built-in `Standard` materials per environment (road surface, road edge, ground primary, ground secondary, barrier, accent, emissive) under `Assets/Generated/Environments/<id>/Materials`. No texture or external asset is used. `EnvironmentKit` builds the road/barrier/edge-line meshes, a non-track ground plane, and deterministic theme dressing:
+`EnvironmentMaterialKit` creates seven palette-driven Built-in `Standard` materials per environment (road surface, road edge, ground primary, ground secondary, barrier, accent, emissive) under `Assets/Generated/Environments/<id>/Materials`. No texture or external asset is used. `EnvironmentKit` builds the road/barrier/edge-line meshes, a non-track ground plane, a presentation-only road skirt, and deterministic theme dressing:
 
 | Theme | Static dressing language |
 |---|---|
-| Desert | rocks, cactus primitives, warm ground material |
-| Coastal | palm trunks/fronds, rocks, coastal accent |
-| Mountain Pass | layered pine canopies, boulders, snow caps |
-| Neon City | tower blocks, emissive signage strips, light poles |
-| World Arena | grandstand blocks, accent banding, floodlight towers |
+| Desert | rocks, cactus primitives, warm ground material, mesa landmarks |
+| Coastal | palm trunks/fronds, rocks, coastal accent, lighthouse/sea markers, two water planes |
+| Mountain Pass | layered pine canopies, boulders, snow caps, cliff-wall landmarks |
+| Neon City | tower blocks, emissive signage strips, light poles, neon spires, emissive lane markers |
+| World Arena | grandstand blocks, accent banding, floodlight towers, start arch/grandstand landmarks |
 
-Every decoration is a primitive with its collider removed and static flags that exclude `ContributeGI`; the kit therefore cannot change handling and has no lightmap/UV2 dependency. Grip and hazards remain presentation-only per D-057.
+Every decoration and landmark is a primitive with its collider removed and static flags that exclude `ContributeGI`; water planes and lane markers are likewise collider-free. Only `Track/Road`, `Track/Barriers`, and `Track/Ground` carry colliders, plus the gate trigger boxes. The kit therefore cannot change handling and has no lightmap/UV2 dependency. Grip and hazards remain presentation-only per D-057.
 
 ### 48.4 Realtime lighting (T-9.4)
 
@@ -1325,17 +1325,17 @@ Every decoration is a primitive with its collider removed and static flags that 
 
 `EnvironmentSceneBuilder` is parameterized by one `EnvironmentDefinition`:
 
-1. validate the definition and reject closed-loop Stage-1 layouts;
-2. generate/refresh the per-theme material set;
+1. validate the definition and reject closed-loop layouts (the approved race format is open point-to-point);
+2. generate/refresh the per-theme material set, shared slice materials, audio clips, and tuning presets;
 3. create a new empty scene and an `Environment` root with `EnvironmentSceneContext`;
-4. build the shared-kit `Track` (road, barriers, edge lines, ground, decor);
+4. build the shared-kit `Track` (road, barriers, edge lines, skirt, ground, decor, landmarks, water, lane markers);
 5. apply the realtime lighting profile;
-6. create `SpawnPoint`, `Main Camera`, `AudioListener`, and — only when the full five-theme catalog validates — an `EnvironmentCatalog` reference set;
+6. create the vehicle, input, VFX, engine/tyre/impact audio, camera rig, race controller, ordered gates, pause driver, UI audio, HUD/`UIDocument`, telemetry overlay, performance probe, roster/rig catalogs, selection spawner, and the five-definition catalog when valid;
 7. audit the scene, save it under `Assets/Scenes/Environments/<environmentId>.unity`, and log the report.
 
-The audit is fail-closed: it rejects missing scripts, a missing/duplicate context, an invalid context reference, no camera, anything other than exactly one realtime directional light, a missing skybox/sun, or a `Track/Road` without a material. `AuditRoots` exposes the same contract to EditMode tests without creating or saving production scenes. It never edits `EditorBuildSettings`.
+The audit is fail-closed: it rejects missing scripts, a missing/duplicate context, an invalid context reference, no camera/AudioListener, anything other than exactly one realtime directional light, a missing skybox/sun, an unwired `Track/Road`, unassigned serialized references on the race stack, an invalid checkpoint set, decorative colliders, or a gate without exactly one trigger collider. `AuditRoots` exposes the same contract to EditMode tests without creating or saving production scenes. It never edits `EditorBuildSettings`.
 
-**Batch entry:** `-executeMethod VelocityRush.EditorTools.EnvironmentSceneBuilder.BuildFromCommandLine -environmentId <stable-id>`; exits `1` when the definition is absent or the build/audit fails.
+**Batch entry:** `-executeMethod VelocityRush.EditorTools.EnvironmentContentBuilder.BuildFromCommandLine` authors all five packages and builds every scene; `EnvironmentSceneBuilder.BuildFromCommandLine -environmentId <stable-id>` builds one. Both exit `1` on any catalog, distinctness, race, or audit failure.
 
 ### 48.6 Validation tooling (T-9.1)
 
@@ -1345,4 +1345,35 @@ The audit is fail-closed: it rejects missing scripts, a missing/duplicate contex
 
 **Validation:** batch compile **0 errors / 0 warnings**; EditMode **387/387** (304 baseline + 83 new), 0 failed, 0 skipped. New coverage: 21 definition/schema, 11 catalog, 25 layout/geometry, 19 lighting-profile, and 7 scene-builder validation/audit tests.
 
-**Non-goals preserved:** no environment definition assets, material assets, meshes, or scenes were generated; no build-settings change; no gameplay/race integration; no Addressables/Resources decision; no bake; no vehicle physics, grip, hazard-physics, or per-surface handling change. Stage 2/3 own the five definitions and scenes, and Phase 11 owns additive GameFlow integration.
+**Non-goals preserved in Stage 1:** no environment definition assets, material assets, meshes, or scenes were generated; no build-settings change; no gameplay/race integration; no Addressables/Resources decision; no bake; no vehicle physics, grip, hazard-physics, or per-surface handling change. Stages 2–3 supersede the content non-goals; Phase 11 still owns additive GameFlow integration.
+
+### 48.8 Stage 2 authored packages (T-9.6–T-9.10)
+
+`EnvironmentContentBuilder` is the deterministic batch/menu authoring entry point. It writes each package under `Assets/Data/Environments/<Theme>/<id>/` and refreshes existing assets in place, preserving GUIDs, then validates the catalog, theme distinctness, and race rules before generating scenes.
+
+| Environment | Stable id | Segments | Length | Road | Character |
+|---|---|---:|---:|---:|---|
+| Desert Circuit | `desert-signature` | 7 | 713.7 m | 12 m | wide sweepers, long straights, midday warm haze, mesas |
+| Coastal Circuit | `coastal-signature` | 9 | 681.6 m | 11 m | flowing sweepers, long sightlines, late afternoon/sea haze, lighthouse, water |
+| Mountain Pass | `mountain-pass-signature` | 9 | 507.5 m | 8 m | narrow sections, blind crests, cliff edges, dawn valley fog, 22 m elevation |
+| Neon City | `neon-city-signature` | 13 | 485.1 m | 9 m | tight technical corners, night, emissive signage, road contrast |
+| World Arena | `world-arena-signature` | 9 | 606.8 m | 10 m | mixed speed, close walls, stadium night, arch/grandstands |
+
+Each package has one signature configuration and shares its definition/layout with the approved reverse sampling; no second catalog entry or scene is created (D-057). Layouts are open point-to-point (`closedLoop = false`). `EnvironmentDistinctnessRules` enforces minimum pairwise road-width and length separation plus palette/sky/fog separation; `EnvironmentRaceRules` owns the three-gate plus finish format.
+
+### 48.9 Stage 3 scenes, race wiring, and validation (T-9.11–T-9.13)
+
+All five scenes exist at `Assets/Scenes/Environments/<id>.unity` and are wired identically:
+
+- **Vehicle:** prototype prefab instance, approved tuning profile, `LegacyKeyboardInputAdapter`, hero kit, `VehicleVfxController`, engine/tyre loops, and impact audio.
+- **Camera:** one `Main Camera` with `VehicleCameraRig` bound to the vehicle and baseline profile, plus one `AudioListener`.
+- **Race:** `RaceController` with three ordered `CheckpointTrigger`s at 1/4, 1/2, 3/4 of total length and a `FinishTrigger` at `TotalLength - 1`; each gate has a visible gantry and exactly one trigger `BoxCollider`. Gates are placed on the sampled centerline within 1 m.
+- **UI/audio:** `SlicePauseDriver`, `SliceUiAudioController`, `SliceHudPresenter` + `UIDocument`, telemetry overlay, and performance probe.
+- **Spawning:** roster catalog, rig catalog, and `VehicleSelectionSpawner` bound to the template vehicle, race, camera, HUD, and overlay.
+- **Catalog:** the validated five-definition `EnvironmentCatalog` reference set.
+
+**Scene evidence (2026-11-16):** each build logs `missingScripts=0 | missingReferences=0`, `checkpoints=3`, `hud=1`, `audio=4`, `vfx=1`, `spawner=1`, `directionalLights=1`, `cameras=1`. Decor/landmark/water/lane-marker counts: Desert 98/4/0/0, Coastal 102/2/2/0, Mountain 137/12/0/0, Neon 212/21/0/53, World Arena 216/7/0/0. Environment materials are **7 per scene** (≤8). Decorative content is collider-free; only road, barriers, ground, and gate triggers collide.
+
+**Validation:** batch compile **0 errors / 0 warnings** (only the pre-existing `UAC0009` advisory); EditMode **397/397**; PlayMode **21/21**; 0 failed, 0 skipped. New coverage includes catalog/distinctness/race rules, generated material/mesh/skybox presence, scene existence, full fail-closed audits, Coastal water, Neon lane markers, centerline gate placement, and PlayMode additive load/unload of all five scenes.
+
+> Generation note: authoring and scene builds ran with `-buildTarget StandaloneLinux64`. WebGL audio import on the build machine fails without `ffmpeg`/`avconv` (`FSBTool ERROR`), producing null `AudioClip` references; Standalone imports PCM successfully. This is a local tooling constraint, not a shipped project setting.

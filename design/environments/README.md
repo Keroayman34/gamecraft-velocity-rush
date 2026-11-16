@@ -16,6 +16,23 @@ Each theme must keep a distinct visual identity through palette, lighting, atmos
 
 All five are part of the Commercial V1.0 environment target (previously treated as long-term only — owner-confirmed change). Each must have its own art direction and a distinct driving experience.
 
+## Phase 9 Stage 2/3 delivered packages (2026-11-16)
+
+| Theme | Stable id / scene | Layout | Signature character | Generated dressing |
+|---|---|---|---|---|
+| Desert Circuit | `desert-signature` · `Assets/Scenes/Environments/desert-signature.unity` | 713.7 m, 7 segments, 12 m road | wide sweepers, long straights, midday haze | 98 decor, 4 mesa landmarks, sand/asphalt contrast |
+| Coastal Circuit | `coastal-signature` · `Assets/Scenes/Environments/coastal-signature.unity` | 681.6 m, 9 segments, 11 m road | flowing sweepers, long sightlines, late afternoon/sea haze | 102 decor, lighthouse + sea markers, 2 collider-free water planes |
+| Mountain Pass | `mountain-pass-signature` · `Assets/Scenes/Environments/mountain-pass-signature.unity` | 507.5 m, 9 segments, 8 m road, 22 m elevation | narrow sections, blind crests, cliff edges, dawn valley fog | 137 decor, 12 cliff-wall/snow-cap landmarks |
+| Neon City | `neon-city-signature` · `Assets/Scenes/Environments/neon-city-signature.unity` | 485.1 m, 13 segments, 9 m road | tight technical corners, night, emissive signage | 212 decor, 21 neon spires, 53 emissive lane markers |
+| World Arena | `world-arena-signature` · `Assets/Scenes/Environments/world-arena-signature.unity` | 606.8 m, 9 segments, 10 m road | mixed speed, close walls, stadium night | 216 decor, start arch + 3 grandstand pairs |
+
+- **Authoring source:** `Assets/Data/Environments/<Theme>/<id>/` (definition, layout, lighting). **Generated art:** `Assets/Generated/Environments/<id>/` (7 materials, road/barrier/edge/skirt meshes, skybox).
+- **Race format:** 3 ordered checkpoints at 1/4, 1/2, 3/4 of total length and finish at `TotalLength - 1`; gates sit on the centerline with visible gantries. Layouts are open point-to-point.
+- **Wiring:** every scene carries the vehicle, camera rig, race/pause/UI audio, HUD, telemetry overlay, VFX, probe, roster/rig catalogs, selection spawner, and environment catalog. Fail-closed audit result: **0 missing scripts / 0 missing references / 7 environment materials**.
+- **Regenerate:** menu `Tools/GameCraft Studio/Velocity Rush/Build Environment Content` or batch `-executeMethod VelocityRush.EditorTools.EnvironmentContentBuilder.BuildFromCommandLine`. `EditorBuildSettings` is not modified (D-057).
+- **Grip/hazards:** presentation-only. No per-surface grip, hazard-physics, damage, or Phase-8 vehicle-controller value is authored here (D-057).
+- **Status:** Stages 2–3 complete; M7 stays open pending Stage 4 WebGL profiling/browser evidence and the owner distinctness/readability review.
+
 ## Reuse is a technique, not an identity
 - Reusable technical components, kits, and systems are allowed and encouraged for production efficiency.
 - **Constraint:** reuse must not make the five environments look like one environment with minor cosmetic changes. Each theme keeps a distinct visual identity — lighting, materials, atmosphere, palette, and landmark language — verified in review against the environment acceptance criteria (OQ-20).

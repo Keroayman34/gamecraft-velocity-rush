@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8778a3b27017cf05087b09d393206988, type: 3}
+  m_Name: mountain-pass-signature_Lighting
+  m_EditorClassIdentifier: VelocityRush.Data::VelocityRush.Data.EnvironmentLightingProfile
+  schemaVersion: 1
+  skyTint: {r: 0.38, g: 0.46, b: 0.62, a: 1}
+  groundColor: {r: 0.24, g: 0.27, b: 0.3, a: 1}
+  atmosphereThickness: 2
+  sunSize: 0.03
+  sunSizeConvergence: 0.4
+  exposure: 1.1
+  ambientIntensity: 0.85
+  directionalColor: {r: 0.85, g: 0.88, b: 1, a: 1}
+  directionalIntensity: 0.9
+  directionalEuler: {x: 12, y: 105, z: 0}
+  shadowsEnabled: 1
+  shadowStrength: 0.75
+  fogEnabled: 1
+  fogColor: {r: 0.58, g: 0.64, b: 0.72, a: 1}
+  fogStartDistance: 90
+  fogEndDistance: 460

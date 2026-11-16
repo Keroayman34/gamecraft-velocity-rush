@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1230f58ef5bbb559e9254271b82a7b7d, type: 3}
+  m_Name: world-arena-signature_TrackLayout
+  m_EditorClassIdentifier: VelocityRush.Data::VelocityRush.Data.TrackLayout
+  schemaVersion: 1
+  roadWidth: 10
+  barrierHeight: 1.1
+  barrierThickness: 0.32
+  sampleSpacing: 1
+  closedLoop: 0
+  segments:
+  - type: 0
+    length: 90
+    radius: 0
+    angleDegrees: 0
+    turnDirection: 0
+  - type: 1
+    length: 52.35988
+    radius: 50
+    angleDegrees: 60
+    turnDirection: 1
+  - type: 0
+    length: 100
+    radius: 0
+    angleDegrees: 0
+    turnDirection: 0
+  - type: 1
+    length: 47.12389
+    radius: 60
+    angleDegrees: 45
+    turnDirection: -1
+  - type: 0
+    length: 110
+    radius: 0
+    angleDegrees: 0
+    turnDirection: 0
+  - type: 1
+    length: 48.869217
+    radius: 40
+    angleDegrees: 70
+    turnDirection: 1
+  - type: 0
+    length: 100
+    radius: 0
+    angleDegrees: 0
+    turnDirection: 0
+  - type: 1
+    length: 38.397243
+    radius: 55
+    angleDegrees: 40
+    turnDirection: -1
+  - type: 0
+    length: 20
+    radius: 0
+    angleDegrees: 0
+    turnDirection: 0
+  elevationKeys: []

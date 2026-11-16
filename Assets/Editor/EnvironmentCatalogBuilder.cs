@@ -85,7 +85,42 @@ namespace VelocityRush.EditorTools
             TrackLayout trackLayout,
             bool overwrite)
         {
-            var definition = ScriptableObject.CreateInstance<EnvironmentDefinition>();
+            var folder = EnvironmentFolder + "/" + theme + "/" + environmentId;
+            var path = folder + "/" + environmentId + "_Definition.asset";
+
+            // Validate a throwaway instance first so a rejected update never mutates the committed
+            // asset. Re-running the builder refreshes the existing asset in place, preserving its
+            // GUID and every existing scene reference.
+            var validation = ScriptableObject.CreateInstance<EnvironmentDefinition>();
+            validation.ConfigureForAuthoring(
+                environmentId,
+                displayNameEn,
+                displayNameAr,
+                theme,
+                EnvironmentThemeRules.GetProductionOrder(theme),
+                palette,
+                lightingProfile,
+                trackLayout);
+            if (!validation.TryValidate(out var error))
+            {
+                UnityEngine.Object.DestroyImmediate(validation);
+                throw new InvalidOperationException("Environment definition is invalid: " + error);
+            }
+
+            UnityEngine.Object.DestroyImmediate(validation);
+            EnvironmentMaterialKit.EnsureFolder(folder);
+
+            var definition = AssetDatabase.LoadAssetAtPath<EnvironmentDefinition>(path);
+            if (definition == null)
+            {
+                definition = ScriptableObject.CreateInstance<EnvironmentDefinition>();
+                AssetDatabase.CreateAsset(definition, path);
+            }
+            else if (!overwrite)
+            {
+                throw new InvalidOperationException("Environment definition already exists: " + path);
+            }
+
             definition.ConfigureForAuthoring(
                 environmentId,
                 displayNameEn,
@@ -95,31 +130,9 @@ namespace VelocityRush.EditorTools
                 palette,
                 lightingProfile,
                 trackLayout);
-
-            if (!definition.TryValidate(out var error))
-            {
-                UnityEngine.Object.DestroyImmediate(definition);
-                throw new InvalidOperationException("Environment definition is invalid: " + error);
-            }
-
-            var folder = EnvironmentFolder + "/" + theme + "/" + environmentId;
-            var path = folder + "/" + environmentId + "_Definition.asset";
-            EnvironmentMaterialKit.EnsureFolder(folder);
-
-            if (AssetDatabase.LoadAssetAtPath<EnvironmentDefinition>(path) != null)
-            {
-                if (!overwrite)
-                {
-                    UnityEngine.Object.DestroyImmediate(definition);
-                    throw new InvalidOperationException("Environment definition already exists: " + path);
-                }
-
-                AssetDatabase.DeleteAsset(path);
-            }
-
-            AssetDatabase.CreateAsset(definition, path);
+            EditorUtility.SetDirty(definition);
             AssetDatabase.SaveAssets();
-            Debug.Log(LogPrefix + "Created " + path);
+            Debug.Log(LogPrefix + "Authored " + path);
             return definition;
         }
 

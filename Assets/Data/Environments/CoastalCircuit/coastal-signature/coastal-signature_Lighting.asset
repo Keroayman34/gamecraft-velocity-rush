@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8778a3b27017cf05087b09d393206988, type: 3}
+  m_Name: coastal-signature_Lighting
+  m_EditorClassIdentifier: VelocityRush.Data::VelocityRush.Data.EnvironmentLightingProfile
+  schemaVersion: 1
+  skyTint: {r: 0.78, g: 0.62, b: 0.52, a: 1}
+  groundColor: {r: 0.3, g: 0.36, b: 0.4, a: 1}
+  atmosphereThickness: 1.5
+  sunSize: 0.08
+  sunSizeConvergence: 0.6
+  exposure: 1.25
+  ambientIntensity: 1
+  directionalColor: {r: 1, g: 0.78, b: 0.55, a: 1}
+  directionalIntensity: 1.2
+  directionalEuler: {x: 22, y: -115, z: 0}
+  shadowsEnabled: 1
+  shadowStrength: 0.7
+  fogEnabled: 1
+  fogColor: {r: 0.72, g: 0.66, b: 0.64, a: 1}
+  fogStartDistance: 140
+  fogEndDistance: 620
