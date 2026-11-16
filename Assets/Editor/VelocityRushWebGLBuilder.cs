@@ -10,7 +10,7 @@ using UnityEngine;
 namespace VelocityRush.EditorTools
 {
     /// <summary>
-    /// Selects which approved two-scene build contract a WebGL build targets (T-7.12).
+    /// Selects which approved build contract a WebGL build targets (T-7.12, T-10.7.4).
     /// </summary>
     /// <remarks>
     /// The profiles are opt-in data, not a global switch: the tool never edits
@@ -38,7 +38,13 @@ namespace VelocityRush.EditorTools
         /// Phase-10 AI-grid profiling: Bootstrap + the generated Desert AI-grid scene
         /// (player + four kinematic opponents, T-10.4.1).
         /// </summary>
-        Phase10Debug = 4
+        Phase10Debug = 4,
+
+        /// <summary>
+        /// Phase-10 M8 Championship production: Bootstrap + Garage + 10 environment scenes
+        /// (5 signature + 5 reverse) for the complete 15-event championship build.
+        /// </summary>
+        Phase10Championships = 5
     }
 
     /// <summary>
@@ -146,6 +152,24 @@ namespace VelocityRush.EditorTools
             "Assets/Scenes/Phase10AIGrid.unity"
         };
 
+        /// <summary>Phase-10 M8 Championship production scene order (T-10.7.4).
+        /// Bootstrap + Garage + 10 environment scenes (5 signature + 5 reverse).</summary>
+        public static readonly string[] Phase10ChampionshipsScenePaths =
+        {
+            "Assets/Scenes/Bootstrap.unity",
+            "Assets/Scenes/Garage.unity",
+            "Assets/Scenes/Environments/desert-signature.unity",
+            "Assets/Scenes/Environments/desert-reverse.unity",
+            "Assets/Scenes/Environments/coastal-signature.unity",
+            "Assets/Scenes/Environments/coastal-reverse.unity",
+            "Assets/Scenes/Environments/mountain-pass-signature.unity",
+            "Assets/Scenes/Environments/mountain-pass-reverse.unity",
+            "Assets/Scenes/Environments/neon-city-signature.unity",
+            "Assets/Scenes/Environments/neon-city-reverse.unity",
+            "Assets/Scenes/Environments/world-arena-signature.unity",
+            "Assets/Scenes/Environments/world-arena-reverse.unity"
+        };
+
         private static readonly ArtifactCategory[] Categories =
         {
             new ArtifactCategory("indexHtml", "index.html"),
@@ -215,6 +239,8 @@ namespace VelocityRush.EditorTools
                     return Phase9DebugScenePaths;
                 case WebGLBuildProfile.Phase10Debug:
                     return Phase10DebugScenePaths;
+                case WebGLBuildProfile.Phase10Championships:
+                    return Phase10ChampionshipsScenePaths;
                 default:
                     return PrototypeScenePaths;
             }
@@ -233,6 +259,8 @@ namespace VelocityRush.EditorTools
                     return "Phase 9 Debug";
                 case WebGLBuildProfile.Phase10Debug:
                     return "Phase 10 AI Grid";
+                case WebGLBuildProfile.Phase10Championships:
+                    return "Phase 10 Championships";
                 default:
                     return "Prototype";
             }
@@ -308,6 +336,15 @@ namespace VelocityRush.EditorTools
                 string.Equals(token, "4", StringComparison.Ordinal))
             {
                 profile = WebGLBuildProfile.Phase10Debug;
+                return true;
+            }
+
+            if (string.Equals(token, "phase10championships", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "championships", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "phase10champs", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "5", StringComparison.Ordinal))
+            {
+                profile = WebGLBuildProfile.Phase10Championships;
                 return true;
             }
 

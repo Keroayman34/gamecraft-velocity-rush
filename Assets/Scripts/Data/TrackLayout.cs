@@ -21,6 +21,46 @@ namespace VelocityRush.Data
     }
 
     /// <summary>
+    /// Pure metadata and validation rules for <see cref="EnvironmentLayoutVariant"/> (T-10.6.x).
+    /// </summary>
+    public static class EnvironmentLayoutVariantRules
+    {
+        /// <summary>True when the value is Signature or Reverse.</summary>
+        public static bool IsDefined(EnvironmentLayoutVariant variant)
+        {
+            return variant == EnvironmentLayoutVariant.Signature || variant == EnvironmentLayoutVariant.Reverse;
+        }
+
+        /// <summary>English display name for a variant.</summary>
+        public static string GetDisplayName(EnvironmentLayoutVariant variant)
+        {
+            switch (variant)
+            {
+                case EnvironmentLayoutVariant.Signature:
+                    return "Signature";
+                case EnvironmentLayoutVariant.Reverse:
+                    return "Reverse";
+                default:
+                    return "Unknown";
+            }
+        }
+
+        /// <summary>Arabic display name for a variant.</summary>
+        public static string GetDisplayNameAr(EnvironmentLayoutVariant variant)
+        {
+            switch (variant)
+            {
+                case EnvironmentLayoutVariant.Signature:
+                    return "أصلي";
+                case EnvironmentLayoutVariant.Reverse:
+                    return "معكوس";
+                default:
+                    return "غير معروف";
+            }
+        }
+    }
+
+    /// <summary>
     /// Immutable, serializable centerline segment. Arc length is derived from radius and sweep,
     /// so authoring cannot silently store a contradictory length.
     /// </summary>

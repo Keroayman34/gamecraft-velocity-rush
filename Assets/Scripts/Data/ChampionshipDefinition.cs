@@ -65,6 +65,9 @@ namespace VelocityRush.Data
         [Tooltip("Unlock policy governing championship availability (G6/D-061).")]
         [SerializeField] private EventUnlockPolicy unlockPolicy = EventUnlockPolicy.AlwaysAvailable;
 
+        [Tooltip("Previous championship in the unlock chain. Null only for the single root championship.")]
+        [SerializeField] private ChampionshipDefinition priorChampionship;
+
         [Tooltip("Optional description for debugging/authoring.")]
         [SerializeField] private string description = string.Empty;
 
@@ -94,6 +97,11 @@ namespace VelocityRush.Data
 
         /// <summary>Unlock policy governing availability.</summary>
         public EventUnlockPolicy UnlockPolicy => unlockPolicy;
+
+        /// <summary>
+        /// Previous championship in the unlock chain, or null for the single root (C1).
+        /// </summary>
+        public ChampionshipDefinition PriorChampionship => priorChampionship;
 
         /// <summary>Authoring description.</summary>
         public string Description => description;
@@ -289,7 +297,8 @@ namespace VelocityRush.Data
             int order,
             float paceScaleValue,
             EventUnlockPolicy unlock,
-            string authoringDescription)
+            string authoringDescription,
+            ChampionshipDefinition prior = null)
         {
             schemaVersion = CurrentSchemaVersion;
             championshipId = id;
@@ -300,6 +309,7 @@ namespace VelocityRush.Data
             productionOrder = order;
             paceScale = paceScaleValue;
             unlockPolicy = unlock;
+            priorChampionship = prior;
             description = authoringDescription;
         }
 #endif

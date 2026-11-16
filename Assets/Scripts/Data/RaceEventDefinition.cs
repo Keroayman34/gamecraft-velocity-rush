@@ -171,7 +171,7 @@ namespace VelocityRush.Data
                 }
             }
 
-            if (!TrackLayout.IsVariantDefined(layoutVariant))
+            if (!EnvironmentLayoutVariantRules.IsDefined(layoutVariant))
             {
                 issues.Add($"RaceEventDefinition: LayoutVariant value {(int)layoutVariant} is not defined.");
             }

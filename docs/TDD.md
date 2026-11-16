@@ -1579,3 +1579,145 @@ Draw calls are the unbatched main-pass renderer bound plus one blob shadow per A
 **Validation:** batch compile **0 errors / 0 warnings**; EditMode **467/467**; PlayMode **32/32** (30 + 2 new); 0 failed, 0 skipped.
 
 **Result:** all five Stage-4 tasks are complete and **M8a is COMPLETE**. Real browser heap/FPS capture remains **OQ-P01** and is not claimed; the simulated matrix is explicitly labelled as such.
+
+## 50. Phase 10B Stage 2 — Championship/event validation tooling (2026-11-17)
+
+Stage 2 delivers **validation infrastructure only**. It makes the owner-approved M8 matrix (D-062–D-065) executable policy, validates a catalog end-to-end, gates the build on required scenes, and proves every rule with seeded defects. No championship asset, event asset, reverse scene, or UI is authored here; that is Stage 3.
+
+### 50.1 Why policy is a type, not a comment
+
+`ChampionshipContentPolicy` (`Assets/Scripts/Data/ChampionshipContentPolicy.cs`) is the single authority for the approved matrix:
+
+| Constant / member | Value | Decision |
+|---|---|---|
+| `RequiredChampionshipCount` | 3 | D-029 / D-062 |
+| `EventsPerChampionship` | 5 | D-062 |
+| `RequiredTotalEvents` | 15 | D-062 |
+| `RequiredEventsPerEnvironment` | 3 | D-063 |
+| `RequiredEnvironmentCount` | 5 | D-054 / D-063 |
+| `RequiredConfigurationsPerEnvironment` | 2 (signature + reverse) | D-064 |
+| `RequiredConfigurationCount` | 10 | D-064 |
+| `RequiredCircuitRaceEvents` | 9 | D-062 |
+| `RequiredTimeTrialEvents` | 6 | D-062 |
+| `CircuitRaceAiCount` | 4 | D-060 / D-062 |
+| `ApprovedPaceScales` | 0.90 / 0.97 / 1.03 | D-062 |
+| `ApprovedEventTypes` | `CircuitRace`, `TimeTrial` | D-063 |
+
+The type also exposes pure predicates and lookups — `IsApprovedEventType`, `IsApprovedOpponentMode`, `IsApprovedPaceScale`, `IsRequiredLayoutVariant`, `GetExpectedPaceScale`, `GetExpectedChampionshipUnlockPolicy`, `GetExpectedEventUnlockPolicy`, and `GetExpectedOpponentMode` — so the validator, the editor tools, and the defect tests cannot disagree. A future change to a count requires a new decision plus one edit here, not a search across comments.
+
+`GetExpectedOpponentMode` is deliberately explicit rather than inferred from the enum: Circuit Race maps to `FixedFourAI` and Time Trial maps to `None`. A mismatched pairing is therefore a detectable error, not an implicit default.
+
+### 50.2 `ChampionshipCatalogValidator` contract
+
+`ValidateCompleteCatalog(ChampionshipCatalog, IReadOnlyList<RaceEventDefinition>, EnvironmentCatalog)` is the only entry point used by the menu, the batch runner, and the tests. It is **fail-closed**: any error makes `ValidationResult.IsValid` false, and warnings only fail when the caller opts in.
+
+`ValidationResult` carries `IsValid`, `Errors`, `Warnings`, and a `CatalogCoverage` value with:
+
+- `ChampionshipCount`, `TotalEventCount`, `CircuitRaceCount`, `TimeTrialCount`;
+- `EventsPerEnvironment[5]`, `EventsPerLayoutVariant[2]`, `EventsPerConfiguration[10]`, `EventsPerChampionship[3]`;
+- `CoveredConfigurationCount`, `UnlockChainValid`, `HasCyclicUnlock`, `AllEventsReachable`.
+
+The coverage arrays are always allocated at their fixed policy length, even for an early failure, so a report has a stable shape and a `null` catalog cannot produce a null-dereference in the report writer.
+
+Validation runs in this order:
+
+1. **Championship schema** — exactly 3 entries, no null entries, `ChampionshipDefinition.Validate()` delegation, unique `ChampionshipId`, `ProductionOrder` present exactly once for 1..3, approved pace scale per order, approved unlock policy per order, and prior-link integrity (root has no prior; non-root has a prior in the catalog at `order − 1`; no self-reference).
+2. **Environment schema** — exactly 5 entries, no nulls, per-definition validation, unique ids and themes, every one of the five approved themes present.
+3. **Event schema and ownership** — exactly 15 entries, no nulls, per-definition validation, unique event ids, owning championship exists, unique round per championship, approved event type, opponent mode matching the policy, exactly 4 AI for Circuit Race, and pace equal to the owning championship's approved scale.
+4. **Coverage policy** — exactly 3 events per environment, both configurations present in every environment, exactly 9 Circuit Races and 6 Time Trials, and exactly 5 events per championship. This is also callable alone as `ValidateCoveragePolicy` for focused tests.
+5. **Unlock chains** — championship chain: exactly one `AlwaysAvailable` root, no self-reference, no cycle (DFS with visiting/visited sets), and every championship reachable by following prior links forward from the root. Event chain: per championship, exactly one entry event with the expected root policy, rounds 2–5 each `RequiresPreviousEvent` with a present previous round, and all rounds 1–5 present.
+
+The event-chain rule intentionally re-derives `expectedRootPolicy` from the championship order: C1's Round 1 is `AlwaysAvailable`, while C2/C3's Round 1 is `RequiresPreviousChampionship`. That is the D-065 shape expressed as code.
+
+Both chains track **three** distinct facts rather than one boolean: validity, cyclicity, and reachability. A catalog can be acyclic yet unreachable (a detached sub-chain), and reporting only `IsValid` would hide which invariant broke.
+
+### 50.3 Editor menu and batch tool
+
+`Assets/Editor/ChampionshipCatalogValidatorTool.cs` provides:
+
+- `Tools/GameCraft Studio/Velocity Rush/Validate Championship Catalog` (`ValidateInteractive`) with a coverage summary dialog.
+- `ValidateFromCommandLine` for `-executeMethod`, reading `-championshipReportPath <path>` and `-championshipFailOnWarnings`.
+- `RunValidation()` — discovers the catalog and environment catalog (loaded objects first, then project assets, then a deterministic `Assets/Scenes` additive scan in batch mode) and loads every `RaceEventDefinition` asset in ordinal path order.
+- `BuildJsonReport` / `WriteReport` — UTF-8 without BOM, created directory if needed, default path `Logs/championship-catalog-validation.json`.
+
+Report schema (`schemaVersion 1.0`):
+
+```json
+{
+  "schemaVersion": "1.0",
+  "isValid": false,
+  "timestampUtc": "2026-11-16T22:56:16.4053310Z",
+  "errors": ["..."],
+  "warnings": ["..."],
+  "coverage": {
+    "championshipCount": 0,
+    "totalEventCount": 0,
+    "circuitRaceCount": 0,
+    "timeTrialCount": 0,
+    "eventsPerEnvironment": [0,0,0,0,0],
+    "eventsPerLayoutVariant": [0,0],
+    "eventsPerConfiguration": [0,0,0,0,0,0,0,0,0,0],
+    "eventsPerChampionship": [0,0,0],
+    "coveredConfigurationCount": 0,
+    "unlockChainValid": false,
+    "hasCyclicUnlock": false,
+    "allEventsReachable": false
+  }
+}
+```
+
+`ShouldFail(result, failOnWarnings)` is the single exit-code decision: `!IsValid`, or warnings when `-championshipFailOnWarnings` is present. `EditorApplication.Exit(0|1)` is called only from the batch paths, never from the menu path.
+
+### 50.4 Build-readiness gate
+
+`Assets/Editor/ChampionshipBuildReadinessTool.cs` answers a different question than the catalog validator: *can these events actually be built?*
+
+- `GetEventScenePath(theme, variant)` resolves `<EventSceneFolder>/<theme-fragment>-signature|reverse.unity`; `GetExpectedEventScenePaths(events)` returns the distinct, ordinal-sorted set implied by the authored events.
+- `Evaluate(profileScenes, sceneExists, buildSettingsScenes, expectedEventScenes)` is a **pure** function with the filesystem and build settings injected. Rules:
+  - every profile scene must exist (error);
+  - every expected event scene must exist (error) **and** be listed in the profile (error);
+  - exactly `RequiredConfigurationCount` (10) distinct event scenes must be expected (error);
+  - duplicate or empty profile paths are reported;
+  - divergence between enabled `EditorBuildSettings` and the profile is a **warning**, because the WebGL builder applies the profile immediately before a build.
+- `RunReadinessCheck()` binds `Evaluate` to `AssetDatabase`, `EditorBuildSettings`, and the project's real event assets. `CheckReadinessFromCommandLine` exits **1** when not ready.
+
+`WebGLBuildProfile.Phase10Championships = 5` in `Assets/Editor/VelocityRushWebGLBuilder.cs` declares the production contract: `Bootstrap`, `Garage`, and the ten environment scenes. This profile is data; the builder still never mutates `EditorBuildSettings` implicitly.
+
+Separating the decision from discovery is what makes T-10.7.4 testable **before** Stage 3 exists: readiness can be proven on synthetic scene lists without creating ten scenes or touching real build settings.
+
+### 50.5 Test strategy and defect table
+
+`ChampionshipCatalogValidatorTests` uses one approved fixture — C1/C2/C3 with the correct ids, names, pace scales, and priors, plus 15 events covering all five themes, both variants, 9 Circuit / 6 Time Trial, and the D-065 round chain. Every defect case mutates exactly one dimension:
+
+| Defect | Expected rejection |
+|---|---|
+| Cyclic championship chain | `cyclic dependency` |
+| Two roots / no root | `exactly one root championship` |
+| 16 events / 14 events | `must contain exactly 15 events` |
+| Circuit Race without AI / Time Trial with AI | `must use OpponentMode FixedFourAI` / `does not match OpponentMode None` |
+| Missing environment / four events in one environment | `'World Arena' has 0 events` / `'Desert Circuit' has 4 events` |
+| Missing reverse / missing signature | `no Reverse variant` / `no Signature variant` |
+| Duplicate event id / duplicate championship id | `Duplicate EventId` / `Duplicate ChampionshipId` |
+| Invalid round / duplicate round | `RoundIndex must be within 1..5` / `duplicate RoundIndex` |
+| Wrong event pace / wrong championship pace | `pace scale` / `PaceScale` |
+| Wrong first-event unlock / second event always-available | `must have unlock policy` / `must have unlock policy RequiresPreviousEvent` |
+| Missing championship reference | `not found for event` |
+| Unapproved event type / opponent mode | `not approved for M8` |
+| Cyclic event chain | `cyclic or broken` |
+
+That is **23** negative cases. Positive and edge coverage adds the valid-baseline coverage assertion, null catalog / null events / null environment catalog, empty catalog, null event entry, missing environment from the catalog, a direct `ValidateCoveragePolicy` case, the content-policy matrix assertions, and JSON-report/`ShouldFail` tests — **35** validator tests total.
+
+`ChampionshipBuildReadinessTests` adds **7** pure decisions: all ten scenes ready, missing scene, scene omitted from profile, missing reverse set, build-settings mismatch as warning, ten distinct expected paths across all themes, and an undefined theme throwing.
+
+Assertion style is intentional: every defect test also asserts that at least one emitted error **contains a specific actionable substring**, so a test cannot pass because some unrelated error happened to make the catalog invalid.
+
+### 50.6 Evidence and current gate state
+
+- Batch compile **0 errors / 0 warnings** (Unity 6000.6.8f1, StandaloneLinux64).
+- EditMode **509/509** — 467 baseline + **42** new — **0 failed, 0 skipped, 0 inconclusive**.
+- Batch validator: `EXIT:1` with a complete `schemaVersion 1.0` report because no `ChampionshipCatalog` exists yet.
+- Batch readiness: `EXIT:1` listing five missing reverse scenes and reporting that no `RaceEventDefinition` assets exist.
+
+Both non-zero exits are the correct current result: Stage 3 has not authored content. The gates are wired, proven, and fail closed. They are **not** passing gates, and this section does not claim M8 completion.
+
+**Non-goals preserved:** no championship/event assets, no derived reverse scenes, no event scenes, no selection/progression UI, no rewards/stars/vehicle unlocks, no save persistence, no change to committed signature scenes, no player-physics change, no AI-behavior change, and no `RaceResult` schema change.

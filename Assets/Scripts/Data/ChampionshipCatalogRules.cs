@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace VelocityRush.Data
 {
@@ -8,17 +9,18 @@ namespace VelocityRush.Data
     /// </summary>
     /// <remarks>
     /// The catalog must contain exactly three definitions in production order C1, C2, C3
-    /// with approved pace scales 0.90, 0.97, 1.03 and sequential unlock chain.
+    /// with approved pace scales 0.90, 0.97, 1.03, exactly one root, an acyclic prior-championship
+    /// chain, and every championship reachable from that root.
     /// </remarks>
     public static class ChampionshipCatalogRules
     {
         /// <summary>Required number of championships in M8.</summary>
-        public const int RequiredChampionshipCount = 3;
+        public const int RequiredChampionshipCount = ChampionshipContentPolicy.RequiredChampionshipCount;
 
         /// <summary>
         /// Validates a complete catalog: exact count, non-null entries, per-definition validity,
-        /// unique ids, exactly one definition per production order, pace scale consistency,
-        /// and approved sequential unlock chain.
+        /// unique ids, one definition per production order, pace scale consistency, approved
+        /// unlock policy, exactly one root, acyclic chain, and full reachability.
         /// </summary>
         public static IReadOnlyList<string> ValidateCatalog(
             IReadOnlyList<ChampionshipDefinition> definitions)
@@ -33,10 +35,10 @@ namespace VelocityRush.Data
             if (definitions.Count != RequiredChampionshipCount)
             {
                 issues.Add($"Championship catalog must contain exactly {RequiredChampionshipCount} definitions (found {definitions.Count}).");
-                // Continue validation on what we have
             }
 
-            var ids = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var ids = new Dictionary<string, int>(StringComparer.Ordinal);
+            var byId = new Dictionary<string, ChampionshipDefinition>(StringComparer.Ordinal);
             var orderCounts = new int[RequiredChampionshipCount];
 
             for (var index = 0; index < definitions.Count; index++)
@@ -48,9 +50,10 @@ namespace VelocityRush.Data
                     continue;
                 }
 
-                if (!definition.TryValidate(out var entryError))
+                var entryIssues = definition.Validate();
+                for (var issueIndex = 0; issueIndex < entryIssues.Count; issueIndex++)
                 {
-                    issues.Add($"Championship catalog entry {index} ('{Describe(definition)}'): {entryError}");
+                    issues.Add($"Championship catalog entry {index} ('{Describe(definition)}'): {entryIssues[issueIndex]}");
                 }
 
                 var id = definition.ChampionshipId;
@@ -63,6 +66,7 @@ namespace VelocityRush.Data
                     else
                     {
                         ids.Add(id, index);
+                        byId.Add(id, definition);
                     }
                 }
 
@@ -73,7 +77,6 @@ namespace VelocityRush.Data
                 }
             }
 
-            // Exactly one per production order
             for (var order = 1; order <= RequiredChampionshipCount; order++)
             {
                 if (orderCounts[order - 1] != 1)
@@ -82,54 +85,36 @@ namespace VelocityRush.Data
                 }
             }
 
-            // Validate pace scale sequence matches production order
-            var paceScaleByOrder = new float[RequiredChampionshipCount];
             for (var index = 0; index < definitions.Count; index++)
             {
                 var definition = definitions[index];
-                if (definition != null)
+                if (definition == null)
                 {
-                    var order = definition.ProductionOrder;
-                    if (order >= 1 && order <= RequiredChampionshipCount)
-                    {
-                        paceScaleByOrder[order - 1] = definition.PaceScale;
-                    }
+                    continue;
                 }
+
+                var order = definition.ProductionOrder;
+                if (order < 1 || order > RequiredChampionshipCount)
+                {
+                    continue;
+                }
+
+                var expectedScale = ChampionshipContentPolicy.GetExpectedPaceScale(order);
+                if (Mathf.Abs(definition.PaceScale - expectedScale) > 0.001f)
+                {
+                    issues.Add($"ProductionOrder {order} pace scale must be {expectedScale} (found {definition.PaceScale}).");
+                }
+
+                var expectedPolicy = ChampionshipContentPolicy.GetExpectedChampionshipUnlockPolicy(order);
+                if (definition.UnlockPolicy != expectedPolicy)
+                {
+                    issues.Add($"Championship {definition.ChampionshipId} (ProductionOrder {order}) must have UnlockPolicy {expectedPolicy} (found {definition.UnlockPolicy}).");
+                }
+
+                ValidatePriorLink(definition, order, byId, issues);
             }
 
-            var expectedScales = new[] { 0.90f, 0.97f, 1.03f };
-            for (var order = 1; order <= RequiredChampionshipCount; order++)
-            {
-                var actualScale = paceScaleByOrder[order - 1];
-                var expectedScale = expectedScales[order - 1];
-                if (actualScale > 0f && Mathf.Abs(actualScale - expectedScale) > 0.001f)
-                {
-                    issues.Add($"ProductionOrder {order} pace scale must be {expectedScale} (found {actualScale}).");
-                }
-            }
-
-            // Validate unlock chain: C1=AlwaysAvailable, C2=RequiresPreviousChampionship, C3=RequiresPreviousChampionship
-            for (var index = 0; index < definitions.Count; index++)
-            {
-                var definition = definitions[index];
-                if (definition != null)
-                {
-                    var order = definition.ProductionOrder;
-                    var expectedPolicy = order switch
-                    {
-                        1 => EventUnlockPolicy.AlwaysAvailable,
-                        2 => EventUnlockPolicy.RequiresPreviousChampionship,
-                        3 => EventUnlockPolicy.RequiresPreviousChampionship,
-                        _ => EventUnlockPolicy.AlwaysAvailable
-                    };
-
-                    if (definition.UnlockPolicy != expectedPolicy)
-                    {
-                        issues.Add($"Championship {definition.ChampionshipId} (ProductionOrder {order}) must have UnlockPolicy {expectedPolicy} (found {definition.UnlockPolicy}).");
-                    }
-                }
-            }
-
+            ValidateRootAndReachability(definitions, byId, issues);
             return issues;
         }
 
@@ -149,11 +134,180 @@ namespace VelocityRush.Data
             return false;
         }
 
+        private static void ValidatePriorLink(
+            ChampionshipDefinition definition,
+            int order,
+            Dictionary<string, ChampionshipDefinition> byId,
+            List<string> issues)
+        {
+            var prior = definition.PriorChampionship;
+
+            if (definition.UnlockPolicy == EventUnlockPolicy.AlwaysAvailable)
+            {
+                if (prior != null)
+                {
+                    issues.Add($"Championship {definition.ChampionshipId} is a root (AlwaysAvailable) but references a prior championship '{Describe(prior)}'.");
+                }
+
+                return;
+            }
+
+            if (prior == null)
+            {
+                issues.Add($"Championship {definition.ChampionshipId} requires a previous championship but PriorChampionship is missing.");
+                return;
+            }
+
+            if (string.Equals(prior.ChampionshipId, definition.ChampionshipId, StringComparison.Ordinal))
+            {
+                issues.Add($"Championship {definition.ChampionshipId} cannot reference itself as its prior championship.");
+                return;
+            }
+
+            if (!byId.TryGetValue(prior.ChampionshipId, out var catalogPrior))
+            {
+                issues.Add($"Championship {definition.ChampionshipId} references prior championship '{Describe(prior)}' that is not in the catalog.");
+                return;
+            }
+
+            if (catalogPrior.ProductionOrder != order - 1)
+            {
+                issues.Add($"Championship {definition.ChampionshipId} (ProductionOrder {order}) must reference ProductionOrder {order - 1} as its prior championship (found {catalogPrior.ProductionOrder}).");
+            }
+        }
+
+        private static void ValidateRootAndReachability(
+            IReadOnlyList<ChampionshipDefinition> definitions,
+            Dictionary<string, ChampionshipDefinition> byId,
+            List<string> issues)
+        {
+            ChampionshipDefinition root = null;
+            var rootCount = 0;
+
+            for (var i = 0; i < definitions.Count; i++)
+            {
+                var definition = definitions[i];
+                if (definition == null)
+                {
+                    continue;
+                }
+
+                if (definition.UnlockPolicy == EventUnlockPolicy.AlwaysAvailable)
+                {
+                    rootCount++;
+                    root = definition;
+                }
+            }
+
+            if (rootCount != 1)
+            {
+                issues.Add($"UnlockChain: must have exactly one root championship (AlwaysAvailable), found {rootCount}.");
+            }
+
+            // Cycle detection over explicit prior references.
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            var visiting = new HashSet<string>(StringComparer.Ordinal);
+            for (var i = 0; i < definitions.Count; i++)
+            {
+                var definition = definitions[i];
+                if (definition != null && DetectCycle(definition, byId, visited, visiting))
+                {
+                    issues.Add($"UnlockChain: cyclic dependency detected at championship '{definition.ChampionshipId}'.");
+                }
+            }
+
+            if (rootCount != 1 || root == null)
+            {
+                return;
+            }
+
+            // Every championship must be reachable by following prior references forward from root.
+            var reachable = new HashSet<string>(StringComparer.Ordinal);
+            var pending = new Queue<ChampionshipDefinition>();
+            pending.Enqueue(root);
+            reachable.Add(root.ChampionshipId);
+
+            while (pending.Count > 0)
+            {
+                var current = pending.Dequeue();
+                for (var i = 0; i < definitions.Count; i++)
+                {
+                    var candidate = definitions[i];
+                    if (candidate == null || !reachable.Add(candidate.ChampionshipId))
+                    {
+                        continue;
+                    }
+
+                    if (IsPriorOf(candidate, current))
+                    {
+                        pending.Enqueue(candidate);
+                    }
+                    else
+                    {
+                        reachable.Remove(candidate.ChampionshipId);
+                    }
+                }
+            }
+
+            for (var i = 0; i < definitions.Count; i++)
+            {
+                var definition = definitions[i];
+                if (definition != null && !reachable.Contains(definition.ChampionshipId))
+                {
+                    issues.Add($"UnlockChain: championship '{definition.ChampionshipId}' is not reachable from the root.");
+                }
+            }
+        }
+
+        private static bool DetectCycle(
+            ChampionshipDefinition definition,
+            Dictionary<string, ChampionshipDefinition> byId,
+            HashSet<string> visited,
+            HashSet<string> visiting)
+        {
+            if (definition == null || string.IsNullOrEmpty(definition.ChampionshipId))
+            {
+                return false;
+            }
+
+            if (visiting.Contains(definition.ChampionshipId))
+            {
+                return true;
+            }
+
+            if (!visited.Add(definition.ChampionshipId))
+            {
+                return false;
+            }
+
+            visiting.Add(definition.ChampionshipId);
+            var prior = definition.PriorChampionship;
+            var hasCycle = false;
+            if (prior != null &&
+                byId.TryGetValue(prior.ChampionshipId, out var catalogPrior) &&
+                DetectCycle(catalogPrior, byId, visited, visiting))
+            {
+                hasCycle = true;
+            }
+
+            visiting.Remove(definition.ChampionshipId);
+            return hasCycle;
+        }
+
+        private static bool IsPriorOf(ChampionshipDefinition candidate, ChampionshipDefinition current)
+        {
+            var prior = candidate == null ? null : candidate.PriorChampionship;
+            return prior != null &&
+                   string.Equals(prior.ChampionshipId, current.ChampionshipId, StringComparison.Ordinal);
+        }
+
         private static string Describe(ChampionshipDefinition definition)
         {
-            return string.IsNullOrEmpty(definition.ChampionshipId)
-                ? definition.name
-                : definition.ChampionshipId;
+            return definition == null
+                ? "<null>"
+                : string.IsNullOrEmpty(definition.ChampionshipId)
+                    ? definition.name
+                    : definition.ChampionshipId;
         }
     }
 }

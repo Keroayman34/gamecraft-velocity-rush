@@ -29,6 +29,12 @@ namespace VelocityRush.Core
         /// <summary>True when a non-empty vehicle id has been selected for this session.</summary>
         public static bool HasVehicleSelection => !string.IsNullOrEmpty(_selectedVehicleId);
 
+        /// <summary>
+        /// Backward-compatible vehicle-selection alias retained for Phase-8 consumers
+        /// (T-10.6.5). New code should use <see cref="HasVehicleSelection"/>.
+        /// </summary>
+        public static bool HasSelection => HasVehicleSelection;
+
         /// <summary>True when a non-empty championship id has been selected for this session.</summary>
         public static bool HasChampionshipSelection => !string.IsNullOrEmpty(_selectedChampionshipId);
 
@@ -64,6 +70,12 @@ namespace VelocityRush.Core
             _selectedVehicleId = vehicleId.Trim();
             return true;
         }
+
+        /// <summary>
+        /// Backward-compatible vehicle-selection alias retained for Phase-8 consumers
+        /// (T-10.6.5). New code should use <see cref="SetVehicleSelection"/>.
+        /// </summary>
+        public static bool SetSelection(string vehicleId) => SetVehicleSelection(vehicleId);
 
         /// <summary>
         /// Records the selected championship id. Empty or whitespace ids are rejected.
