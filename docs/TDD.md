@@ -8,7 +8,7 @@
 ## Table of contents
 
 - **Part I — Baseline technical direction** (§§1–27): approved direction, platform constraints, Playgama plan, high-level boundaries, per-domain Open items (input/vehicle/camera/UI/loc/save/audio/assets/visual), performance gates, testing, deferred decisions, P1–P8 provisional directions.
-- **Part II — Phase-3 detailed architecture (consolidated)** (§§28–49): discovery synthesis & platform facts (§28) · architecture goals & 15-system responsibilities (§29) · GameFlow & state model (§30) · UI navigation (§31) · communication (§32) · assembly boundaries (§33) · data definitions & ownership (§34) · scene & runtime lifecycle (§35) · vehicle physics (§36) · input (§37) · camera/presentation (§38) · save (§39) · WebGL performance & build (§40) · error/recovery (§41) · testing & validation (§42) · integration review results (§43) · draft decision records & owner-gated register (§44) · risks (§45) · references (§46) · vertical-slice Stage-1 definition, quality criteria, asset pipeline, lighting and UI standards (§47) · Phase-9 environment production (§48) · Phase-10 AI pathing foundation (§49)
+- **Part II — Phase-3 detailed architecture (consolidated)** (§§28–49): discovery synthesis & platform facts (§28) · architecture goals & 15-system responsibilities (§29) · GameFlow & state model (§30) · UI navigation (§31) · communication (§32) · assembly boundaries (§33) · data definitions & ownership (§34) · scene & runtime lifecycle (§35) · vehicle physics (§36) · input (§37) · camera/presentation (§38) · save (§39) · WebGL performance & build (§40) · error/recovery (§41) · testing & validation (§42) · integration review results (§43) · draft decision records & owner-gated register (§44) · risks (§45) · references (§46) · vertical-slice Stage-1 definition, quality criteria, asset pipeline, lighting and UI standards (§47) · Phase-9 environment production (§48) · Phase-10 AI system: pathing foundation and kinematic controller (§49)
 
 Part I sections remain valid high-level statements; where they overlap Part II, **Part II is the more detailed authoritative treatment** of the same concept.
 
@@ -1436,7 +1436,7 @@ Phase 10 carries two ordered workstreams: **M8a — AI Opponents Complete** (exe
 
 **Suites:** batch compile **0 errors / 0 warnings**; EditMode **420/420** (398 baseline + 22); PlayMode **22/22**; 0 failed, 0 skipped.
 
-**Non-goals preserved in Stage 1:** no AI controller, input adapter, visual rig, grid spawn, race-position logic, standings, rubber-banding, scene change, build-profile change, asset generation, or `WheelCollider` work. Stage 2 begins only on explicit owner authorization. No AI performance budget is claimed; Stage 4 owns the AI matrix row in `PLAYGAMA_CONSTRAINTS.md` §5.
+**Non-goals preserved in Stage 1:** no AI controller, input adapter, visual rig, grid spawn, race-position logic, standings, rubber-banding, scene change, build-profile change, asset generation, or `WheelCollider` work. Stage 2 was subsequently authorized and is recorded in §49.7. No AI performance budget is claimed; Stage 4 owns the AI matrix row in `PLAYGAMA_CONSTRAINTS.md` §5.
 
 ### 49.6 Grid-size cost evidence (T-10.0.3, 2026-11-16)
 
@@ -1453,3 +1453,43 @@ Phase 10 carries two ordered workstreams: **M8a — AI Opponents Complete** (exe
 Against the Phase-9 worst case (373 draw calls, 95,314 visible triangles), the headroom supports **7 additional cars by draw calls** (127 ÷ 18) and **173 by triangles**, so the approved **default 4 AI** and **cap 6 AI** pass with margin. At the 7-car cap, the 6 AI cars add 108 main-pass draw calls (373 → 481/500) and 2,928 triangles (95,314 → 98,242/180,000).
 
 **Shadow constraint:** AI cars must use blob/contact shadows rather than realtime shadow casting. Six realtime casters would add a second 108-draw pass and breach the 500 ceiling at the cap. This is an engineering constraint inside the existing budget, not a new design decision.
+
+### 49.7 Stage 2 — Kinematic controller, visuals, rubber-banding and soft push (2026-11-16)
+
+Stage 2 implements D-059's kinematic actor. `VehicleController` and `IVehicleInput` are unchanged; the player remains the only `WheelCollider` vehicle.
+
+**`AIDriver`** (`Assets/Scripts/Gameplay/AI/AIDriver.cs`)
+
+- `Initialize(path, startDistance, lateralBias, playerTarget, startSpeed)` binds a validated `TrackPath`, clamps the lateral bias to `MaxLateralOffset`, caches the optional player transform, and applies the initial pose. `ResetTo` supports a future grid reset without rebuilding the path.
+- `Tick(dt)` is the single deterministic step and is also called from `FixedUpdate`. It samples the current and lookahead points, shapes the target speed, integrates speed with the path's forward/braking budgets, computes steering from the lookahead lateral error, advances the cursor, resolves soft push, and writes the pose and visual state. Non-positive `dt` is ignored.
+- **Speed shaping:** `target = min(current, ahead).TargetSpeed × paceScale × rubberBandScale`, clamped to the path ceiling. Corner speed therefore comes from the Stage-1 curvature profile, not a second handling model.
+- **Steering:** the lookahead point is expressed in the current sample's tangent/right frame; `atan2(lateral, forward)` is divided by the configured maximum steering angle and clamped to −1..1. Positive is right, matching `IVehicleInput`.
+- **Pose:** yaw follows the path tangent with zero roll; body roll/pitch live on the visual chassis only. Wheels ride at a configurable `rideHeight`.
+
+**`AIVehicleInput`** (`Assets/Scripts/Gameplay/AI/AIVehicleInput.cs`)
+
+Implements `IVehicleInput` and mirrors the driver's normalized throttle/brake/steering; `Handbrake` is always false. It is a pure adapter with no computation or allocation, so a future physics-backed opponent could bind it to a `VehicleController` without changing the AI contract.
+
+**`AIVisualRig`** (`Assets/Scripts/Gameplay/AI/AIVisualRig.cs`)
+
+- Resolves `Wheel FL/FR/RL/RR Visual` and `ChassisBody`, caches their base rotations, and applies wheel spin (`speed / radius`), front-axle steering, and smoothed body roll/pitch from lateral/longitudinal acceleration.
+- Removes inherited physics: disables every `WheelCollider`, sets the `Rigidbody` kinematic with gravity off, converts non-wheel colliders to query-only triggers, and disables the inherited `VehicleController`. No solver contact ever resolves against an AI car.
+- Enforces the T-10.0.3 draw-call constraint: every child renderer is set to `ShadowCastingMode.Off` and `receiveShadows = false`, and exactly one procedural, unlit, ground-aligned blob shadow is created. Its mesh, texture, and material are runtime assets released in `OnDestroy`.
+
+**Bounded rubber-banding (D-061)**
+
+The player's position is projected onto the path at `playerProjectionInterval` (default 0.25 s) with a coarse stride-8 scan followed by a ±8-waypoint refinement. The signed delta is wrapped to the shorter direction on loops and converted to `scale = 1 + 0.005 × delta`, hard-clamped to **0.9–1.1**. The multiplier applies to target speed only: there is no teleport, no position write, no input override, and no path-ceiling bypass. With no player bound the scale is exactly 1. The projection is deterministic and allocation-free.
+
+**Soft push (D-061)**
+
+`Physics.OverlapCapsuleNonAlloc` is called with a preallocated 8-collider buffer and `QueryTriggerInteraction.Collide` so AI trigger colliders are visible to the query. Separation uses the AI's **actual world pose** (not its desired path point) so two cars at the same point receive opposite tie-break directions. The AI gains a capped (1.5 m) offset that decays at 3 m/s; a slow/stationary non-AI body receives a bounded velocity nudge capped at 0.6 m/s. The player's own input and speed are never cancelled. Because transforms are consumed by the physics scene one step behind, production separation has the same one-step latency the engine gives any query issued inside `FixedUpdate`.
+
+**Validation**
+
+- EditMode `AIDriverTests`: **19 tests** — null/limit guards, path advance, command ranges, straight-line steering, open-path stop, loop wrap and travelled distance, neutral/upper/lower rubber-band bounds, bounds across every tick, `Tick` **0 B/5,000**, adapter mirroring and neutral fallback, production-prefab shadow/wheel/rigidbody/trigger enforcement, one blob shadow, wheel spin/steer, and `Apply` **0 B/5,000**.
+- PlayMode `AIDriverPlayModeTests`: **5 tests** — full lap without stalling or leaving the road, **0 B/5,000 ticks**, two cars spawned on the same point separating with bounded offsets, a capped player nudge, and a real production rig with no realtime shadow casters.
+- Batch compile **0 errors / 0 warnings**; EditMode **439/439** (420 + 19); PlayMode **27/27** (22 + 5); 0 failed, 0 skipped.
+
+**T-10.2.7 (full-physics A/B) is skipped** by owner direction: D-059 already commits V1 to kinematic AI, so the A/B would benchmark a rejected architecture. A future full-physics AI requires a new decision and a measured dev-only benchmark per D-059.
+
+**Non-goals preserved in Stage 2:** no grid spawn, synchronized start, checkpoint/position tracking, `RaceStandings`, result-schema change, scene/build-profile change, camera change, player-physics change, or authored waypoint asset. Stage 3 owns grid and standings.
