@@ -216,6 +216,8 @@ These are **candidate budgets** derived from the Stage-3 measurement and recorde
 
 **Why the simulated model predicts zero drift:** each cycle exercises exactly one `SelectionContext` write, one rig instantiation, one template destruction, and one single-mode scene load. `SelectionContext` stores a managed string id only (no engine object), `VehicleRigCatalog` is scene-authored reference data, and the spawner moves authored child objects rather than allocating new ones. Scene unload releases the instantiated rig; the only persistent state is the trimmed id string. The real browser capture remains the acceptance evidence for OQ-T08 and must confirm this model before any budget is treated as approved.
 
+**Phase-9 Stage-1 note (2026-11-16):** Stage 1 adds environment **data contracts and editor-only shared kits** (`EnvironmentDefinition`/`EnvironmentCatalog`, `TrackLayout`, `EnvironmentLightingProfile`, material/track/lighting builders, and the parameterized scene-builder template). No environment definition asset, material/mesh asset, or scene is generated, and no WebGL build or browser capture was produced, so **no payload/heap/FPS change is claimed** for Stage 1. The owner approved the Phase-9 gates in D-056: realtime-only lighting (no bake/lightmap/reflection-probe dependency) and a per-environment increment of **≤15 MB `.data`** and **≤8 materials** inside the existing OQ-T08 candidate ceilings (250 MB payload, 192 MiB WASM heap, 500 draw calls, 180k triangles, mean ≥58 fps). Each Stage-2/3 environment must add its own measured row here; the existing Phase-7/8 measurements remain the reference baseline.
+
 ## 6. Submission checklist
 
 - [ ] Bridge integration completed against the current SDK and official documentation.

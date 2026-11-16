@@ -1277,3 +1277,72 @@ Without a selection the spawner returns before touching the scene, so the approv
 **Measured build (real, Unity 6000.6.8f1, WebGL Development):** `61,186,251 B = 61.19 MB` five-artifact payload, `34.0 s`, `0 errors`, 4 known emcc/Firefox advisory warnings. Details and the simulated 10-cycle memory table are in `docs/PLAYGAMA_CONSTRAINTS.md` §5.
 
 **Validation:** batch compile **0 errors / 0 warnings**; EditMode **304/304**; PlayMode **19/19**; 0 failed, 0 skipped. New coverage: 4 `SelectionContextTests`, 1 `WebGLBuildProfileTests` Phase-8 profile test, 1 `GaragePlayModeTests` confirmation-write test, and 2 `VehicleSelectionSpawnerPlayModeTests` (selected spawn + no-selection fallback).
+
+## 48. Phase 9 — Environment foundation (Stage 1, 2026-11-16)
+
+**Scope and governance.** Stage 1 implements the data contracts and shared kits for the five owner-approved environments; it deliberately generates **no environment definition asset and no environment scene**. Stage 0 resolutions are recorded in `DECISIONS.md` D-054–D-057: production order Desert → Coastal → Mountain Pass → Neon City → World Arena, one signature plus one reverse configuration per theme, internal-only provenance, realtime-only lighting, one scene per environment with additive loading, candidate budgets, and presentation-only grip/hazards. Phase 8 vehicle physics is untouched (D-052 remains the approved balance).
+
+### 48.1 Environment data contracts (T-9.1)
+
+| Type | Responsibility |
+|---|---|
+| `EnvironmentTheme` / `EnvironmentThemeRules` | Five stable enum values in production order, display names, stable id fragments, production order, and theme-set validation. |
+| `EnvironmentPalette` | Inline serializable palette for road, edge, ground primary/secondary, barrier, accent, and emissive colours. Validation rejects non-finite/out-of-range channels and enforces a relative-luminance delta of at least **0.08** between road and edge. |
+| `EnvironmentDefinition` | ScriptableObject identity asset: schema version, stable lowercase id, en/ar display names, theme, approved production order, palette, `EnvironmentLightingProfile` reference, and `TrackLayout` reference. It carries **no** grip, hazard, damage, or vehicle-physics data. Validation also requires the id to start with the theme fragment (for example `desert-`). |
+| `EnvironmentCatalog` / `EnvironmentCatalogRules` | Scene-authored reference set with exactly five definitions, one per theme, unique ids, unique production order 1–5, and per-entry validation. `FindById`/`FindByTheme` are ordinal/lookup helpers, not a second source of truth. |
+| `EnvironmentSceneContext` | Scene-local reference to the definition a generated scene represents; used by the builder audit. |
+
+### 48.2 Data-driven track layouts (T-9.2)
+
+`TrackLayout` is a runtime-safe ScriptableObject that generalizes the prototype `HandlingCourseLayout` without changing it. It owns:
+
+- `TrackSegment` (`Straight` or `Arc`) with derived arc length, radius, sweep, and ±1 turn direction;
+- optional `TrackElevationKey` entries on the signature-path distance axis;
+- road width, barrier height/thickness, sample spacing, and closed-loop flag;
+- validation for segment counts, lengths, arc bounds, road/barrier dimensions, spacing, ascending elevation keys, first-key-at-zero, keys inside the layout, and optional closure.
+
+`BuildCenterline(spacing, variant)` samples the planar centerline, applies the smooth-step elevation profile, and reverses point order for the approved reverse configuration. `SampleAtDistance` interpolates position and tangent for spawning/decoration. The math is deterministic, allocation-cold, and shared by the builder and tests.
+
+### 48.3 Shared environment kit (T-9.3)
+
+`EnvironmentMaterialKit` creates seven palette-driven Built-in `Standard` materials per environment (road surface, road edge, ground primary, ground secondary, barrier, accent, emissive) under `Assets/Generated/Environments/<id>/Materials`. No texture or external asset is used. `EnvironmentKit` builds the road/barrier/edge-line meshes, a non-track ground plane, and deterministic theme dressing:
+
+| Theme | Static dressing language |
+|---|---|
+| Desert | rocks, cactus primitives, warm ground material |
+| Coastal | palm trunks/fronds, rocks, coastal accent |
+| Mountain Pass | layered pine canopies, boulders, snow caps |
+| Neon City | tower blocks, emissive signage strips, light poles |
+| World Arena | grandstand blocks, accent banding, floodlight towers |
+
+Every decoration is a primitive with its collider removed and static flags that exclude `ContributeGI`; the kit therefore cannot change handling and has no lightmap/UV2 dependency. Grip and hazards remain presentation-only per D-057.
+
+### 48.4 Realtime lighting (T-9.4)
+
+`EnvironmentLightingProfile` is a ScriptableObject with schema validation and a pure `BuildSettings()` projection into `EnvironmentLightingSettings` (sky tint, ground colour, atmosphere, sun size/convergence, exposure, ambient intensity, directional colour/intensity/Euler, shadow toggle/strength, fog toggle/colour/start/end). `EnvironmentLightingBuilder` creates the procedural `Skybox/Procedural` material, applies skybox ambient, creates exactly one `LightmapBakeType.Realtime` directional light, applies linear fog, and explicitly disables baked/realtime GI and lighting settings. There is no bake, lightmap, lighting-data, reflection-probe, or post-processing dependency (D-056).
+
+### 48.5 Scene-builder template and audit (T-9.5)
+
+`EnvironmentSceneBuilder` is parameterized by one `EnvironmentDefinition`:
+
+1. validate the definition and reject closed-loop Stage-1 layouts;
+2. generate/refresh the per-theme material set;
+3. create a new empty scene and an `Environment` root with `EnvironmentSceneContext`;
+4. build the shared-kit `Track` (road, barriers, edge lines, ground, decor);
+5. apply the realtime lighting profile;
+6. create `SpawnPoint`, `Main Camera`, `AudioListener`, and — only when the full five-theme catalog validates — an `EnvironmentCatalog` reference set;
+7. audit the scene, save it under `Assets/Scenes/Environments/<environmentId>.unity`, and log the report.
+
+The audit is fail-closed: it rejects missing scripts, a missing/duplicate context, an invalid context reference, no camera, anything other than exactly one realtime directional light, a missing skybox/sun, or a `Track/Road` without a material. `AuditRoots` exposes the same contract to EditMode tests without creating or saving production scenes. It never edits `EditorBuildSettings`.
+
+**Batch entry:** `-executeMethod VelocityRush.EditorTools.EnvironmentSceneBuilder.BuildFromCommandLine -environmentId <stable-id>`; exits `1` when the definition is absent or the build/audit fails.
+
+### 48.6 Validation tooling (T-9.1)
+
+`EnvironmentCatalogBuilder` validates `Assets/Data/Environments` through the menu `Tools/GameCraft Studio/Velocity Rush/Validate Environment Catalog` and the batch entry `-executeMethod VelocityRush.EditorTools.EnvironmentCatalogBuilder.ValidateFromCommandLine`. An empty folder intentionally fails because five themes are required; `CreateDefinition(...)` validates before writing and derives the production order from the approved theme. No content is invented or generated by Stage 1.
+
+### 48.7 Stage-1 evidence and non-goals
+
+**Validation:** batch compile **0 errors / 0 warnings**; EditMode **387/387** (304 baseline + 83 new), 0 failed, 0 skipped. New coverage: 21 definition/schema, 11 catalog, 25 layout/geometry, 19 lighting-profile, and 7 scene-builder validation/audit tests.
+
+**Non-goals preserved:** no environment definition assets, material assets, meshes, or scenes were generated; no build-settings change; no gameplay/race integration; no Addressables/Resources decision; no bake; no vehicle physics, grip, hazard-physics, or per-surface handling change. Stage 2/3 own the five definitions and scenes, and Phase 11 owns additive GameFlow integration.
