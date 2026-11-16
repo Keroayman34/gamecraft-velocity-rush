@@ -150,6 +150,50 @@ namespace VelocityRush.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator TenCycleLoadUnload_LeavesNoRetainedSceneObjects()
+        {
+            const int cycles = 10;
+            for (var cycle = 1; cycle <= cycles; cycle++)
+            {
+                for (var i = 0; i < EnvironmentIds.Length; i++)
+                {
+                    var id = EnvironmentIds[i];
+                    yield return LoadEnvironment(id);
+
+                    var scene = SceneManager.GetSceneByName(id);
+                    Assert.That(scene.isLoaded, Is.True, "Cycle " + cycle + ": " + id + " did not load.");
+                    var roots = scene.GetRootGameObjects();
+                    Assert.That(roots.Length, Is.GreaterThan(0), "Cycle " + cycle + ": " + id + " has no roots.");
+
+                    var rootNames = new List<string>(roots.Length);
+                    for (var rootIndex = 0; rootIndex < roots.Length; rootIndex++)
+                    {
+                        rootNames.Add(roots[rootIndex].name);
+                    }
+
+                    yield return UnloadEnvironment(id);
+                    yield return null;
+
+                    Assert.That(
+                        SceneManager.GetSceneByName(id).isLoaded,
+                        Is.False,
+                        "Cycle " + cycle + ": " + id + " did not unload.");
+                    Assert.That(
+                        Object.FindAnyObjectByType<EnvironmentSceneContext>(),
+                        Is.Null,
+                        "Cycle " + cycle + ": " + id + " retained an EnvironmentSceneContext.");
+                    for (var rootIndex = 0; rootIndex < rootNames.Count; rootIndex++)
+                    {
+                        Assert.That(
+                            GameObject.Find(rootNames[rootIndex]),
+                            Is.Null,
+                            "Cycle " + cycle + ": " + id + " retained root '" + rootNames[rootIndex] + "'.");
+                    }
+                }
+            }
+        }
+
         private static IEnumerator LoadEnvironment(string id)
         {
             var path = "Assets/Scenes/Environments/" + id + ".unity";

@@ -26,7 +26,13 @@ namespace VelocityRush.EditorTools
         VerticalSlice = 1,
 
         /// <summary>Phase-8 debug loop: Garage → HandlingCourse (Garage selects, course spawns).</summary>
-        Phase8Debug = 2
+        Phase8Debug = 2,
+
+        /// <summary>
+        /// Phase-9 environment profiling: Bootstrap + Garage + the five signature environment
+        /// scenes, all listed so a development build can load them additively.
+        /// </summary>
+        Phase9Debug = 3
     }
 
     /// <summary>
@@ -115,6 +121,18 @@ namespace VelocityRush.EditorTools
             "Assets/Scenes/HandlingCourse.unity"
         };
 
+        /// <summary>Phase-9 environment profiling scene order: bootstrap root, Garage, five environments.</summary>
+        public static readonly string[] Phase9DebugScenePaths =
+        {
+            "Assets/Scenes/Bootstrap.unity",
+            "Assets/Scenes/Garage.unity",
+            "Assets/Scenes/Environments/desert-signature.unity",
+            "Assets/Scenes/Environments/coastal-signature.unity",
+            "Assets/Scenes/Environments/mountain-pass-signature.unity",
+            "Assets/Scenes/Environments/neon-city-signature.unity",
+            "Assets/Scenes/Environments/world-arena-signature.unity"
+        };
+
         private static readonly ArtifactCategory[] Categories =
         {
             new ArtifactCategory("indexHtml", "index.html"),
@@ -180,6 +198,8 @@ namespace VelocityRush.EditorTools
                     return VerticalSliceScenePaths;
                 case WebGLBuildProfile.Phase8Debug:
                     return Phase8DebugScenePaths;
+                case WebGLBuildProfile.Phase9Debug:
+                    return Phase9DebugScenePaths;
                 default:
                     return PrototypeScenePaths;
             }
@@ -194,6 +214,8 @@ namespace VelocityRush.EditorTools
                     return "Vertical Slice";
                 case WebGLBuildProfile.Phase8Debug:
                     return "Phase 8 Debug";
+                case WebGLBuildProfile.Phase9Debug:
+                    return "Phase 9 Debug";
                 default:
                     return "Prototype";
             }
@@ -203,8 +225,11 @@ namespace VelocityRush.EditorTools
         public static string DescribeSceneOrder(WebGLBuildProfile profile)
         {
             var paths = GetScenePaths(profile);
-            var last = paths[paths.Length - 1];
-            return Path.GetFileNameWithoutExtension(paths[0]) + " -> " + Path.GetFileNameWithoutExtension(last);
+            var first = Path.GetFileNameWithoutExtension(paths[0]);
+            var last = Path.GetFileNameWithoutExtension(paths[paths.Length - 1]);
+            return paths.Length <= 2
+                ? first + " -> " + last
+                : first + " -> " + last + " (" + paths.Length + " scenes)";
         }
 
         /// <summary>
@@ -248,6 +273,17 @@ namespace VelocityRush.EditorTools
                 return true;
             }
 
+            if (string.Equals(token, "phase9", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "phase9debug", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "environments", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "allenvironments", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "all-environments", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "3", StringComparison.Ordinal))
+            {
+                profile = WebGLBuildProfile.Phase9Debug;
+                return true;
+            }
+
             return false;
         }
 
@@ -270,7 +306,7 @@ namespace VelocityRush.EditorTools
             }
 
             throw new InvalidOperationException(
-                "Unknown WebGL build profile '" + token + "'. Use 'prototype', 'slice', or 'phase8'.");
+                "Unknown WebGL build profile '" + token + "'. Use 'prototype', 'slice', 'phase8', or 'phase9'.");
         }
 
         /// <summary>
@@ -280,6 +316,11 @@ namespace VelocityRush.EditorTools
         public static WebGLBuildProfile DetectConfiguredProfile()
         {
             var configured = EditorBuildSettings.scenes;
+            if (MatchesSceneOrder(configured, Phase9DebugScenePaths))
+            {
+                return WebGLBuildProfile.Phase9Debug;
+            }
+
             if (MatchesSceneOrder(configured, Phase8DebugScenePaths))
             {
                 return WebGLBuildProfile.Phase8Debug;
@@ -406,6 +447,16 @@ namespace VelocityRush.EditorTools
         public static void ApplyPhase8DebugScenesFromCommandLine()
         {
             ApplySceneSet(WebGLBuildProfile.Phase8Debug, string.Empty, string.Empty);
+            EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// Batch helper: applies the Phase-9 environment profiling scene set
+        /// (Bootstrap + Garage + five environment scenes).
+        /// </summary>
+        public static void ApplyPhase9DebugScenesFromCommandLine()
+        {
+            ApplySceneSet(WebGLBuildProfile.Phase9Debug, string.Empty, string.Empty);
             EditorApplication.Exit(0);
         }
 
@@ -926,9 +977,9 @@ namespace VelocityRush.EditorTools
                 matches,
                 WebGLPreflightCode.SceneConfigurationMismatch,
                 matches
-                    ? DescribeSceneOrder(profile) + " (both enabled)."
-                    : "Expected exactly: [0] " + scenePaths[0] + " (enabled), [1] " + scenePaths[1] +
-                      " (enabled). Actual: " + DescribeScenes(configured) +
+                    ? DescribeSceneOrder(profile) + " (all enabled)."
+                    : "Expected exactly: " + DescribeExpectedScenes(scenePaths) +
+                      ". Actual: " + DescribeScenes(configured) +
                       ". The tool never adds, removes, reorders, or enables scenes.");
 
             for (var i = 0; i < scenePaths.Length; i++)
@@ -1274,6 +1325,17 @@ namespace VelocityRush.EditorTools
             for (var i = 0; i < scenes.Length; i++)
             {
                 parts[i] = "[" + i + "] " + scenes[i].path + (scenes[i].enabled ? " (enabled)" : " (disabled)");
+            }
+
+            return string.Join(", ", parts);
+        }
+
+        private static string DescribeExpectedScenes(string[] scenePaths)
+        {
+            var parts = new string[scenePaths.Length];
+            for (var i = 0; i < scenePaths.Length; i++)
+            {
+                parts[i] = "[" + i + "] " + scenePaths[i] + " (enabled)";
             }
 
             return string.Join(", ", parts);

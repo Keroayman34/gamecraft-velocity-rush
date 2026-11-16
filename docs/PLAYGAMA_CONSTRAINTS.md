@@ -220,6 +220,67 @@ These are **candidate budgets** derived from the Stage-3 measurement and recorde
 
 **Phase-9 Stage-2/3 note (2026-11-16):** all five signature packages and scenes now exist (`Assets/Data/Environments/<Theme>/<id>/`, `Assets/Generated/Environments/<id>/`, `Assets/Scenes/Environments/<id>.unity`). Each scene uses **7 environment materials** (≤8) and realtime-only lighting, with no texture or external mesh payload added beyond procedural meshes/materials/skybox and the shared slice assets. **No WebGL payload, heap, draw-call, triangle, or frame-time row is claimed yet:** Stage 4 owns the build/capture and the per-environment measurement row against the ≤15 MB `.data` increment and the OQ-T08 aggregate ceilings. The 250 MB / 192 MiB / 500 draw calls / 180k triangles / ≥58 fps candidate ceilings remain unchanged and unverified for the five-environment scope.
 
+**Phase-9 Stage-4 WebGL build and per-environment profiling evidence (T-9.14/T-9.15, 2026-11-16):**
+
+*T-9.14 build profile (real, opt-in):* `WebGLBuildProfile.Phase9Debug = 3` targets **`Bootstrap → Garage → desert-signature → coastal-signature → mountain-pass-signature → neon-city-signature → world-arena-signature` (7 scenes, all enabled)**. Parsing accepts `phase9`, `phase9debug`, `environments`, `all-environments`, or `3`. The profile is applied only for the build and the committed `EditorBuildSettings` remains `Bootstrap → TestTrack`.
+
+*Build (real, this project, Unity 6000.6.8f1, WebGL Development, `Phase9Debug`):*
+
+| Measure | Measured value | Note |
+|---|---|---|
+| Build result / duration | **Succeeded, 46.215 s** | **0 errors, 4 warnings** (two `UAC0009` `DEVELOPMENT_BUILD` deprecation warnings plus two emcc advisories — Firefox-WebGPU notes and the deprecated `$stackTrace` symbol); no script compile errors or warnings |
+| Total build payload | **62,509,995 B = 62.51 MB (59.61 MiB)** | 25.0% of the proposed 250 MB budget; **+1,323,744 B** vs the Phase-8 five-scene build (five added environment scenes) |
+| `.wasm` | 53,771,402 B (53.77 MB / 51.28 MiB) | dominates payload |
+| `.data` | 7,960,590 B (7.96 MB / 7.59 MiB) | +1,208,464 B vs Phase 8 for all five environments; per-environment increments below |
+| `framework.js` | 694,835 B | unchanged vs Phase 7/8 |
+| `loader.js` | 60,309 B | unchanged vs Phase 7/8 |
+| `index.html` | 8,745 B | -76 B vs Phase 8 |
+| Build scenes | 7-scene `Phase9Debug` order above | applied explicitly for the build; `EditorBuildSettings` restored to `Bootstrap → TestTrack` immediately afterwards |
+| Build report | `/tmp/opencode/vr9/webgl-phase9/velocity-rush-webgl-build-report.json` | output outside the repository |
+
+> **Environment limitation (not a regression):** this container has no `ffmpeg`/`avconv`, so the audio importer logged `FSBTool ERROR` lines for the generated slice WAVs during the WebGL build (the same tooling limitation recorded for earlier generations). The player still built and packaged successfully; script compilation remained **0 errors / 0 warnings**.
+
+**Final-tree rebuild:** after the coastal frond migration was applied to the committed scene, an incremental `Phase9Debug` rebuild produced **62,509,922 B** (`.data` 7,960,493 B, `index.html` 8,769 B) with **0 errors** and one emcc advisory warning. The cold-build row above remains the reference build; the 73 B delta is serialized scene/file-ID noise, not a content change.
+
+*Per-environment matrix (**SIMULATED browser run**, 2026-11-16):*
+
+> **Evidence class: simulated.** The owner directed T-9.15 to be evaluated by simulating the browser run because the desktop Chrome/Firefox capture matrix (OQ-P01) is unavailable in this environment. The structural columns are **real measurements of the committed scenes and generated assets** (`Assets/Editor/Phase9ProfilingEvidence`): renderers, unique materials, total scene triangles, worst-case visible triangles after frustum culling sampled at nine camera poses along the racing line (60° FOV, 16:9, 900 m far plane), and serialized footprint of the scene plus its generated/data assets. Heap, draw-call, and frame-time values are modelled from the **real** Phase-7/8 Chromium/ANGLE baseline (137,887,744 B total WASM heap, 394 draw calls, 115,798 triangles, 16.95 ms mean frame). They are **not** measured browser heap samples.
+
+| Environment | Renderers (unbatched draw-call bound) | Scene triangles | Worst-case visible triangles | Materials | Serialized package | Modelled peak WASM heap | Modelled mean frame | Gate |
+|---|---|---|---|---|---|---|---|---|
+| Desert Circuit (`desert-signature`) | 156 | 86,586 | 85,634 | 7 | 2,893,146 B (2.76 MB) | 149,169,498 B (142.26 MiB) | 16.95 ms (59.0 fps) | **PASS** |
+| Coastal Circuit (`coastal-signature`) | 373 | 69,866 | 69,642 | 7 | 3,383,736 B (3.23 MB) | 149,660,051 B (142.73 MiB) | 16.95 ms (59.0 fps) | **PASS** |
+| Mountain Pass (`mountain-pass-signature`) | 353 | 96,598 | 95,314 | 7 | 2,805,025 B (2.68 MB) | 149,081,377 B (142.18 MiB) | 16.95 ms (59.0 fps) | **PASS** |
+| Neon City (`neon-city-signature`) | 313 | 67,500 | 57,132 | 7 | 2,587,345 B (2.47 MB) | 148,863,697 B (141.97 MiB) | 16.95 ms (59.0 fps) | **PASS** |
+| World Arena (`world-arena-signature`) | 265 | 25,262 | 25,134 | 7 | 2,836,065 B (2.71 MB) | 149,112,417 B (142.21 MiB) | 16.95 ms (59.0 fps) | **PASS** |
+| **Worst case** | **373 / 500** | **96,598** | **95,314 / 180,000** | **7 / 8** | **3.23 MB / 15 MB** | **149.66 MB / 192 MiB** | **16.95 ms** | **PASS** |
+
+**Ceiling confirmation:** draw calls **373 ≤ 500** (74.6% of ceiling); worst-case visible triangles **95,314 ≤ 180,000** (53.0%); per-environment serialized/`.data` increment **3.23 MB ≤ 15 MB** (21.5%); unique materials **7 ≤ 8**. The modelled peak WASM heap (**149.66 MB / 142.73 MiB**) is inside the 192 MiB ceiling, and the total `.data` for all five environments (**7.96 MB**) is far below five × 15 MB. The serialized-package column is a conservative upper bound on each environment's real `.data` increment: the complete seven-scene build's `.data` is only 7.96 MB, so no single environment can exceed its uncompressed asset footprint.
+
+**Coastal budget correction (real geometry change):** the first Stage-4 measurement found Coastal at **243,578 scene triangles / 243,354 visible** because each palm frond was a Unity sphere (768 triangles). The frond is now a dedicated double-sided 16-triangle tapered/drooping mesh (`coastal-signature_PalmFrond.asset`), reducing Coastal to **69,866 scene / 69,642 visible triangles** with the same 102 decorations and visual silhouette. This is why the Stage-4 commit updates the generated coastal scene and adds one generated mesh asset.
+
+*Repeated 10-cycle all-environment load/unload evidence (**SIMULATED**, not a browser WASM trace):*
+
+Each cycle loads and unloads all five environments once, in production order, then returns to the persistent Bootstrap root. Values are modelled from the same real baseline plus the additive load/unload contract; the PlayMode suite independently proves that every scene root is destroyed on unload.
+
+| Cycle | Load/unload sequence | Post-return WASM heap | Cumulative drift | Peak draw calls | Peak visible triangles | Payload (five packages) | Modelled mean frame |
+|---|---|---|---|---|---|---|---|
+| Baseline | — | 137,887,744 B (131.50 MiB) | 0 B | — | — | — | 16.95 ms |
+| 1 | all five environments | 137,887,744 B (131.50 MiB) | **0 B** | 373 | 95,314 | 14,505,317 B (13.83 MiB) | 16.95 ms |
+| 2 | all five environments | 137,887,744 B (131.50 MiB) | **0 B** | 373 | 95,314 | 14,505,317 B | 16.95 ms |
+| 3 | all five environments | 137,887,744 B (131.50 MiB) | **0 B** | 373 | 95,314 | 14,505,317 B | 16.95 ms |
+| 4 | all five environments | 137,887,744 B (131.50 MiB) | **0 B** | 373 | 95,314 | 14,505,317 B | 16.95 ms |
+| 5 | all five environments | 137,887,744 B (131.50 MiB) | **0 B** | 373 | 95,314 | 14,505,317 B | 16.95 ms |
+| 6 | all five environments | 137,887,744 B (131.50 MiB) | **0 B** | 373 | 95,314 | 14,505,317 B | 16.95 ms |
+| 7 | all five environments | 137,887,744 B (131.50 MiB) | **0 B** | 373 | 95,314 | 14,505,317 B | 16.95 ms |
+| 8 | all five environments | 137,887,744 B (131.50 MiB) | **0 B** | 373 | 95,314 | 14,505,317 B | 16.95 ms |
+| 9 | all five environments | 137,887,744 B (131.50 MiB) | **0 B** | 373 | 95,314 | 14,505,317 B | 16.95 ms |
+| 10 | all five environments | 137,887,744 B (131.50 MiB) | **0 B** | 373 | 95,314 | 14,505,317 B | 16.95 ms |
+
+**Drift result: 0 B after all 10 cycles (0 B × 50 scene loads/unloads).** The PlayMode `TenCycleLoadUnload_LeavesNoRetainedSceneObjects` test passed all 50 loads/unloads and asserted that each scene is unloaded and no `EnvironmentSceneContext` or scene root survives. The model predicts zero drift because environments are pure additive scenes: every generated object is owned by the loaded scene, the persistent Bootstrap root holds only services, and unload destroys the scene's objects. No runtime object is reparented into the persistent root.
+
+**Stage-4 verdict (T-9.15):** all five environments are inside the D-056/OQ-T08 per-environment gates in the simulated matrix; the real WebGL `Phase9Debug` build succeeded at **62.51 MB / 0 errors**. Real browser heap/FPS capture remains the outstanding OQ-P01 evidence and is **not** claimed here.
+
 ## 6. Submission checklist
 
 - [ ] Bridge integration completed against the current SDK and official documentation.

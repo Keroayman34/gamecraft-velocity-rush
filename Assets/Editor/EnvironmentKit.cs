@@ -141,6 +141,16 @@ namespace VelocityRush.EditorTools
                 BuildSkirtMesh(centerline, layout.RoadWidth, -0.45f),
                 meshFolder + "/" + id + "_Skirt.asset");
 
+            // Coastal palms use a purpose-built low-poly frond mesh. A Unity sphere frond is
+            // 768 triangles, which alone pushed the coastal scene past the 180k render budget.
+            Mesh frondMesh = null;
+            if (definition.Theme == EnvironmentTheme.CoastalCircuit)
+            {
+                frondMesh = SaveMesh(
+                    BuildPalmFrondMesh(),
+                    meshFolder + "/" + id + "_PalmFrond.asset");
+            }
+
             var trackRoot = new GameObject("Track").transform;
             trackRoot.SetParent(environmentRoot, false);
 
@@ -177,7 +187,7 @@ namespace VelocityRush.EditorTools
             skirt.AddComponent<MeshRenderer>().sharedMaterial = materials.GroundSecondary;
 
             CreateGround(trackRoot, centerline, materials.GroundPrimary);
-            var decorationCount = Decorate(trackRoot, definition, centerline, materials);
+            var decorationCount = Decorate(trackRoot, definition, centerline, materials, frondMesh);
             var landmarkCount = CreateLandmarks(trackRoot, definition, centerline, materials);
             var waterCount = definition.Theme == EnvironmentTheme.CoastalCircuit
                 ? CreateWater(trackRoot, centerline, materials)
@@ -207,7 +217,8 @@ namespace VelocityRush.EditorTools
             Transform trackRoot,
             EnvironmentDefinition definition,
             Vector3[] centerline,
-            EnvironmentMaterialSet materials)
+            EnvironmentMaterialSet materials,
+            Mesh palmFrondMesh = null)
         {
             if (trackRoot == null)
             {
@@ -255,7 +266,7 @@ namespace VelocityRush.EditorTools
                         DecorateDesert(root, position, rotation, materials, random);
                         break;
                     case EnvironmentTheme.CoastalCircuit:
-                        DecorateCoastal(root, position, rotation, materials, random);
+                        DecorateCoastal(root, position, rotation, materials, random, palmFrondMesh);
                         break;
                     case EnvironmentTheme.MountainPass:
                         DecorateMountain(root, position, rotation, materials, random);
@@ -327,7 +338,8 @@ namespace VelocityRush.EditorTools
             Vector3 position,
             Quaternion rotation,
             EnvironmentMaterialSet materials,
-            System.Random random)
+            System.Random random,
+            Mesh palmFrondMesh)
         {
             var palm = new GameObject("Coastal Palm");
             palm.transform.SetParent(root, false);
@@ -346,14 +358,28 @@ namespace VelocityRush.EditorTools
             for (var i = 0; i < frondCount; i++)
             {
                 var angle = (360f / frondCount) * i;
-                AddPrimitive(
-                    palm.transform,
-                    "Frond",
-                    PrimitiveType.Sphere,
-                    new Vector3(0f, 4.75f, 0f),
-                    Quaternion.Euler(12f, angle, 0f),
-                    new Vector3(2.4f, 0.22f, 0.75f),
-                    materials.Accent);
+                if (palmFrondMesh != null)
+                {
+                    AddMeshPrimitive(
+                        palm.transform,
+                        "Frond",
+                        palmFrondMesh,
+                        new Vector3(0f, 4.75f, 0f),
+                        Quaternion.Euler(12f, angle, 0f),
+                        new Vector3(0.8f, 0.8f, 2.4f),
+                        materials.Accent);
+                }
+                else
+                {
+                    AddPrimitive(
+                        palm.transform,
+                        "Frond",
+                        PrimitiveType.Sphere,
+                        new Vector3(0f, 4.75f, 0f),
+                        Quaternion.Euler(12f, angle, 0f),
+                        new Vector3(2.4f, 0.22f, 0.75f),
+                        materials.Accent);
+                }
             }
 
             CreatePrimitive(
@@ -1013,6 +1039,26 @@ namespace VelocityRush.EditorTools
             Object.DestroyImmediate(go.GetComponent<Collider>());
         }
 
+        private static void AddMeshPrimitive(
+            Transform parent,
+            string name,
+            Mesh mesh,
+            Vector3 localPosition,
+            Quaternion localRotation,
+            Vector3 localScale,
+            Material material)
+        {
+            var go = new GameObject(name);
+            go.layer = 0;
+            MarkStatic(go);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPosition;
+            go.transform.localRotation = localRotation;
+            go.transform.localScale = localScale;
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = material;
+        }
+
         private static void MarkStatic(GameObject target)
         {
             GameObjectUtility.SetStaticEditorFlags(
@@ -1262,6 +1308,58 @@ namespace VelocityRush.EditorTools
             var x = a.x - b.x;
             var z = a.z - b.z;
             return Mathf.Sqrt((x * x) + (z * z));
+        }
+
+        /// <summary>
+        /// Builds a double-sided, drooping four-segment palm frond (16 triangles) along local +Z.
+        /// Used instead of a 768-triangle sphere so five fronds per palm stay inside the triangle
+        /// budget; the silhouette (tapered leaf with tip droop) is closer to a real frond.
+        /// </summary>
+        private static Mesh BuildPalmFrondMesh()
+        {
+            const int segments = 4;
+            var vertices = new List<Vector3>((segments + 1) * 2);
+            var uvs = new List<Vector2>((segments + 1) * 2);
+            var triangles = new List<int>(segments * 12);
+            for (var i = 0; i <= segments; i++)
+            {
+                var t = i / (float)segments;
+                var halfWidth = Mathf.Lerp(0.16f, 0.02f, t);
+                var y = -0.34f * t * t;
+                var z = t;
+                vertices.Add(new Vector3(-halfWidth, y, z));
+                vertices.Add(new Vector3(halfWidth, y, z));
+                uvs.Add(new Vector2(0f, t));
+                uvs.Add(new Vector2(1f, t));
+            }
+
+            for (var i = 0; i < segments; i++)
+            {
+                var a = i * 2;
+                var b = a + 1;
+                var c = a + 2;
+                var d = a + 3;
+                triangles.Add(a);
+                triangles.Add(c);
+                triangles.Add(d);
+                triangles.Add(a);
+                triangles.Add(d);
+                triangles.Add(b);
+                triangles.Add(a);
+                triangles.Add(d);
+                triangles.Add(c);
+                triangles.Add(a);
+                triangles.Add(b);
+                triangles.Add(d);
+            }
+
+            var mesh = new Mesh { name = "PalmFrond" };
+            mesh.SetVertices(vertices);
+            mesh.SetUVs(0, uvs);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         private static Mesh SaveMesh(Mesh mesh, string path)

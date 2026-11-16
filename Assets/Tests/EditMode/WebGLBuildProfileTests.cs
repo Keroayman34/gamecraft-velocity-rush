@@ -49,6 +49,29 @@ namespace VelocityRush.Tests.EditMode
         }
 
         [Test]
+        public void Phase9DebugProfile_TargetsBootstrapGarageAndFiveEnvironments()
+        {
+            var paths = VelocityRushWebGLBuilder.GetScenePaths(WebGLBuildProfile.Phase9Debug);
+
+            Assert.That(paths[0], Is.EqualTo(BootstrapScenePath));
+            Assert.That(paths[1], Is.EqualTo("Assets/Scenes/Garage.unity"));
+            Assert.That(paths.Length, Is.EqualTo(7));
+            Assert.That(paths, Is.EquivalentTo(new[]
+            {
+                BootstrapScenePath,
+                "Assets/Scenes/Garage.unity",
+                "Assets/Scenes/Environments/desert-signature.unity",
+                "Assets/Scenes/Environments/coastal-signature.unity",
+                "Assets/Scenes/Environments/mountain-pass-signature.unity",
+                "Assets/Scenes/Environments/neon-city-signature.unity",
+                "Assets/Scenes/Environments/world-arena-signature.unity"
+            }));
+            Assert.That(
+                VelocityRushWebGLBuilder.DescribeSceneOrder(WebGLBuildProfile.Phase9Debug),
+                Is.EqualTo("Bootstrap -> world-arena-signature (7 scenes)"));
+        }
+
+        [Test]
         public void DescribeSceneOrder_NamesTheProfileScenes()
         {
             Assert.That(
@@ -82,6 +105,12 @@ namespace VelocityRush.Tests.EditMode
 
             Assert.That(VelocityRushWebGLBuilder.TryParseProfile("Garage", out var garage), Is.True);
             Assert.That(garage, Is.EqualTo(WebGLBuildProfile.Phase8Debug));
+
+            Assert.That(VelocityRushWebGLBuilder.TryParseProfile("phase9", out var phase9), Is.True);
+            Assert.That(phase9, Is.EqualTo(WebGLBuildProfile.Phase9Debug));
+
+            Assert.That(VelocityRushWebGLBuilder.TryParseProfile("all-environments", out var all), Is.True);
+            Assert.That(all, Is.EqualTo(WebGLBuildProfile.Phase9Debug));
 
             Assert.That(VelocityRushWebGLBuilder.TryParseProfile("unknown", out _), Is.False);
             Assert.That(VelocityRushWebGLBuilder.TryParseProfile("  ", out _), Is.False);
