@@ -8,7 +8,7 @@
 ## Table of contents
 
 - **Part I — Baseline technical direction** (§§1–27): approved direction, platform constraints, Playgama plan, high-level boundaries, per-domain Open items (input/vehicle/camera/UI/loc/save/audio/assets/visual), performance gates, testing, deferred decisions, P1–P8 provisional directions.
-- **Part II — Phase-3 detailed architecture (consolidated)** (§§28–47): discovery synthesis & platform facts (§28) · architecture goals & 15-system responsibilities (§29) · GameFlow & state model (§30) · UI navigation (§31) · communication (§32) · assembly boundaries (§33) · data definitions & ownership (§34) · scene & runtime lifecycle (§35) · vehicle physics (§36) · input (§37) · camera/presentation (§38) · save (§39) · WebGL performance & build (§40) · error/recovery (§41) · testing & validation (§42) · integration review results (§43) · draft decision records & owner-gated register (§44) · risks (§45) · references (§46) · vertical-slice Stage-1 definition, quality criteria, asset pipeline, lighting and UI standards (§47)
+- **Part II — Phase-3 detailed architecture (consolidated)** (§§28–49): discovery synthesis & platform facts (§28) · architecture goals & 15-system responsibilities (§29) · GameFlow & state model (§30) · UI navigation (§31) · communication (§32) · assembly boundaries (§33) · data definitions & ownership (§34) · scene & runtime lifecycle (§35) · vehicle physics (§36) · input (§37) · camera/presentation (§38) · save (§39) · WebGL performance & build (§40) · error/recovery (§41) · testing & validation (§42) · integration review results (§43) · draft decision records & owner-gated register (§44) · risks (§45) · references (§46) · vertical-slice Stage-1 definition, quality criteria, asset pipeline, lighting and UI standards (§47) · Phase-9 environment production (§48) · Phase-10 AI pathing foundation (§49)
 
 Part I sections remain valid high-level statements; where they overlap Part II, **Part II is the more detailed authoritative treatment** of the same concept.
 
@@ -297,7 +297,7 @@ Reading rule: an upper system may reference a lower system; a lower system never
 
 **S2 — GameFlow.** Responsibility: single owner of application-level state (`Boot → MainMenu → … → Results`); validates/executes transitions; translates requests into commands; coordinates loading of scene/content with the loading subsystem candidate (P6 additive) via async calls only — it never loads content itself. Owns: `AppState` enum/state machine; transition rule table (data-driven — not per-screen code); race-session lifetime scoping; app-level pause/resume policy. Must NOT own: race scoring, progression data, save schema, screens, language setting. Public: `TryTransition(AppState)`, `Request(AppCommand)`, `CurrentState`, events `StateChanged(AppState)`, `TransitionRejected(AppState, reason)`. Dependencies: Data (environment/scene keys), Runtime State (handoff context). Referenced as observer by UI/Navigation; Audio hooks pause events; language changes flow via Localization's own event. Events in: commands (UI/Platform/overlay). Events out: listed + `RaceInterrupted` (browser-tab visibility loss bridged by platform layer later). Testing: pure EditMode tests of the transition table; PlayMode integration of menu→results→menu circuit. Prototype: **Yes** — states exist from day one even where screens don't; prototype reaches MainMenu → PreEvent → Race → Results; placeholder transitions marked `NotProduced` fail closed loudly in editor, cleanly on web (visible in dev build).
 
-**S3 — Vehicle.** Responsibility: physics simulation of one vehicle instance per presentable car 【Recommendation: one active player vehicle in prototype; AI opponents target Phase 10 — no AI code now (OQ-T09 open)】. Consumes tuning definition data + live inputs + track surface readings → outputs chassis state (pose, speed, drift, grounded) + telemetry for scoring (clean-line counters as bytes per Race Rules needs). Owns: per-vehicle physics components and per-wheel rig state (WheelCollider-first candidate, D-033); assist code hooks (undecided, OQ-02). Must NOT own: definitions (reads), scoring (provides inputs), HUD (pure data), track rules. Public: `VehicleRuntime` struct snapshot read; `SetInput(IVehicleInputPorts)`; `ResetToSpawn()`; event-driven `Crashed/BecameAirborne` only as an evidence-gated mitigation for D-033 slip-model quirks. Dependencies: Data (VehicleDefinition), Track & Event (surface/collision channels by layer — no track object refs), input abstraction interfaces (in Core; implementation per D-034). Testing: EditMode tuning-data validation only; PlayMode lap-simulation repeatability harness; driving feel remains a human D-023 playtest. Prototype: **Yes** (1 test vehicle, D-030).
+**S3 — Vehicle.** Responsibility: physics simulation of one vehicle instance per presentable car 【**Approved (D-059, 2026-11-16): the player is the single physics vehicle (WheelCollider, D-033). AI opponents are kinematic path-followers with a visual rig — no WheelCollider, rigidbody, or physics solver per opponent. AI supplies `IVehicleInput`; `VehicleController` is unchanged. See §49.**】. Consumes tuning definition data + live inputs + track surface readings → outputs chassis state (pose, speed, drift, grounded) + telemetry for scoring (clean-line counters as bytes per Race Rules needs). Owns: per-vehicle physics components and per-wheel rig state (WheelCollider-first candidate, D-033); assist code hooks (undecided, OQ-02). Must NOT own: definitions (reads), scoring (provides inputs), HUD (pure data), track rules. Public: `VehicleRuntime` struct snapshot read; `SetInput(IVehicleInputPorts)`; `ResetToSpawn()`; event-driven `Crashed/BecameAirborne` only as an evidence-gated mitigation for D-033 slip-model quirks. Dependencies: Data (VehicleDefinition), Track & Event (surface/collision channels by layer — no track object refs), input abstraction interfaces (in Core; implementation per D-034). Testing: EditMode tuning-data validation only; PlayMode lap-simulation repeatability harness; driving feel remains a human D-023 playtest. Prototype: **Yes** (1 test vehicle, D-030).
 
 **S4 — Track & Event.** Responsibility: runtime behavior of environment content needed by events: track surfaces (grip zones), checkpoints, hazards, boundaries, jump/obstacle setups, finish line; publishes collision/checkpoint signal stream (typed, allocation-free). Owns: track object runtime behaviors, layer/trigger configuration, track-key referencing. Must NOT own: race judging (reports events; Race Rules interprets), environment art, street/domain name data (definitions live in Data Definitions). Public: `TrackSession` handle per loaded environment (checkpoints array, start/finish handles); events `CheckpointPassed(index)`, `BoundaryHit(type)`, `SurfaceChanged(zone)`. Dependencies: Data (EnvironmentTheme, track config keys); Vehicle reacts via layer/collision setup only. Testing: PlayMode trigger correctness; checkpoint geometry is content → editor validation tooling deferred (【Owner gate】). Prototype: **Yes** (one test track for M3: closed loop with start/finish + gates, Time-Trial-shaped).
 
@@ -1377,3 +1377,79 @@ All five scenes exist at `Assets/Scenes/Environments/<id>.unity` and are wired i
 **Validation:** batch compile **0 errors / 0 warnings** (only the pre-existing `UAC0009` advisory); EditMode **397/397**; PlayMode **21/21**; 0 failed, 0 skipped. New coverage includes catalog/distinctness/race rules, generated material/mesh/skybox presence, scene existence, full fail-closed audits, Coastal water, Neon lane markers, centerline gate placement, and PlayMode additive load/unload of all five scenes.
 
 > Generation note: authoring and scene builds ran with `-buildTarget StandaloneLinux64`. WebGL audio import on the build machine fails without `ffmpeg`/`avconv` (`FSBTool ERROR`), producing null `AudioClip` references; Standalone imports PCM successfully. This is a local tooling constraint, not a shipped project setting.
+
+## 49. Phase 10 — AI opponent pathing foundation (Stage 1, 2026-11-16)
+
+### 49.1 Approved scope and architecture
+
+Phase 10 carries two ordered workstreams: **M8a — AI Opponents Complete** (executed first) and **M8 — Championship & Event Content Complete** (D-058). The Stage-0 owner gate resolved the AI architecture:
+
+| Gate | Resolution | Decision |
+|---|---|---|
+| Scope / milestone | Add M8a before M8; racing opponents are not D-020 "advanced AI traffic" | D-058 |
+| Physics fidelity | **Kinematic AI only**; the player remains the single WheelCollider vehicle (D-033/S3) | D-059 |
+| Waypoints | Procedural from `TrackLayout` at 2.0 m spacing; no authored waypoint assets | D-060 |
+| Grid | Default **5 cars** (1 player + 4 AI); hard cap **7** | D-060 |
+| Interaction | Soft push; no AI rigidbody | D-061 |
+| Difficulty | Bounded **±10%** rubber-band on target speed only; no teleport/input cheating | D-061 |
+| Ranking | Checkpoint count, then distance to the next gate; frozen at finish | D-061 |
+| Results | New `RaceStandings` alongside the unchanged solo `RaceResult` | D-061 |
+| Start | Synchronized grid hold until GO | D-061 |
+
+`VehicleController` and `IVehicleInput` are unchanged. Stage 2 will implement `AIVehicleInput : IVehicleInput` and a kinematic driver; Stage 1 delivers only the path data and sampling.
+
+### 49.2 `TrackPath` generation
+
+`Assets/Scripts/Data/TrackPath.cs` owns `PathWaypoint`, `PathSample`, `TrackPathBuildSettings`, `TrackPath`, and `TrackPathCursor`.
+
+`TrackPath.Create(layout, variant, settings)` runs once at load and performs the following, in order:
+
+1. **Validate** the settings envelope and the `TrackLayout` (fail loudly; no silent defaults).
+2. **Sample** the authoritative centerline with `TrackLayout.BuildCenterline(2.0 m, variant)`. The same array already drives road/barrier meshes, checkpoints, and gates, so the path cannot drift from the geometry; the reverse configuration is free.
+3. **Collapse the closed-loop duplicate** when the final sample is within half a spacing of the origin, so the seam is represented once by the wrap segment.
+4. **Cumulative planar distances** per waypoint, plus per-segment lengths including the wrap segment for loops. Planar distance matches `TrackLayout.TotalLength` and the race-gate distance axis.
+5. **Tangents** from the previous/next sample (wrapped for loops), and **right vectors** as `Cross(up, tangent)`.
+6. **Signed Menger curvature** `κ = 2·cross / (|ab|·|bc|·|ca|)` in the XZ plane. Positive is a right turn, matching `TrackSegment.TurnDirection` (+1 = right). No trig approximation is used at runtime.
+7. **Speed profile**: initial corner limit `v = sqrt(a_lat / |κ|)` clamped to `[MinSpeed, MaxSpeed]`, then a forward acceleration pass and a backward braking pass over the segment graph (two passes each for loops). This prevents a car from "arriving too fast" into a corner it could not brake for.
+8. **Racing line**: `offset = sign(κ) · min(maxOffset, halfWidth · strength) · clamp01(|κ| · referenceRadius)` — toward the inside of the turn, clamped inside the road. Per-opponent lane bias is applied later at sample time, so the grid shares one path.
+
+`TrackPathBuildSettings.Default` is an **engineering envelope, not approved race balance**: 2.0 m spacing, 58 m/s ceiling, 5 m/s floor, 14 m/s² lateral, 7/14 m/s² forward/braking, 0.5 half-width racing strength saturated at 40 m radius, 1.2 m edge margin. Stage 2/3 may tune it; changing the grid, physics model, or rubber-band bounds outside D-060/D-061 requires a new decision.
+
+### 49.3 Sampling API and the 0 B/frame contract
+
+- `TrackPath.IndexForDistance(distance)` — O(log n) binary search; never allocates.
+- `TrackPath.SampleAtDistance(distance, lateralBias)` — normalizes/wraps the distance, interpolates center, tangent, curvature, speed, and racing offset, applies and clamps the lateral bias, and returns `PathSample` by value.
+- `TrackPathCursor` — a struct holding a path reference, index, and distance. `Reset`, `Advance` (monotonic, wraps for loops, clamps for open paths), `TrySample`, and `TrySampleAhead` (steering lookahead without moving the cursor) allocate nothing.
+- `TrackPath.WaypointAt(index)` — inspection/test helper; wraps indices for loops.
+
+**Banned in this namespace and in all future AI code:** LINQ, `foreach` over `List<T>` in hot paths, per-frame string formatting/logging, closures/lambdas in the fixed step, per-frame `GetComponent`/`Find*`, and allocating physics queries. Generation allocates only inside `Create` and retains seven value arrays; it is a documented load-time cost, analogous to `BuildCenterline`.
+
+### 49.4 Closed-loop and reverse behavior
+
+- **Closed loop:** total length includes the closing segment; `NormalizeDistance` wraps; cursor advance wraps; sampling across the seam interpolates from the last waypoint to the first; the speed profile traverses the seam. A closed layout is validated by `TrackLayout` (sampled gap ≤ 2 m) before generation.
+- **Open path:** sampling and cursor advance clamp at both ends; the final waypoint is returned exactly at `TotalLength`.
+- **Reverse:** generated from the same asset with `EnvironmentLayoutVariant.Reverse`; distances are recomputed from the new start and the geometry is the same physical track in reverse order. No second path asset exists.
+
+### 49.5 Validation evidence and non-goals
+
+**EditMode `TrackPathTests`: 22 tests.** Coverage: waypoint ordering/spacing; zero curvature and maximum speed on straights; right/left curvature sign and magnitude at a 20 m arc; racing-line direction and road bounds; lateral-bias clamping; tight-corner deceleration; speed-envelope bounds; open-path clamping; closed-loop duplicate collapse, sampling wrap, and cursor wrap; reverse order/length; exact determinism across two builds; null layout and invalid settings; all **five authored environments in both signature and reverse** configurations; on-road sampling; and a **0 B** allocation assertion over 5,000 cursor/sample iterations after warm-up.
+
+**Suites:** batch compile **0 errors / 0 warnings**; EditMode **420/420** (398 baseline + 22); PlayMode **22/22**; 0 failed, 0 skipped.
+
+**Non-goals preserved in Stage 1:** no AI controller, input adapter, visual rig, grid spawn, race-position logic, standings, rubber-banding, scene change, build-profile change, asset generation, or `WheelCollider` work. Stage 2 begins only on explicit owner authorization. No AI performance budget is claimed; Stage 4 owns the AI matrix row in `PLAYGAMA_CONSTRAINTS.md` §5.
+
+### 49.6 Grid-size cost evidence (T-10.0.3, 2026-11-16)
+
+`Assets/Editor/VehicleCostProbe.cs` measured the ten committed rig prefabs (real structural data, no simulation):
+
+| Class | Vehicles | Renderers / draw calls | Triangles | Materials |
+|---|---|---:|---:|---:|
+| Starter | 2 | 15 | 452 | 6 |
+| Sport | 3 | 16 | 464 | 6 |
+| Drift | 2 | 17 | 476 | 6 |
+| Supercar | 3 | 18 | 488 | 6 |
+| **Worst** | — | **18** | **488** | **6** |
+
+Against the Phase-9 worst case (373 draw calls, 95,314 visible triangles), the headroom supports **7 additional cars by draw calls** (127 ÷ 18) and **173 by triangles**, so the approved **default 4 AI** and **cap 6 AI** pass with margin. At the 7-car cap, the 6 AI cars add 108 main-pass draw calls (373 → 481/500) and 2,928 triangles (95,314 → 98,242/180,000).
+
+**Shadow constraint:** AI cars must use blob/contact shadows rather than realtime shadow casting. Six realtime casters would add a second 108-draw pass and breach the 500 ceiling at the cap. This is an engineering constraint inside the existing budget, not a new design decision.

@@ -281,6 +281,8 @@ Each cycle loads and unloads all five environments once, in production order, th
 
 **Stage-4 verdict (T-9.15):** all five environments are inside the D-056/OQ-T08 per-environment gates in the simulated matrix; the real WebGL `Phase9Debug` build succeeded at **62.51 MB / 0 errors**. Real browser heap/FPS capture remains the outstanding OQ-P01 evidence and is **not** claimed here.
 
+**Phase-10 AI note — Stage-0 per-vehicle cost (T-10.0.3, 2026-11-16):** `VehicleCostProbe` measured the ten committed rig prefabs structurally (real data, not a browser run). Worst case is the Supercar rig at **18 renderers/draw calls, 488 triangles, 688 vertices, 6 materials, 18 shadow casters**; Starter is 15/452, Sport 16/464, Drift 17/476. Against the Phase-9 worst case (373/500 draw calls, 95,314/180,000 visible triangles), the headroom supports **7 additional cars by draw calls** and **173 by triangles**. The approved **5-car default (4 AI)** and **7-car cap (6 AI)** therefore pass: at the cap, 6 × 18 = 108 main-pass draws (373 → **481/500**) and 6 × 488 = 2,928 triangles (95,314 → **98,242/180,000**). **Constraint:** AI cars must use blob/contact shadows, not realtime shadow casting — six realtime casters would add a second 108-draw pass and breach 500. These values are structural prefab measurements; AI heap, frame-time, and in-browser draw calls remain **unmeasured** and are Stage-4 evidence (OQ-P01 still limits capture to a simulated matrix).
+
 ## 6. Submission checklist
 
 - [ ] Bridge integration completed against the current SDK and official documentation.
