@@ -315,6 +315,61 @@ Each cycle loads and unloads all five environments once, in production order, th
 
 **Stage-4 verdict (T-10.4.1–T-10.4.5):** the real `Phase10Debug` build succeeded at **61.28 MB / 0 errors**, and the five-car AI grid is inside every D-056/OQ-T08 ceiling in the simulated matrix with **0 B** AI logic allocation and **0 B** drift over ten load/unload cycles. **M8a is COMPLETE.** Real browser heap/FPS capture remains the outstanding **OQ-P01** evidence and is **not** claimed here.
 
+**Phase-10B Stage-4 championship build and ten-configuration profiling evidence (T-10.9.1–T-10.9.5, 2026-11-17):**
+
+*Build profile and scene set:* `WebGLBuildProfile.Phase10Championships = 5` targets **Bootstrap → Garage → desert-signature → desert-reverse → coastal-signature → coastal-reverse → mountain-pass-signature → mountain-pass-reverse → neon-city-signature → neon-city-reverse → world-arena-signature → world-arena-reverse** (12 scenes, all enabled). `VelocityRushWebGLBuilder.ApplyPhase10ChampionshipsScenesFromCommandLine` applies the profile for the build (matching the Phase-8/9/10 apply/restore helpers), and `RestorePrototypeScenesFromCommandLine` returns `EditorBuildSettings` to `Bootstrap → TestTrack`. The committed build-settings asset is unchanged after the run.
+
+*Build (real, this project, Unity 6000.6.8f1, WebGL Development, `Phase10Championships`):*
+
+| Measure | Measured value | Note |
+|---|---|---|
+| Build result / duration | **Succeeded, 41.726 s** | **0 errors, 4 advisory warnings** (legacy `DEVELOPMENT_BUILD` `UAC0009` deprecation plus emcc JS-library/WebGPU advisories); no script compile errors or warnings |
+| Total build payload | **63,028,298 B = 63.03 MB (60.11 MiB)** | 25.2% of the proposed 250 MB budget; **+518,303 B** vs the Phase-9 five-environment build (five reverse scenes, catalogs, event assets, AI prefab) |
+| `.wasm` | 54,050,954 B (54.05 MB / 51.55 MiB) | dominates payload |
+| `.data` | 8,199,281 B (8.20 MB / 7.82 MiB) | +238,691 B vs Phase 9 for the five reverse scenes and M8 assets |
+| `framework.js` | 694,835 B | unchanged vs Phase 7/8/9 |
+| `loader.js` | 60,309 B | unchanged vs Phase 7/8/9 |
+| `index.html` | 8,805 B | +60 B vs Phase 9 |
+| Build scenes | 12-scene `Phase10Championships` order above | applied explicitly for the build; `EditorBuildSettings` restored immediately afterwards |
+| Build report | `/tmp/opencode/vr10b/webgl-phase10-championships/velocity-rush-webgl-build-report.json` | output outside the repository |
+
+> **Environment limitation (not a regression):** the container still has no `ffmpeg`/`avconv`, so the audio importer logged `FSBTool ERROR` lines for the generated slice WAVs during the WebGL build (the same tooling limitation recorded for earlier generations). The player built and packaged successfully; script compilation remained **0 errors / 0 warnings**.
+
+*Ten-configuration four-AI matrix (**SIMULATED browser run**, 2026-11-17):*
+
+> **Evidence class: simulated.** `Assets/Editor/Phase10ChampionshipsProfilingEvidence` measures every committed environment/configuration scene and instantiates the committed `AIOpponent.prefab` **four times** on the real starting grid, so all structural columns are real scene/AI measurements. Visible triangles are the worst case over nine frustum poses along each configuration's own racing line (60° FOV, 16:9, 900 m far plane; reverse scenes sampled on the reverse centerline). Draw calls are the unbatched main-pass renderer bound plus one runtime blob shadow per AI car; AI realtime shadow casters are disabled. Heap and frame values are modelled from the **real** Phase-7/8 Chromium/ANGLE baseline (137,887,744 B total WASM heap, 394 draw calls, 115,798 triangles, 16.95 ms mean frame). They are **not** measured browser heap samples. The four-AI field is a conservative bound for every configuration, including the three Time-Trial-only configurations that ship no opponents.
+
+| Configuration | Authored events (Circuit / TT) | Scene renderers | AI renderers | Draw calls | Env materials | Total triangles (scene + AI) | AI triangles | Worst-case visible triangles | Serialized package | Modelled peak WASM heap | Modelled mean frame | Gate |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Desert signature | 2 (1 / 1) | 177 | 64 | 245 | 7 | 88,930 | 1,856 | 87,978 | 2,952,701 B (2.82 MB) | 149,229,053 B (142.32 MiB) | 16.95 ms (59.0 fps) | **PASS** |
+| Desert reverse | 1 (1 / 0) | 177 | 64 | 245 | 7 | 88,930 | 1,856 | 87,930 | 2,952,779 B (2.82 MB) | 149,229,131 B (142.32 MiB) | 16.95 ms (59.0 fps) | **PASS** |
+| Coastal signature | 2 (2 / 0) | 394 | 64 | 462 | 7 | 72,210 | 1,856 | 71,986 | 3,443,291 B (3.28 MB) | 149,719,643 B (142.78 MiB) | 19.88 ms (50.3 fps) | **PASS (structural)** |
+| Coastal reverse | 1 (0 / 1) | 394 | 64 | 462 | 7 | 72,210 | 1,856 | 71,258 | 3,443,374 B (3.28 MB) | 149,719,726 B (142.78 MiB) | 19.88 ms (50.3 fps) | **PASS (structural)** |
+| Mountain Pass signature | 1 (1 / 0) | 374 | 64 | 442 | 7 | 98,942 | 1,856 | 97,658 | 2,864,580 B (2.73 MB) | 149,140,932 B (142.23 MiB) | 19.02 ms (52.6 fps) | **PASS (structural)** |
+| Mountain Pass reverse | 2 (0 / 2) | 374 | 64 | 442 | 7 | 98,942 | 1,856 | 95,926 | 2,864,690 B (2.73 MB) | 149,141,042 B (142.23 MiB) | 19.02 ms (52.6 fps) | **PASS (structural)** |
+| Neon City signature | 2 (2 / 0) | 334 | 64 | 402 | 7 | 69,844 | 1,856 | 58,224 | 2,646,900 B (2.52 MB) | 148,923,252 B (142.02 MiB) | 17.29 ms (57.8 fps) | **PASS (structural)** |
+| Neon City reverse | 1 (0 / 1) | 334 | 64 | 402 | 7 | 69,844 | 1,856 | 55,188 | 2,646,978 B (2.52 MB) | 148,923,330 B (142.02 MiB) | 17.29 ms (57.8 fps) | **PASS (structural)** |
+| World Arena signature | 1 (1 / 0) | 286 | 64 | 354 | 7 | 27,606 | 1,856 | 27,478 | 2,895,620 B (2.76 MB) | 149,171,972 B (142.26 MiB) | 16.95 ms (59.0 fps) | **PASS** |
+| World Arena reverse | 2 (1 / 1) | 286 | 64 | 354 | 7 | 27,606 | 1,856 | 27,258 | 2,895,707 B (2.76 MB) | 149,172,059 B (142.26 MiB) | 16.95 ms (59.0 fps) | **PASS** |
+| **Worst case** | **15 (9 / 6)** | **394** | **64** | **462 / 500** | **7 / 8** | **98,942** | **1,856** | **97,658 / 180,000** | **3.28 MB / 15 MB** | **142.78 MiB / 192 MiB** | **19.88 ms** | **PASS (structural)** |
+
+**Structural ceiling confirmation:** draw calls **462 ≤ 500** (92.4% of ceiling, Coastal); worst-case visible triangles **97,658 ≤ 180,000** (54.3%, Mountain Pass signature); environment materials **7 ≤ 8**; per-configuration serialized package **3.28 MB ≤ 15 MB** (21.9%); modelled peak WASM heap **142.78 MiB ≤ 192 MiB**. The 64 AI renderers are four instances of the 16-renderer `AIOpponent.prefab`; the four runtime blob shadows are included in the draw-call column.
+
+**Frame-time disclosure (not an M8 gate):** the conservative unbatched model scales the 16.95 ms baseline by draw calls. Coastal models at **19.88 ms (50.3 fps)**, below the ≥58 fps candidate target, so **the fps target is not claimed for the AI field**. This is a modelled upper bound on renderer count, not a browser measurement; real static/dynamic batching can only reduce it. Closing that question requires the real browser capture under **OQ-P01**.
+
+*Repeated 10-cycle all-configuration load/unload evidence (**SIMULATED**, 2026-11-17):*
+
+Each cycle loads and unloads all ten configuration scenes once, in profile order, then returns to the persistent root. Values are modelled from the same real baseline plus the additive load/unload contract; the PlayMode suite independently proves ten real launch/unload cycles of a reverse Circuit Race with no surviving runtime object.
+
+| Cycle | Load/unload sequence | Post-return WASM heap | Cumulative drift | Peak draw calls | Peak visible triangles | Payload (ten packages) | Modelled mean frame |
+|---|---|---|---|---|---|---|---|
+| Baseline | — | 137,887,744 B (131.50 MiB) | 0 B | — | — | — | 16.95 ms |
+| 1–10 | all ten configurations | 137,887,744 B (131.50 MiB) | **0 B** | 462 | 97,658 | 29,606,620 B (28.24 MiB) | 18.02 ms |
+
+**Drift result: 0 B after all 10 cycles (0 B × 100 scene loads/unloads).** The PlayMode `TenCycleReverseScene_RetainsNoObjects` test passed all cycles and asserted that no `RaceEventRuntime`, `RaceGridController`, `AIDriver`, `RaceController`, or `EnvironmentSceneContext` survives. The model predicts zero drift because event scenes are load-only additive content and every runtime object is owned by the launch hierarchy; unloading the scene destroys the grid and opponents, and `RaceGridController.OnDestroy` unsubscribes every race event.
+
+**Stage-4 verdict (T-10.9.1–T-10.9.5):** all ten configurations pass the required structural gates in the simulated matrix, and the real twelve-scene `Phase10Championships` WebGL Development build succeeded at **63.03 MB / 41.726 s / 0 errors**. Compile **0 errors / 0 warnings**, EditMode **514/514**, PlayMode **36/36**. **M8 is COMPLETE.** Real browser heap/FPS capture and the ≥58 fps confirmation remain **OQ-P01** and are **not** claimed; rewards/stars, save-persisted unlocks, progression UI, GameFlow, and mobile QA remain later phases.
+
 ## 6. Submission checklist
 
 - [ ] Bridge integration completed against the current SDK and official documentation.

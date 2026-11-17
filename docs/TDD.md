@@ -1773,3 +1773,51 @@ Totals are **3 championships / 15 events / 9 Circuit Races / 6 Time Trials / 3 e
 **Evidence (2026-11-17):** compile **0 errors / 0 warnings**; EditMode **514/514** (509 + 5); PlayMode **36/36** (32 + 4); 0 failed / 0 skipped / 0 inconclusive. Batch validator **EXIT 0** (`isValid: true`, 3/15/9/6/10 configurations); batch readiness **EXIT 0** (10 event scenes verified); launcher CLI **EXIT 0** resolving `c2-apex-challenger-round-1` → `desert-reverse.unity`, Reverse/Circuit Race, 4 opponents, 713.7 m.
 
 **Non-goals preserved:** no committed signature scene or generated asset was edited; no player-physics, AI-behavior, `RaceResult`, reward, save, or progression-UI change; no Stage-4 profiling evidence and no M8 completion claim.
+
+## 52. Phase 10B Stage 4 — M8 closure, ten-configuration profiling and championship build (2026-11-17)
+
+### 52.1 Why the matrix must cover all ten configurations
+
+Stage 3 authored fifteen events over ten environment/configuration pairs. A single Desert AI row would not prove that the Coastal, Mountain Pass, Neon City, or World Arena scenes stay inside the draw-call and triangle ceilings once the four runtime opponents are added. `Phase10ChampionshipsProfilingEvidence` therefore measures every committed scene, not a representative subset. The four-AI field is applied to each configuration as a conservative bound. Three configurations (`coastal-reverse`, `mountain-pass-reverse`, `neon-city-reverse`) contain only Time Trials and ship **zero** opponents; their rows still include four AI so the matrix bounds the worst case rather than only the shipped case. The authored event counts per configuration are reported in the same row.
+
+### 52.2 Measurement contract
+
+For each configuration the tool:
+
+1. Opens `Assets/Scenes/Environments/<theme>-<variant>.unity` in single mode and resolves `EnvironmentSceneContext`/`TrackLayout`.
+2. Collects every renderer and material in the scene, splitting environment-root materials from the total.
+3. Generates the configuration's `TrackPath` (`TrackPath.Create(layout, variant)`) and computes the real five-car starting grid through `RaceGridLayout.TryCreate` at `EventLaunchPlanBuilder.DefaultStartLineDistance = 20 m`.
+4. Instantiates the committed `Assets/Prefabs/Events/AIOpponent.prefab` four times at the four AI grid slots, collects their renderers/materials/triangles, and includes them in the frustum measurement.
+5. Runs `Phase9ProfilingEvidence.MeasureVisibleGeometry(layout, variant, …)` over the combined renderer set at nine racing-line poses. The Stage-3 signature call path is preserved by an overload defaulting to `Signature`, so Phase-9 evidence is unchanged.
+6. Records scene bytes, the generated environment folder, the environment data folder, the configuration scene, and the AI prefab as the serialized package; models peak heap as baseline + package + 8 MB runtime overhead; models frame time as `16.95 ms × max(1, drawCalls/394, visibleTriangles/115,798)`.
+7. Writes a UTF-8 JSON report (`-vrPhase10ChampionshipsEvidence <path>` or `VR_PHASE10_CHAMPIONSHIPS_EVIDENCE`) and exits **1** on any structural gate failure.
+
+Draw calls are the unbatched main-pass renderer count plus one blob shadow per AI car. The AI prefab is 16 renderers; four cars add 64 renderers and four blob shadows. Every AI realtime shadow caster is disabled, so no shadow pass is modelled. Blob-shadow quads are not added to the triangle column (8 triangles maximum), matching the M8a matrix convention.
+
+### 52.3 Championship build profile and CLI
+
+`WebGLBuildProfile.Phase10Championships = 5` is the twelve-scene production order: `Bootstrap`, `Garage`, then each theme's signature and reverse scene in `desert → coastal → mountain-pass → neon-city → world-arena` order. The builder is deliberately non-mutating during preflight and requires `EditorBuildSettings` to match the selected profile exactly. Stage 4 adds `VelocityRushWebGLBuilder.ApplyPhase10ChampionshipsScenesFromCommandLine`, completing the apply/restore helper family (`Phase8Debug`, `Phase9Debug`, `Phase10Debug`, `Phase10Championships`, `Prototype`). The batch flow is:
+
+1. `ApplyPhase10ChampionshipsScenesFromCommandLine` — writes the twelve scenes.
+2. `BuildFromCommandLine -vrProfile phase10championships -vrOutput <outside-project-folder>` — builds the WebGL Development player and writes the JSON build report.
+3. `RestorePrototypeScenesFromCommandLine` — restores `Bootstrap → TestTrack`.
+
+The committed `ProjectSettings/EditorBuildSettings.asset` is unchanged after the full flow.
+
+### 52.4 Measured results
+
+*Build:* **63,028,298 B (63.03 MB / 60.11 MiB)**, **41.726 s**, **0 errors**, **4 advisory warnings**; `.wasm` 54,050,954 B, `.data` 8,199,281 B, `framework.js` 694,835 B, `loader.js` 60,309 B, `index.html` 8,805 B. This is **+518,303 B** over the Phase-9 five-environment build and **25.2%** of the 250 MB candidate ceiling.
+
+*Ten-configuration matrix (simulated browser run):* worst case **462/500 draw calls** (Coastal), **97,658/180,000 visible triangles** (Mountain Pass signature), **7/8 environment materials**, **3.28 MB/15 MB** serialized package, and **142.78 MiB/192 MiB** modelled peak heap. Per-configuration values are in `docs/PLAYGAMA_CONSTRAINTS.md` §5. The ten-cycle model returns to **137,887,744 B** after every cycle with **0 B** cumulative drift.
+
+*Frame-time disclosure:* the conservative unbatched model yields **19.88 ms (50.3 fps)** on Coastal and **19.02 ms (52.6 fps)** on Mountain Pass, below the ≥58 fps candidate target. The fps target is therefore **not claimed** for the AI field; it remains a real-browser question under OQ-P01, where static batching may reduce the actual draw count. The structural gates required for Stage 4 (draw calls, triangles, materials, data, drift) all pass.
+
+### 52.5 Regression and closure evidence
+
+- Batch compile: **0 errors / 0 warnings**.
+- EditMode: **514/514**, 0 failed, 0 skipped, 0 inconclusive.
+- PlayMode: **36/36**, 0 failed, 0 skipped, 0 inconclusive.
+- Real build: `Phase10Championships`, succeeded, 0 errors.
+- No test was weakened or skipped; no new `.md` file was created.
+
+**M8 closure:** all three M8 criteria are evidenced — 3 approved championships, 15 approved events across all 10 configurations, and the linear unlock chain. **Milestone M8 — Championship & Event Content Complete** is marked complete. Rewards/stars, save-persisted unlocks, progression UI, and GameFlow remain outside M8, and real browser heap/FPS capture remains **OQ-P01** and is not claimed.

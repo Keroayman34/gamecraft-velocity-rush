@@ -313,9 +313,30 @@ namespace VelocityRush.EditorTools
             out long visibleTriangles,
             out int visibleRenderers)
         {
+            MeasureVisibleGeometry(
+                layout,
+                EnvironmentLayoutVariant.Signature,
+                renderers,
+                rendererTriangles,
+                out visibleTriangles,
+                out visibleRenderers);
+        }
+
+        /// <summary>
+        /// Variant-aware overload used by the Phase-10B matrix, where reverse scenes must be
+        /// sampled along their own reversed racing line.
+        /// </summary>
+        internal static void MeasureVisibleGeometry(
+            TrackLayout layout,
+            EnvironmentLayoutVariant variant,
+            Renderer[] renderers,
+            long[] rendererTriangles,
+            out long visibleTriangles,
+            out int visibleRenderers)
+        {
             visibleTriangles = 0L;
             visibleRenderers = 0;
-            var centerline = layout.BuildCenterline();
+            var centerline = layout.BuildCenterline(layout.SampleSpacing, variant);
             if (centerline == null || centerline.Length < 2)
             {
                 return;

@@ -539,6 +539,16 @@ namespace VelocityRush.EditorTools
             EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// Batch helper: applies the Phase-10B championship scene set
+        /// (Bootstrap + Garage + ten environment/configuration scenes).
+        /// </summary>
+        public static void ApplyPhase10ChampionshipsScenesFromCommandLine()
+        {
+            ApplySceneSet(WebGLBuildProfile.Phase10Championships, string.Empty, string.Empty);
+            EditorApplication.Exit(0);
+        }
+
         /// <summary>Batch helper: restores the prototype scene set (Bootstrap → TestTrack).</summary>
         public static void RestorePrototypeScenesFromCommandLine()
         {
