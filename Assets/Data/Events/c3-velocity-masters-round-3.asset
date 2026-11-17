@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0192ddf139a34ebae89b54090be8e664, type: 3}
+  m_Name: c3-velocity-masters-round-3
+  m_EditorClassIdentifier: VelocityRush.Data::VelocityRush.Data.RaceEventDefinition
+  schemaVersion: 1
+  eventId: c3-velocity-masters-round-3
+  displayNameEn: Velocity Masters - Round 3
+  displayNameAr: "\u0623\u0633\u064A\u0627\u062F \u0627\u0644\u0633\u0631\u0639\u0629 - \u0627\u0644\u062C\u0648\u0644\u0629 3"
+  eventType: 1
+  environmentTheme: 2
+  layoutVariant: 1
+  championshipId: c3-velocity-masters
+  roundIndex: 3
+  opponentMode: 0
+  unlockPolicy: 1
+  paceScale: 1.03
+  description: M8 Time Trial on Mountain Pass (Reverse).

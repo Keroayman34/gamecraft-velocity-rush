@@ -1721,3 +1721,55 @@ Assertion style is intentional: every defect test also asserts that at least one
 Both non-zero exits are the correct current result: Stage 3 has not authored content. The gates are wired, proven, and fail closed. They are **not** passing gates, and this section does not claim M8 completion.
 
 **Non-goals preserved:** no championship/event assets, no derived reverse scenes, no event scenes, no selection/progression UI, no rewards/stars/vehicle unlocks, no save persistence, no change to committed signature scenes, no player-physics change, no AI-behavior change, and no `RaceResult` schema change.
+
+## 51. Phase 10B Stage 3 — Championship content, derived reverse scenes and runtime launch seam (2026-11-17)
+
+### 51.1 Reverse scenes are derived copies, not regenerated tracks
+
+`EnvironmentSceneBuilder` now takes a configuration parameter:
+
+- `Build(definition)` and `BuildSignature(definition, overwrite)` keep the Stage-9 behavior and the committed `EnvironmentId + ".unity"` path.
+- `BuildReverse(definition, overwrite)` opens the **committed** signature scene, saves it immediately to `<theme>-reverse.unity`, then re-orients only scene transforms onto the reverse centerline sampled from the same `TrackLayout`.
+- `GetScenePath(definition, variant)` returns `desert-reverse.unity`, `coastal-reverse.unity`, `mountain-pass-reverse.unity`, `neon-city-reverse.unity`, and `world-arena-reverse.unity`, matching `ChampionshipBuildReadinessTool.GetEventScenePath`.
+
+The derivation re-orients the spawn pose, the camera pose, `SpawnPoint`, `Start Line`, the three ordered `CheckpointTrigger` gates, and the `FinishTrigger`/`Finish Line`. Gate **i** is placed at reverse-path distance `EnvironmentRaceRules.GetCheckpointDistance(layout, i)`; the finish is placed at `GetFinishDistance(layout)`. Because the reverse centerline is the signature centerline traversed from the far end, this is the same physical location as forward distance `totalLength - d`, and `TrackPath.ProjectDistance` on the reverse path returns the expected increasing gate distances.
+
+The builder deliberately does **not** call `EnvironmentKit.BuildTrack(..., EnvironmentLayoutVariant.Reverse)`: generated mesh/material asset paths are keyed by environment id, so that call would overwrite the reviewed signature assets. Meshes and materials are shared by reference in the derived copy, which is both cheaper and the only way to honor D-064's "signature scenes remain untouched" rule mechanically. The full audit (`EnvironmentSceneBuilder.AuditScene(scene, definition, variant)`) runs on reverse scenes exactly as it does on signature scenes, so missing scripts, missing references, wrong camera/light counts, and invalid gate ordering fail the build.
+
+### 51.2 Authored matrix and catalogs
+
+`ChampionshipContentBuilder` authors the approved matrix deterministically:
+
+| Championship | Rounds (theme / configuration / type) |
+|---|---|
+| C1 Ignition Series (0.90) | Desert Signature Time Trial · Coastal Signature Circuit · Mountain Pass Reverse Time Trial · Neon City Signature Circuit · World Arena Reverse Circuit |
+| C2 Apex Challenger (0.97) | Desert Reverse Circuit · Coastal Reverse Time Trial · Mountain Pass Signature Circuit · Neon City Reverse Time Trial · World Arena Signature Circuit |
+| C3 Velocity Masters (1.03) | Desert Signature Circuit · Coastal Signature Circuit · Mountain Pass Reverse Time Trial · Neon City Signature Circuit · World Arena Reverse Time Trial |
+
+Totals are **3 championships / 15 events / 9 Circuit Races / 6 Time Trials / 3 events per environment / 10 configurations**. The builder is idempotent: existing assets are reconfigured in place so a rebuild cannot fork ids. It then validates the complete catalog through `ChampionshipCatalogValidator.ValidateCompleteCatalog` and the build-readiness gate before reporting success.
+
+`EventCatalog` (`Assets/Scripts/Data/EventCatalog.cs`) is a reference-only runtime seam with ordinal `FindById`, per-championship round copying, and validation of count, null entries, unique ids, and unique `(championship, round)` pairs. The authored catalogs live in `Assets/Scenes/ChampionshipCatalog.unity`; no runtime system duplicates definition data.
+
+### 51.3 `EventLaunchPlan` and `RaceEventRuntime`
+
+`EventLaunchPlanBuilder.TryBuild(eventId, eventCatalog, championshipCatalog, environmentCatalog, [gridSettings], out plan, out error)` resolves the event, championship, environment, and `TrackPath` for the event's `LayoutVariant`, rejects pace/ownership/variant drift, and exposes `BuildGateDistances(layout)` (three checkpoints followed by the finish) plus `DefaultStartLineDistance = 20 m`.
+
+`RaceEventRuntime` is the runtime seam:
+
+- It can resolve from serialized catalogs + event id, from `SelectionContext.SelectedEventId`, or from an explicit plan supplied by a test/launcher.
+- `TryVerifyGateOrder` projects the loaded scene's gates onto the plan path and requires checkpoint 0 < 1 < 2 < finish. This is the reverse-direction proof: a reverse scene whose gates were not re-oriented fails here.
+- `Solo` creates no opponents and no grid. `Grid` instantiates exactly **four** opponents from `Assets/Prefabs/Events/AIOpponent.prefab` (the committed Sport rig with `VehicleController` disabled and `AIDriver`/`AIVisualRig`/`AIVehicleInput` attached), creates a `RaceGridController`, and feeds it the plan path, gate distances, start line, and grid envelope. A Time Trial cannot be launched in Grid mode.
+- The runtime owns only transient objects under its own hierarchy; destroying it (or unloading the scene) destroys the grid and opponents. `RaceGridController.OnDestroy` unsubscribes every race event.
+
+### 51.4 Development launcher
+
+`ChampionshipRaceLauncher` adds an editor menu window listing all fifteen events grouped by championship, plus a batch entry point. The window opens the resolved event scene, creates a transient `RaceEventRuntime`, configures it with catalog probes built from the authored asset folders, writes the complete selection to `SelectionContext`, and enters Play Mode without saving the scene. Batch mode resolves the event through the same catalogs, verifies the scene asset exists, writes a `schemaVersion 1.0` JSON report, and exits non-zero on failure. Probe catalogs are transient editor objects (`HideAndDontSave`); the committed catalog scene remains the authoring source of truth.
+
+### 51.5 Test evidence
+
+- `Assets/Tests/EditMode/ChampionshipContentEditModeTests.cs` (5 tests): authored catalog validity and exact coverage; reverse/signature paths match the `Phase10Championships` profile; all five reverse scenes audit cleanly with increasing reverse gate order; all five signature scenes still audit cleanly with increasing forward gate order; all fifteen events resolve to launchable plans with the correct variant and opponent count, and gate distances are strictly increasing.
+- `Assets/Tests/PlayMode/ChampionshipEventPlayModeTests.cs` (4 tests): every authored event launches in its scene with the expected mode and gate order; a reverse Grid Circuit Race finishes after ordered checkpoints; a reverse Solo Time Trial finishes after ordered checkpoints; a reverse Circuit Race scene survives ten load/launch/unload cycles with **no retained** runtime, grid, AI driver, race controller, or environment context.
+
+**Evidence (2026-11-17):** compile **0 errors / 0 warnings**; EditMode **514/514** (509 + 5); PlayMode **36/36** (32 + 4); 0 failed / 0 skipped / 0 inconclusive. Batch validator **EXIT 0** (`isValid: true`, 3/15/9/6/10 configurations); batch readiness **EXIT 0** (10 event scenes verified); launcher CLI **EXIT 0** resolving `c2-apex-challenger-round-1` → `desert-reverse.unity`, Reverse/Circuit Race, 4 opponents, 713.7 m.
+
+**Non-goals preserved:** no committed signature scene or generated asset was edited; no player-physics, AI-behavior, `RaceResult`, reward, save, or progression-UI change; no Stage-4 profiling evidence and no M8 completion claim.

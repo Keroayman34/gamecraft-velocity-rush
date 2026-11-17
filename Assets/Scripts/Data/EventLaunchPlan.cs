@@ -117,21 +117,47 @@ namespace VelocityRush.Data
     /// </summary>
     public static class EventLaunchPlanBuilder
     {
+        /// <summary>Default path distance of the starting line used by the approved grid.</summary>
+        public const float DefaultStartLineDistance = 20f;
+
         /// <summary>Approved M8 pace scales by championship order.</summary>
         private static readonly float[] PaceScales = { 0.90f, 0.97f, 1.03f };
+
+        /// <summary>
+        /// Resolves and builds a complete launch plan using the approved default grid envelope.
+        /// </summary>
+        public static bool TryBuild(
+            string eventId,
+            EventCatalog eventCatalog,
+            ChampionshipCatalog championshipCatalog,
+            EnvironmentCatalog environmentCatalog,
+            out EventLaunchPlan plan,
+            out string error)
+        {
+            return TryBuild(
+                eventId,
+                eventCatalog,
+                championshipCatalog,
+                environmentCatalog,
+                RaceGridSettings.Default,
+                out plan,
+                out error);
+        }
 
         /// <summary>
         /// Resolves and builds a complete launch plan for the given event id.
         /// </summary>
         /// <param name="eventId">Stable id of the event to launch.</param>
+        /// <param name="eventCatalog">Catalog containing the fifteen authored events.</param>
         /// <param name="championshipCatalog">Championship catalog containing the parent championship.</param>
         /// <param name="environmentCatalog">Environment catalog for resolving the environment.</param>
-        /// <param name="gridSettings">Optional grid envelope (uses Default when null).</param>
+        /// <param name="gridSettings">Grid envelope; must be valid.</param>
         /// <param name="plan">Output launch plan on success.</param>
         /// <param name="error">First validation problem on failure.</param>
         /// <returns>True when the plan was successfully built.</returns>
         public static bool TryBuild(
             string eventId,
+            EventCatalog eventCatalog,
             ChampionshipCatalog championshipCatalog,
             EnvironmentCatalog environmentCatalog,
             RaceGridSettings gridSettings,
@@ -141,8 +167,18 @@ namespace VelocityRush.Data
             plan = null;
             error = null;
 
-            // Find the event definition - this would typically come from an event catalog
-            // For now we validate the championship and environment resolution
+            if (string.IsNullOrWhiteSpace(eventId))
+            {
+                error = "EventLaunchPlanBuilder: event id must not be empty.";
+                return false;
+            }
+
+            if (eventCatalog == null)
+            {
+                error = "EventLaunchPlanBuilder: EventCatalog is null.";
+                return false;
+            }
+
             if (championshipCatalog == null)
             {
                 error = "EventLaunchPlanBuilder: ChampionshipCatalog is null.";
@@ -155,10 +191,88 @@ namespace VelocityRush.Data
                 return false;
             }
 
-            // This builder expects the caller to have already resolved the definitions
-            // The actual EventCatalog will be added in a later task
-            error = "EventLaunchPlanBuilder: Full implementation requires EventCatalog (Phase 11). Use direct EventLaunchPlan constructor.";
-            return false;
+            var eventDefinition = eventCatalog.FindById(eventId);
+            if (eventDefinition == null)
+            {
+                error = $"EventLaunchPlanBuilder: event '{eventId}' is not present in the EventCatalog.";
+                return false;
+            }
+
+            if (!eventDefinition.TryValidate(out var eventError))
+            {
+                error = $"EventLaunchPlanBuilder: event '{eventId}' is invalid: {eventError}";
+                return false;
+            }
+
+            var championship = championshipCatalog.FindById(eventDefinition.ChampionshipId);
+            if (championship == null)
+            {
+                error = "EventLaunchPlanBuilder: event '" + eventId +
+                        "' references championship '" + eventDefinition.ChampionshipId +
+                        "' that is missing from the ChampionshipCatalog.";
+                return false;
+            }
+
+            if (Math.Abs(championship.PaceScale - eventDefinition.PaceScale) > 0.001f)
+            {
+                error = "EventLaunchPlanBuilder: event '" + eventId + "' pace scale " +
+                        eventDefinition.PaceScale + " does not match championship '" +
+                        championship.ChampionshipId + "' pace scale " + championship.PaceScale + ".";
+                return false;
+            }
+
+            if (!EnvironmentLayoutVariantRules.IsDefined(eventDefinition.LayoutVariant))
+            {
+                error = "EventLaunchPlanBuilder: event '" + eventId +
+                        "' has an undefined LayoutVariant.";
+                return false;
+            }
+
+            var environment = environmentCatalog.FindByTheme(eventDefinition.EnvironmentTheme);
+            if (environment == null)
+            {
+                error = "EventLaunchPlanBuilder: event '" + eventId +
+                        "' references environment theme '" +
+                        EnvironmentThemeRules.GetDisplayName(eventDefinition.EnvironmentTheme) +
+                        "' that is missing from the EnvironmentCatalog.";
+                return false;
+            }
+
+            TrackPath path;
+            try
+            {
+                path = GenerateTrackPath(environment, eventDefinition.LayoutVariant);
+            }
+            catch (Exception exception)
+            {
+                error = "EventLaunchPlanBuilder: could not generate the TrackPath for event '" +
+                        eventId + "': " + exception.Message;
+                return false;
+            }
+
+            var settings = gridSettings;
+            if (!settings.TryValidate(out var gridError))
+            {
+                error = "EventLaunchPlanBuilder: grid settings are invalid: " + gridError;
+                return false;
+            }
+
+            var candidate = new EventLaunchPlan(
+                eventDefinition,
+                environment,
+                championship,
+                path,
+                settings,
+                DefaultStartLineDistance);
+
+            if (!candidate.TryValidate(out var planError))
+            {
+                error = "EventLaunchPlanBuilder: " + planError;
+                return false;
+            }
+
+            plan = candidate;
+            return true;
         }
 
         /// <summary>
@@ -177,6 +291,28 @@ namespace VelocityRush.Data
                 environmentDefinition.TrackLayout,
                 variant,
                 TrackPathBuildSettings.Default);
+        }
+
+        /// <summary>
+        /// Path distances of the three approved checkpoints followed by the finish for an event
+        /// path. Distances are measured from the configuration start, so the same helper is
+        /// correct for both signature and reverse traversals.
+        /// </summary>
+        public static float[] BuildGateDistances(TrackLayout layout)
+        {
+            if (layout == null)
+            {
+                throw new ArgumentNullException(nameof(layout));
+            }
+
+            var gates = new float[EnvironmentRaceRules.CheckpointCount + 1];
+            for (var i = 0; i < EnvironmentRaceRules.CheckpointCount; i++)
+            {
+                gates[i] = EnvironmentRaceRules.GetCheckpointDistance(layout, i);
+            }
+
+            gates[gates.Length - 1] = EnvironmentRaceRules.GetFinishDistance(layout);
+            return gates;
         }
 
         /// <summary>

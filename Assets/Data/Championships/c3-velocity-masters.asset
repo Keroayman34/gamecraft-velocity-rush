@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d9e6d0e8aafaf9bcac3e8bffc541d9e, type: 3}
+  m_Name: c3-velocity-masters
+  m_EditorClassIdentifier: VelocityRush.Data::VelocityRush.Data.ChampionshipDefinition
+  schemaVersion: 1
+  championshipId: c3-velocity-masters
+  displayNameEn: Velocity Masters
+  displayNameAr: "\u0623\u0633\u064A\u0627\u062F \u0627\u0644\u0633\u0631\u0639\u0629"
+  difficultyNameEn: High
+  difficultyNameAr: "\u0639\u0627\u0644\u064A\u0629"
+  productionOrder: 3
+  paceScale: 1.03
+  unlockPolicy: 2
+  priorChampionship: {fileID: 11400000, guid: 63b98d78c4571c75ab56a47b90107c84, type: 2}
+  description: M8 championship 3 (c3-velocity-masters).

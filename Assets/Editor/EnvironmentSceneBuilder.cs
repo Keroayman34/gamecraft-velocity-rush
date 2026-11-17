@@ -250,8 +250,90 @@ namespace VelocityRush.EditorTools
             return reports;
         }
 
-        /// <summary>Builds and saves one environment scene from its definition.</summary>
+        /// <summary>
+        /// Batch entry point that derives every reverse configuration scene from its committed
+        /// signature scene (T-10.8.1). Exits 1 on any failure.
+        /// </summary>
+        public static void BuildReverseAllFromCommandLine()
+        {
+            try
+            {
+                var reports = BuildReverseAll();
+                Debug.Log(LogPrefix + "Derived " + reports.Count + " reverse environment scenes.");
+                EditorApplication.Exit(0);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError(LogPrefix + "Derive-all failed: " + exception);
+                EditorApplication.Exit(1);
+            }
+        }
+
+        /// <summary>
+        /// Derives the five reverse configuration scenes from the five committed signature scenes.
+        /// Signature scenes and their generated assets are read only (D-064).
+        /// </summary>
+        public static IReadOnlyList<EnvironmentBuildReport> BuildReverseAll()
+        {
+            var definitions = EnvironmentCatalogBuilder.LoadDefinitions();
+            var issues = new List<string>(EnvironmentCatalogRules.ValidateCatalog(definitions));
+            if (issues.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    "Environment catalog is not ready for reverse scene generation:\n" +
+                    string.Join("\n", issues));
+            }
+
+            var reports = new List<EnvironmentBuildReport>(definitions.Length);
+            for (var i = 0; i < definitions.Length; i++)
+            {
+                reports.Add(Build(definitions[i], EnvironmentLayoutVariant.Reverse, true));
+            }
+
+            return reports;
+        }
+
+        /// <summary>
+        /// Builds and saves one environment scene from its definition. The default entry point
+        /// always builds the approved <see cref="EnvironmentLayoutVariant.Signature"/> scene.
+        /// </summary>
         public static EnvironmentBuildReport Build(EnvironmentDefinition definition, bool overwrite)
+        {
+            return Build(definition, EnvironmentLayoutVariant.Signature, overwrite);
+        }
+
+        /// <summary>
+        /// Builds and saves one environment scene for the requested configuration (T-10.8.1).
+        /// </summary>
+        /// <remarks>
+        /// Signature builds regenerate the scene from its data definition exactly as before.
+        /// Reverse builds are <b>derived</b> from the committed signature scene: the signature
+        /// asset is opened, saved to <c>&lt;theme&gt;-reverse.unity</c>, and only the spawn pose,
+        /// camera pose, start/finish lines, and gate transforms are re-oriented along the reverse
+        /// centerline. Generated meshes and materials are shared and are never regenerated, so the
+        /// reviewed signature scene and its assets are untouched (D-064).
+        /// </remarks>
+        public static EnvironmentBuildReport Build(
+            EnvironmentDefinition definition,
+            EnvironmentLayoutVariant variant,
+            bool overwrite)
+        {
+            if (!EnvironmentLayoutVariantRules.IsDefined(variant))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(variant),
+                    variant,
+                    "Only Signature and Reverse are defined layouts.");
+            }
+
+            return variant == EnvironmentLayoutVariant.Reverse
+                ? BuildReverse(definition, overwrite)
+                : BuildSignature(definition, overwrite);
+        }
+
+        private static EnvironmentBuildReport BuildSignature(
+            EnvironmentDefinition definition,
+            bool overwrite)
         {
             ValidateDefinition(definition);
 
@@ -579,6 +661,174 @@ namespace VelocityRush.EditorTools
             return report;
         }
 
+        /// <summary>
+        /// Derives the reverse configuration scene from the committed signature scene (T-10.8.1,
+        /// D-064). The signature scene, its generated meshes, and its generated materials are read
+        /// only; every re-orientation happens in the saved copy.
+        /// </summary>
+        private static EnvironmentBuildReport BuildReverse(
+            EnvironmentDefinition definition,
+            bool overwrite)
+        {
+            ValidateDefinition(definition);
+
+            var sourcePath = GetScenePath(definition, EnvironmentLayoutVariant.Signature);
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(sourcePath) == null)
+            {
+                throw new InvalidOperationException(
+                    "Reverse scenes are derived from the committed signature scene, which is " +
+                    "missing: " + sourcePath);
+            }
+
+            var scenePath = GetScenePath(definition, EnvironmentLayoutVariant.Reverse);
+            if (!overwrite && AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath) != null)
+            {
+                throw new InvalidOperationException("Environment scene already exists: " + scenePath);
+            }
+
+            EnvironmentMaterialKit.EnsureFolder(ScenesFolder);
+
+            var scene = EditorSceneManager.OpenScene(sourcePath, OpenSceneMode.Single);
+
+            // The copy is written before any change so the source scene is never saved back.
+            if (!EditorSceneManager.SaveScene(scene, scenePath))
+            {
+                throw new InvalidOperationException("Failed to derive " + scenePath);
+            }
+
+            OrientForReverse(scene, definition);
+
+            var report = AuditScene(scene, definition, EnvironmentLayoutVariant.Reverse);
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            if (!EditorSceneManager.SaveScene(scene, scenePath))
+            {
+                throw new InvalidOperationException("Failed to save " + scenePath);
+            }
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Selection.activeObject = AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath);
+
+            Debug.Log(
+                LogPrefix + "Derived " + scenePath +
+                " | source=" + sourcePath +
+                " | theme=" + definition.Theme +
+                " | variant=Reverse" +
+                " | length=" + report.CenterlineLength.ToString("0.0") + " m" +
+                " | checkpoints=" + report.CheckpointCount +
+                " | missingScripts=" + report.MissingScriptCount +
+                " | missingReferences=" + report.MissingReferenceCount);
+
+            return report;
+        }
+
+        /// <summary>
+        /// Re-orients spawn, camera, start/finish lines, ordered gates, and the grid anchor of an
+        /// already-copied scene onto the reverse centerline. Only transforms change; wiring,
+        /// meshes, materials, and component references are preserved from the signature scene.
+        /// </summary>
+        private static void OrientForReverse(Scene scene, EnvironmentDefinition definition)
+        {
+            var layout = definition.TrackLayout;
+            var centerline = layout.BuildCenterline(
+                layout.SampleSpacing,
+                EnvironmentLayoutVariant.Reverse);
+            var roots = scene.GetRootGameObjects();
+
+            var spawnPosition =
+                layout.SampleAtDistance(centerline, 0f, out var spawnTangent) + (Vector3.up * 0.5f);
+            var spawnRotation = Quaternion.LookRotation(Flatten(spawnTangent), Vector3.up);
+
+            var vehicles = new List<VehicleController>();
+            Collect(roots, vehicles);
+            if (vehicles.Count != 1)
+            {
+                throw new InvalidOperationException(
+                    "Reverse derivation expects exactly one VehicleController (found " +
+                    vehicles.Count + ").");
+            }
+
+            var vehicle = vehicles[0];
+            vehicle.transform.SetPositionAndRotation(spawnPosition, spawnRotation);
+
+            var cameras = new List<VehicleCameraRig>();
+            Collect(roots, cameras);
+            if (cameras.Count != 1)
+            {
+                throw new InvalidOperationException(
+                    "Reverse derivation expects exactly one VehicleCameraRig (found " +
+                    cameras.Count + ").");
+            }
+
+            cameras[0].transform.SetPositionAndRotation(
+                spawnPosition - (Flatten(spawnTangent) * 7f) + (Vector3.up * 2.5f),
+                spawnRotation);
+
+            var spawnPoint = FindDescendant(roots, "SpawnPoint");
+            if (spawnPoint != null)
+            {
+                spawnPoint.SetPositionAndRotation(spawnPosition, spawnRotation);
+            }
+
+            var startLine = FindDescendant(roots, "Start Line");
+            if (startLine != null)
+            {
+                startLine.SetPositionAndRotation(
+                    spawnPosition - (Vector3.up * 0.5f),
+                    spawnRotation);
+            }
+
+            var checkpoints = new List<CheckpointTrigger>();
+            Collect(roots, checkpoints);
+            if (checkpoints.Count != EnvironmentRaceRules.CheckpointCount)
+            {
+                throw new InvalidOperationException(
+                    "Reverse derivation expects " + EnvironmentRaceRules.CheckpointCount +
+                    " checkpoint gates (found " + checkpoints.Count + ").");
+            }
+
+            for (var i = 0; i < checkpoints.Count; i++)
+            {
+                var index = checkpoints[i].Index;
+                if (index < 0 || index >= EnvironmentRaceRules.CheckpointCount)
+                {
+                    throw new InvalidOperationException(
+                        "Checkpoint gate has an out-of-range index " + index + ".");
+                }
+
+                var gatePosition = layout.SampleAtDistance(
+                    centerline,
+                    EnvironmentRaceRules.GetCheckpointDistance(layout, index),
+                    out var gateTangent);
+                checkpoints[i].transform.SetPositionAndRotation(
+                    gatePosition,
+                    Quaternion.LookRotation(Flatten(gateTangent), Vector3.up));
+            }
+
+            var finishes = new List<FinishTrigger>();
+            Collect(roots, finishes);
+            if (finishes.Count != 1)
+            {
+                throw new InvalidOperationException(
+                    "Reverse derivation expects exactly one FinishTrigger (found " +
+                    finishes.Count + ").");
+            }
+
+            var finishPosition = layout.SampleAtDistance(
+                centerline,
+                EnvironmentRaceRules.GetFinishDistance(layout),
+                out var finishTangent);
+            var finishRotation = Quaternion.LookRotation(Flatten(finishTangent), Vector3.up);
+            finishes[0].transform.SetPositionAndRotation(finishPosition, finishRotation);
+
+            var finishLine = FindDescendant(roots, "Finish Line");
+            if (finishLine != null)
+            {
+                finishLine.SetPositionAndRotation(finishPosition, finishRotation);
+            }
+        }
+
         /// <summary>Validates a definition before any asset or scene is created.</summary>
         public static void ValidateDefinition(EnvironmentDefinition definition)
         {
@@ -607,15 +857,35 @@ namespace VelocityRush.EditorTools
             }
         }
 
-        /// <summary>Project-relative scene path for a definition.</summary>
+        /// <summary>Project-relative signature scene path for a definition.</summary>
         public static string GetScenePath(EnvironmentDefinition definition)
+        {
+            return GetScenePath(definition, EnvironmentLayoutVariant.Signature);
+        }
+
+        /// <summary>Project-relative scene path for one environment/configuration pair.</summary>
+        public static string GetScenePath(
+            EnvironmentDefinition definition,
+            EnvironmentLayoutVariant variant)
         {
             if (definition == null)
             {
                 throw new ArgumentNullException(nameof(definition));
             }
 
-            return ScenesFolder + "/" + definition.EnvironmentId + ".unity";
+            if (variant != EnvironmentLayoutVariant.Reverse)
+            {
+                // Signature paths are the committed asset names and must never change.
+                return ScenesFolder + "/" + definition.EnvironmentId + ".unity";
+            }
+
+            const string signatureSuffix = "-signature";
+            var environmentId = definition.EnvironmentId;
+            var reverseId = environmentId.EndsWith(signatureSuffix, StringComparison.Ordinal)
+                ? environmentId.Substring(0, environmentId.Length - signatureSuffix.Length) +
+                  "-reverse"
+                : environmentId + "-reverse";
+            return ScenesFolder + "/" + reverseId + ".unity";
         }
 
         /// <summary>
@@ -627,7 +897,19 @@ namespace VelocityRush.EditorTools
             Scene scene,
             EnvironmentDefinition definition)
         {
-            return AuditRoots(scene.GetRootGameObjects(), definition, GetScenePath(definition));
+            return AuditScene(scene, definition, EnvironmentLayoutVariant.Signature);
+        }
+
+        /// <summary>Audits a generated scene for an explicit environment/configuration pair.</summary>
+        public static EnvironmentBuildReport AuditScene(
+            Scene scene,
+            EnvironmentDefinition definition,
+            EnvironmentLayoutVariant variant)
+        {
+            return AuditRoots(
+                scene.GetRootGameObjects(),
+                definition,
+                GetScenePath(definition, variant));
         }
 
         /// <summary>
@@ -1495,6 +1777,23 @@ namespace VelocityRush.EditorTools
             {
                 results.AddRange(roots[i].GetComponentsInChildren<T>(true));
             }
+        }
+
+        private static Transform FindDescendant(GameObject[] roots, string name)
+        {
+            for (var i = 0; i < roots.Length; i++)
+            {
+                var transforms = roots[i].GetComponentsInChildren<Transform>(true);
+                for (var j = 0; j < transforms.Length; j++)
+                {
+                    if (string.Equals(transforms[j].name, name, StringComparison.Ordinal))
+                    {
+                        return transforms[j];
+                    }
+                }
+            }
+
+            return null;
         }
 
         private static Transform FindTransform(GameObject[] roots, string path)

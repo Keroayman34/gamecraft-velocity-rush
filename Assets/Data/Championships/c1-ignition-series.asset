@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d9e6d0e8aafaf9bcac3e8bffc541d9e, type: 3}
+  m_Name: c1-ignition-series
+  m_EditorClassIdentifier: VelocityRush.Data::VelocityRush.Data.ChampionshipDefinition
+  schemaVersion: 1
+  championshipId: c1-ignition-series
+  displayNameEn: Ignition Series
+  displayNameAr: "\u0633\u0644\u0633\u0644\u0629 \u0627\u0644\u0627\u0646\u0637\u0644\u0627\u0642"
+  difficultyNameEn: Low
+  difficultyNameAr: "\u0645\u0646\u062E\u0641\u0636\u0629"
+  productionOrder: 1
+  paceScale: 0.9
+  unlockPolicy: 0
+  priorChampionship: {fileID: 0}
+  description: M8 championship 1 (c1-ignition-series).
