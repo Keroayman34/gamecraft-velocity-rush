@@ -212,6 +212,11 @@ namespace VelocityRush.Tests.PlayMode
 
             Assert.That(grid.IsHolding, Is.False,
                 "The grid must release automatically when the race rules reach GO.");
+            var playerBody = player.GetComponent<Rigidbody>();
+            Assert.That(playerBody.isKinematic, Is.False,
+                "GO must hand back a simulated player chassis, not a frozen one.");
+            Assert.That(player.enabled, Is.True,
+                "GO must re-enable the player controller so throttle reaches the drivetrain.");
             for (var i = 0; i < opponents.Length; i++)
             {
                 Assert.That(opponents[i].IsStartHeld, Is.False);
@@ -223,6 +228,97 @@ namespace VelocityRush.Tests.PlayMode
 
             Assert.That(opponents[0].DistanceTravelled, Is.GreaterThan(0f));
             Assert.That(opponents[1].DistanceTravelled, Is.GreaterThan(0f));
+
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator RaceGridController_ReleasesAStaleKinematicPlayerAtGo()
+        {
+            yield return LoadTestTrack();
+
+            var controller = FindSingle<RaceController>("RaceController");
+            var player = FindSingle<VehicleController>("VehicleController");
+            controller.Retry();
+
+            // An upstream system (a previous hold, a rig owner, or a second grid) froze the chassis
+            // before this grid took its hold. The grid's cached baseline must not re-apply that
+            // freeze on GO, or the controller would be enabled while the body never integrates.
+            var body = player.GetComponent<Rigidbody>();
+            body.isKinematic = true;
+
+            var path = CreateStraightPath(250f);
+            var gridObject = new GameObject("Race Grid Controller");
+            _objects.Add(gridObject);
+            var grid = gridObject.AddComponent<RaceGridController>();
+            var gates = new[] { 75f, 150f, 225f, 249f };
+
+            Assert.That(
+                grid.Initialize(path, controller, player, null, 60f, gates, RaceGridSettings.Default),
+                Is.True);
+
+            Assert.That(grid.IsHolding, Is.True);
+            Assert.That(body.isKinematic, Is.True);
+
+            grid.ReleaseStart();
+            yield return null;
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(grid.IsHolding, Is.False);
+            Assert.That(body.isKinematic, Is.False,
+                "The grid must hand back a simulated player chassis even if it was frozen before the hold.");
+            Assert.That(player.enabled, Is.True);
+
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator RaceGridController_ReleasesWhenTheRulesNeverLeaveCountdown()
+        {
+            // A RaceController that fails its Awake never ticks its rules, so it reports Countdown
+            // forever (the state a broken event scene produces). The grid must not hold the player
+            // disabled and kinematic for the whole session.
+            LogAssert.Expect(
+                LogType.Error,
+                "[VelocityRush.Race] No VehicleController assigned. Race controller disabled.");
+
+            var raceObject = new GameObject("Stalled Race");
+            _objects.Add(raceObject);
+            var stalled = raceObject.AddComponent<RaceController>();
+
+            LogAssert.Expect(
+                LogType.Error,
+                "[VelocityRush.Vehicle] No input source assigned; assign a MonoBehaviour implementing IVehicleInput. Vehicle controller disabled.");
+
+            var playerObject = new GameObject("Stalled Player");
+            _objects.Add(playerObject);
+            playerObject.AddComponent<Rigidbody>();
+            var player = playerObject.AddComponent<VehicleController>();
+            var body = playerObject.GetComponent<Rigidbody>();
+
+            var path = CreateStraightPath(250f);
+            var gridObject = new GameObject("Race Grid Controller");
+            _objects.Add(gridObject);
+            var grid = gridObject.AddComponent<RaceGridController>();
+            var gates = new[] { 75f, 150f, 225f, 249f };
+
+            Assert.That(
+                grid.Initialize(path, stalled, player, null, 60f, gates, RaceGridSettings.Default),
+                Is.True,
+                "The grid must initialize against a race adapter that failed to start.");
+            Assert.That(grid.IsHolding, Is.True);
+            Assert.That(stalled.State, Is.EqualTo(RaceState.Countdown));
+
+            var deadline = Time.realtimeSinceStartup + 6f;
+            while (grid.IsHolding && Time.realtimeSinceStartup < deadline)
+            {
+                yield return null;
+            }
+
+            Assert.That(grid.IsHolding, Is.False,
+                "A countdown that never completes must not hold the player forever.");
+            Assert.That(body.isKinematic, Is.False,
+                "The fail-safe release must also hand back a simulated chassis.");
 
             yield return null;
         }

@@ -21,8 +21,11 @@ namespace VelocityRush.Gameplay
     /// </para>
     /// <para>
     /// The player remains the only physics vehicle (D-059). The grid controller merely freezes its
-    /// chassis and disables the vehicle controller during the hold, then restores both on GO. AI
-    /// cars are held by <see cref="AIDriver.SetStartHold(bool)"/>.
+    /// chassis and disables the vehicle controller during the hold, then returns a simulated,
+    /// enabled player on release. Release is fail-safe: it happens on any non-<see cref="RaceState.Countdown"/>
+    /// state, on the explicit seam, or when the unpaused hold outlives the remaining countdown plus a
+    /// fixed margin, and it never re-applies a cached kinematic flag. AI cars are held by
+    /// <see cref="AIDriver.SetStartHold(bool)"/>.
     /// </para>
     /// <para>
     /// The HUD polls <see cref="CopyStandingsTo"/> or <see cref="TryGetStanding"/>; both are
@@ -52,6 +55,12 @@ namespace VelocityRush.Gameplay
         private readonly int[] _participantIndices = new int[RaceGridLayout.MaxParticipants];
         private readonly Rigidbody[] _participantBodies = new Rigidbody[RaceGridLayout.MaxParticipants];
 
+        /// <summary>
+        /// Extra unpaused seconds the grid tolerates a Countdown that never completes before it
+        /// releases the field. Normal runs release on GO well inside this margin.
+        /// </summary>
+        private const float HoldTimeoutMarginSeconds = 2f;
+
         private TrackPath _path;
         private RaceStandings _standings;
         private Rigidbody _playerBody;
@@ -60,6 +69,8 @@ namespace VelocityRush.Gameplay
         private bool _holding;
         private bool _playerWasKinematic;
         private bool _playerWasEnabled;
+        private float _holdElapsedSeconds;
+        private float _holdTimeoutSeconds;
 
         /// <summary>True after a successful grid initialization.</summary>
         public bool IsInitialized => _initialized;
@@ -270,9 +281,44 @@ namespace VelocityRush.Gameplay
 
         private void Update()
         {
-            if (_initialized && _holding && releaseWhenRaceRunning &&
-                race != null && race.State == RaceState.Running)
+            if (!_initialized || !_holding || !releaseWhenRaceRunning)
             {
+                return;
+            }
+
+            if (race == null)
+            {
+                Debug.LogWarning(
+                    LogPrefix + "The grid lost its race controller while holding; releasing the field.",
+                    this);
+                SetStartHold(false);
+                return;
+            }
+
+            // Any post-countdown state releases: comparing against Countdown (instead of Running)
+            // also hands back a race that reached Finished before the grid observed GO.
+            if (race.State != RaceState.Countdown)
+            {
+                SetStartHold(false);
+                return;
+            }
+
+            // Fail-safe: a rules core that never initializes reports Countdown forever. Without a
+            // bounded hold the player would stay disabled and kinematic for the whole session,
+            // which looks exactly like a car that revs but cannot move. Only unpaused time counts
+            // so a deliberate pause cannot trip the release.
+            if (!race.IsPaused)
+            {
+                _holdElapsedSeconds += Time.unscaledDeltaTime;
+            }
+
+            if (_holdElapsedSeconds >= _holdTimeoutSeconds)
+            {
+                Debug.LogWarning(
+                    LogPrefix + "The race stayed in Countdown for " +
+                    _holdTimeoutSeconds.ToString("0.0") +
+                    " s while the grid was holding; releasing the field so the player can drive.",
+                    this);
                 SetStartHold(false);
             }
         }
@@ -344,6 +390,20 @@ namespace VelocityRush.Gameplay
             {
                 _playerWasKinematic = _playerBody != null && _playerBody.isKinematic;
                 _playerWasEnabled = player != null && player.enabled;
+                _holdElapsedSeconds = 0f;
+                _holdTimeoutSeconds = HoldTimeoutMarginSeconds;
+                if (race != null)
+                {
+                    _holdTimeoutSeconds += (float)race.CountdownRemainingSeconds;
+                }
+
+                if (_playerWasKinematic)
+                {
+                    Debug.LogWarning(
+                        LogPrefix + "The player chassis was already kinematic when the grid took " +
+                        "its hold; it will be returned to a simulated body when the hold releases.",
+                        this);
+                }
 
                 if (player != null)
                 {
@@ -362,10 +422,18 @@ namespace VelocityRush.Gameplay
             }
 
             HoldOpponents(false);
+            _holdElapsedSeconds = 0f;
 
             if (_playerBody != null)
             {
-                _playerBody.isKinematic = _playerWasKinematic;
+                // D-059: the player is the only physics vehicle, so releasing the hold must always
+                // hand back a simulated chassis. Restoring the cached isKinematic could re-apply a
+                // stale freeze (the body was kinematic before this hold, or a second owner froze it
+                // during the hold); the controller would then be enabled and the drivetrain would
+                // apply torque to a body that never integrates -- the car revs but cannot move.
+                _playerBody.isKinematic = false;
+                _playerBody.useGravity = true;
+                _playerBody.WakeUp();
             }
 
             if (player != null)

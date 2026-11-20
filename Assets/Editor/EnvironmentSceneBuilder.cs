@@ -104,6 +104,14 @@ namespace VelocityRush.EditorTools
         private const string BaselineCameraPath = "Assets/Data/Tuning/Baseline_Camera.asset";
         private const int TrackLayer = 8;
 
+        /// <summary>
+        /// Distance along the centerline where the player is placed, measured from the authored
+        /// start line. The generated road ribbon begins exactly at distance 0, so a car centred
+        /// there hangs its rear axle (1.3 m behind the chassis origin) over the road edge and
+        /// cannot climb the 0.45 m skirt face. The setback keeps the whole wheelbase on the road.
+        /// </summary>
+        public const float PlayerStartSetback = 3.5f;
+
         /// <summary>Builds the scene for the currently selected environment definition.</summary>
         [MenuItem(MenuPath, false, 31)]
         public static void BuildFromMenu()
@@ -270,6 +278,66 @@ namespace VelocityRush.EditorTools
         }
 
         /// <summary>
+        /// Batch entry point that re-applies the road-clear start pose to every committed
+        /// signature scene in place. Exits 1 on any failure.
+        /// </summary>
+        /// <remarks>
+        /// A full signature rebuild re-creates every object from scratch and therefore renumbers
+        /// every scene fileID, turning a one-transform change into an unreviewable whole-file diff.
+        /// This pass opens the committed scene, moves only the start-relative transforms, and saves
+        /// it, so wiring, meshes, materials, component references, and fileIDs are preserved.
+        /// </remarks>
+        public static void ReorientSignatureSpawnsFromCommandLine()
+        {
+            try
+            {
+                var definitions = EnvironmentCatalogBuilder.LoadDefinitions();
+                for (var i = 0; i < definitions.Length; i++)
+                {
+                    ReorientSignatureSpawn(definitions[i]);
+                }
+
+                AssetDatabase.SaveAssets();
+                EditorApplication.Exit(0);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError(LogPrefix + "Signature start reorientation failed: " + exception);
+                EditorApplication.Exit(1);
+            }
+        }
+
+        private static void ReorientSignatureSpawn(EnvironmentDefinition definition)
+        {
+            ValidateDefinition(definition);
+
+            var scenePath = GetScenePath(definition, EnvironmentLayoutVariant.Signature);
+            var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+            OrientStart(scene, definition, EnvironmentLayoutVariant.Signature);
+
+            var report = AuditScene(scene, definition, EnvironmentLayoutVariant.Signature);
+            if (report.MissingScriptCount > 0 || report.MissingReferenceCount > 0)
+            {
+                throw new InvalidOperationException(
+                    scenePath + " failed its audit after start reorientation: missingScripts=" +
+                    report.MissingScriptCount + " missingReferences=" +
+                    report.MissingReferenceCount + ".");
+            }
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            if (!EditorSceneManager.SaveScene(scene, scenePath))
+            {
+                throw new InvalidOperationException("Failed to save " + scenePath);
+            }
+
+            Debug.Log(
+                LogPrefix + "Reoriented start of " + scenePath +
+                " | setback=" + PlayerStartSetback.ToString("0.##") + " m" +
+                " | missingScripts=" + report.MissingScriptCount +
+                " | missingReferences=" + report.MissingReferenceCount);
+        }
+
+        /// <summary>
         /// Derives the five reverse configuration scenes from the five committed signature scenes.
         /// Signature scenes and their generated assets are read only (D-064).
         /// </summary>
@@ -395,7 +463,8 @@ namespace VelocityRush.EditorTools
 
             var layout = definition.TrackLayout;
             var spawnPosition =
-                layout.SampleAtDistance(track.Centerline, 0f, out var spawnTangent) + (Vector3.up * 0.5f);
+                layout.SampleAtDistance(track.Centerline, PlayerStartSetback, out var spawnTangent)
+                + (Vector3.up * 0.5f);
             var spawnForward = Flatten(spawnTangent);
             var spawnRotation = Quaternion.LookRotation(spawnForward, Vector3.up);
 
@@ -559,8 +628,8 @@ namespace VelocityRush.EditorTools
             CreateStartFinishLine(
                 environmentRoot.transform,
                 layout,
-                track.Centerline,
                 spawnPosition,
+                spawnRotation,
                 finishPosition,
                 finishTangent,
                 environmentMaterials);
@@ -724,45 +793,48 @@ namespace VelocityRush.EditorTools
         }
 
         /// <summary>
-        /// Re-orients spawn, camera, start/finish lines, ordered gates, and the grid anchor of an
-        /// already-copied scene onto the reverse centerline. Only transforms change; wiring,
-        /// meshes, materials, and component references are preserved from the signature scene.
+        /// Re-orients the start-relative transforms (player, camera, spawn marker, start line) of
+        /// an already-saved scene onto the road-clear setback for one configuration, returning the
+        /// sampled centerline so callers can continue with gate orientation. Only transforms
+        /// change; wiring, meshes, materials, and component references are preserved.
         /// </summary>
-        private static void OrientForReverse(Scene scene, EnvironmentDefinition definition)
+        private static Vector3[] OrientStart(
+            Scene scene,
+            EnvironmentDefinition definition,
+            EnvironmentLayoutVariant variant)
         {
             var layout = definition.TrackLayout;
-            var centerline = layout.BuildCenterline(
-                layout.SampleSpacing,
-                EnvironmentLayoutVariant.Reverse);
+            var centerline = layout.BuildCenterline(layout.SampleSpacing, variant);
             var roots = scene.GetRootGameObjects();
 
             var spawnPosition =
-                layout.SampleAtDistance(centerline, 0f, out var spawnTangent) + (Vector3.up * 0.5f);
-            var spawnRotation = Quaternion.LookRotation(Flatten(spawnTangent), Vector3.up);
+                layout.SampleAtDistance(centerline, PlayerStartSetback, out var spawnTangent)
+                + (Vector3.up * 0.5f);
+            var spawnForward = Flatten(spawnTangent);
+            var spawnRotation = Quaternion.LookRotation(spawnForward, Vector3.up);
 
             var vehicles = new List<VehicleController>();
             Collect(roots, vehicles);
             if (vehicles.Count != 1)
             {
                 throw new InvalidOperationException(
-                    "Reverse derivation expects exactly one VehicleController (found " +
+                    "Start orientation expects exactly one VehicleController (found " +
                     vehicles.Count + ").");
             }
 
-            var vehicle = vehicles[0];
-            vehicle.transform.SetPositionAndRotation(spawnPosition, spawnRotation);
+            vehicles[0].transform.SetPositionAndRotation(spawnPosition, spawnRotation);
 
             var cameras = new List<VehicleCameraRig>();
             Collect(roots, cameras);
             if (cameras.Count != 1)
             {
                 throw new InvalidOperationException(
-                    "Reverse derivation expects exactly one VehicleCameraRig (found " +
+                    "Start orientation expects exactly one VehicleCameraRig (found " +
                     cameras.Count + ").");
             }
 
             cameras[0].transform.SetPositionAndRotation(
-                spawnPosition - (Flatten(spawnTangent) * 7f) + (Vector3.up * 2.5f),
+                spawnPosition - (spawnForward * 7f) + (Vector3.up * 2.5f),
                 spawnRotation);
 
             var spawnPoint = FindDescendant(roots, "SpawnPoint");
@@ -778,6 +850,20 @@ namespace VelocityRush.EditorTools
                     spawnPosition - (Vector3.up * 0.5f),
                     spawnRotation);
             }
+
+            return centerline;
+        }
+
+        /// <summary>
+        /// Re-orients spawn, camera, start/finish lines, ordered gates, and the grid anchor of an
+        /// already-copied scene onto the reverse centerline. Only transforms change; wiring,
+        /// meshes, materials, and component references are preserved from the signature scene.
+        /// </summary>
+        private static void OrientForReverse(Scene scene, EnvironmentDefinition definition)
+        {
+            var layout = definition.TrackLayout;
+            var centerline = OrientStart(scene, definition, EnvironmentLayoutVariant.Reverse);
+            var roots = scene.GetRootGameObjects();
 
             var checkpoints = new List<CheckpointTrigger>();
             Collect(roots, checkpoints);
@@ -909,17 +995,28 @@ namespace VelocityRush.EditorTools
             return AuditRoots(
                 scene.GetRootGameObjects(),
                 definition,
+                variant,
                 GetScenePath(definition, variant));
         }
 
         /// <summary>
         /// Audits an explicit root set. This is the same check used for a generated scene, exposed
         /// separately so EditMode tests can verify the fail-closed wiring contract without creating
-        /// or saving production scenes.
+        /// or saving production scenes. Defaults to the signature configuration.
         /// </summary>
         public static EnvironmentBuildReport AuditRoots(
             GameObject[] roots,
             EnvironmentDefinition definition,
+            string scenePath = null)
+        {
+            return AuditRoots(roots, definition, EnvironmentLayoutVariant.Signature, scenePath);
+        }
+
+        /// <summary>Audits an explicit root set for an explicit environment/configuration pair.</summary>
+        public static EnvironmentBuildReport AuditRoots(
+            GameObject[] roots,
+            EnvironmentDefinition definition,
+            EnvironmentLayoutVariant variant,
             string scenePath = null)
         {
             if (definition == null)
@@ -948,6 +1045,7 @@ namespace VelocityRush.EditorTools
             missingReferences += AuditVehicleSelection(roots, issues);
             missingReferences += AuditLighting(roots, issues);
             missingReferences += AuditReadableTrack(roots, definition, issues);
+            AuditStartClearance(roots, definition, variant, issues);
 
             if (issues.Count > 0)
             {
@@ -1282,6 +1380,36 @@ namespace VelocityRush.EditorTools
             }
 
             return references;
+        }
+
+        private static void AuditStartClearance(
+            GameObject[] roots,
+            EnvironmentDefinition definition,
+            EnvironmentLayoutVariant variant,
+            List<string> issues)
+        {
+            var vehicles = new List<VehicleController>();
+            Collect(roots, vehicles);
+            if (vehicles.Count != 1)
+            {
+                issues.Add(
+                    "Start pose audit expects exactly one VehicleController (found " +
+                    vehicles.Count + ").");
+                return;
+            }
+
+            var layout = definition.TrackLayout;
+            var centerline = layout.BuildCenterline(layout.SampleSpacing, variant);
+            var expected = layout.SampleAtDistance(centerline, PlayerStartSetback, out _)
+                + (Vector3.up * 0.5f);
+            var actual = vehicles[0].transform.position;
+            if ((actual - expected).sqrMagnitude > 0.0025f)
+            {
+                issues.Add(
+                    "Player start pose is not at the road-clear setback of " +
+                    PlayerStartSetback.ToString("0.##") + " m (" + variant + "): expected " +
+                    expected.ToString("F3") + ", found " + actual.ToString("F3") + ".");
+            }
         }
 
         private static int AuditLighting(GameObject[] roots, List<string> issues)
@@ -1710,20 +1838,17 @@ namespace VelocityRush.EditorTools
         private static void CreateStartFinishLine(
             Transform parent,
             TrackLayout layout,
-            Vector3[] centerline,
             Vector3 spawnPosition,
+            Quaternion spawnRotation,
             Vector3 finishPosition,
             Vector3 finishTangent,
             EnvironmentMaterialSet materials)
         {
             var startLine = new GameObject("Start Line");
             startLine.transform.SetParent(parent, false);
-            var startRotation = Quaternion.LookRotation(
-                Flatten(layout.SampleAtDistance(centerline, 0f, out var startTangent)),
-                Vector3.up);
             startLine.transform.SetPositionAndRotation(
                 spawnPosition - (Vector3.up * 0.5f),
-                startRotation);
+                spawnRotation);
             AddChildPrimitive(
                 startLine.transform,
                 "Start Line Surface",

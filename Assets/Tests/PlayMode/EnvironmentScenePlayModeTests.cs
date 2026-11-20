@@ -194,6 +194,56 @@ namespace VelocityRush.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator SignatureScene_PlayerAcceleratesForwardFromTheStart()
+        {
+            const string id = "desert-signature";
+            yield return LoadEnvironment(id);
+
+            var roots = SceneManager.GetSceneByName(id).GetRootGameObjects();
+            var race = FindSingle<RaceController>(roots);
+            var vehicle = FindSingle<VehicleController>(roots);
+            Assert.That(race, Is.Not.Null, id + " has no RaceController.");
+            Assert.That(vehicle, Is.Not.Null, id + " has no VehicleController.");
+
+            var input = vehicle.gameObject.AddComponent<ScriptedVehicleInput>();
+            Assert.That(
+                vehicle.TrySetInputSource(input, out var inputError),
+                Is.True,
+                inputError);
+
+            var goDeadline = Time.realtimeSinceStartup + 10f;
+            while (race.State == RaceState.Countdown && Time.realtimeSinceStartup < goDeadline)
+            {
+                yield return null;
+            }
+
+            Assert.That(race.State, Is.EqualTo(RaceState.Running),
+                id + " never reached GO; the player cannot be verified.");
+
+            var body = vehicle.GetComponent<Rigidbody>();
+            Assert.That(body, Is.Not.Null, id + " vehicle has no Rigidbody.");
+
+            var start = body.position;
+            var forward = vehicle.transform.forward;
+
+            input.Set(1f, 0f, 0f, false);
+            var steps = Mathf.CeilToInt(2.5f / Time.fixedDeltaTime);
+            for (var i = 0; i < steps; i++)
+            {
+                yield return new WaitForFixedUpdate();
+            }
+
+            input.Set(0f, 0f, 0f, false);
+
+            var travel = Vector3.Dot(body.position - start, forward);
+            Assert.That(
+                travel,
+                Is.GreaterThan(4f),
+                id + " player did not accelerate forward under full throttle (travel " +
+                travel.ToString("0.00") + " m). The start pose may be off the road edge.");
+        }
+
         private static IEnumerator LoadEnvironment(string id)
         {
             var path = "Assets/Scenes/Environments/" + id + ".unity";
