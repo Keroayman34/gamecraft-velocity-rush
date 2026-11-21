@@ -595,3 +595,31 @@ Structural values are real measurements of the committed scenes plus four instan
 - `Assets/Tests/PlayMode/GameFlowPlayModeTests.cs`
 
 *Stage 2 non-goals preserved:* no Stage 3 commercial UI screens yet; no scene asset edits; Playgama Bridge strictly deferred to Phase 13 per D-036.
+
+*Stage 3 — Commercial UI Suite (UI Toolkit, 0 B Hot Path, Bilingual EN/AR) (COMPLETE 2026-11-21)*
+- `T-11.9` **Bilingual Localization Layer (`VelocityRush.Core` / `VelocityRush.Data`):** `LocalizationService` static service supporting `"en"` (LTR) and `"ar"` (RTL) with instant runtime switching, `LanguageChanged` event, RTL layout flags, and fail-closed missing key fallback returning key ID with diagnostic warning; `ILocalizationTable` interface keeping Core decoupled; `LocalizationTable` deterministic string table covering 60+ keys across Main Menu, Championship, Events, Garage, Upgrades, Race HUD, Pause, Results, Settings, and approved vehicle identities. — **COMPLETE.**
+- `T-11.10` **Zero-Allocation HUD Hot Path (`HudStringFormatter`):** Pure static helper writing integer, padded integer, race time (`M:SS.HH` / `SS.HH`), and ordinal positions (`1st`..`5th`) into caller-owned `char[]` buffers without GC allocations (0 B/frame). — **COMPLETE.**
+- `T-11.11` **Commercial Screen Presenters (`VelocityRush.Gameplay`):** Programmatic UI Toolkit MVP screen presenters decoupled from scene internals: `MainMenuPresenter` (Play, Garage, Settings, Language Toggle, live credit badge); `ChampionshipSelectPresenter` (3 championships, lock/unlock, star totals); `EventSelectPresenter` (5 rounds, circuit/timetrial, stars, best time, launch); `GarageUpgradePresenter` (10 vehicles, lock/buy/select, 6 upgrade categories, tier pips, cost, buy); `RaceHudPresenter` (speed, race timer, position, countdown, 0 B steady-state hot path); `PauseOverlayPresenter` (Resume, Retry, Settings, Quit); `ResultsPresenter` (position, time, new best indicator, stars, itemized credit breakdown, unlocks, next/retry/menu); `SettingsPresenter` (volume sliders for Master/SFX/Engine, language toggle, controls reference). — **COMPLETE.**
+- `T-11.12` **Persistent UI Shell Controller (`CommercialUiController`):** Manages all screen roots under persistent `UIDocument`, subscribing to `GameFlowManager.StateChanged` and `OverlayChanged` to toggle visibility via `DisplayStyle.Flex`/`None` (0 B/frame). — **COMPLETE.**
+- `T-11.13` **Stage-3 verification & regression:** 18 new EditMode tests (`LocalizationServiceTests`, `HudStringFormatterTests`, `CommercialPresenterTests`) asserting EN/AR key parity, missing-key fallback, language switching events, char buffer formatting, presenter button states, and credit breakdown math; 3 new PlayMode integration tests (`CommercialUiPlayModeTests`) verifying `CommercialUiController` responds to all FSM state/overlay transitions, instant EN↔AR language toggle across presenters, and 0 B GC heap allocation across 100 consecutive HUD ticks; batch compile **0 errors / 0 warnings**; full EditMode suite **573/573** (+18 new), full PlayMode suite **46/46** (+3 new), **0 failed / 0 skipped / 0 inconclusive**. — **COMPLETE.**
+
+*Stage 3 files:*
+- `Assets/Scripts/Core/Localization/ILocalizationTable.cs`
+- `Assets/Scripts/Core/Localization/LocalizationService.cs`
+- `Assets/Scripts/Core/UI/HudStringFormatter.cs`
+- `Assets/Scripts/Data/Localization/LocalizationTable.cs`
+- `Assets/Scripts/Gameplay/UI/CommercialUiController.cs`
+- `Assets/Scripts/Gameplay/UI/MainMenuPresenter.cs`
+- `Assets/Scripts/Gameplay/UI/ChampionshipSelectPresenter.cs`
+- `Assets/Scripts/Gameplay/UI/EventSelectPresenter.cs`
+- `Assets/Scripts/Gameplay/UI/GarageUpgradePresenter.cs`
+- `Assets/Scripts/Gameplay/UI/RaceHudPresenter.cs`
+- `Assets/Scripts/Gameplay/UI/PauseOverlayPresenter.cs`
+- `Assets/Scripts/Gameplay/UI/ResultsPresenter.cs`
+- `Assets/Scripts/Gameplay/UI/SettingsPresenter.cs`
+- `Assets/Tests/EditMode/LocalizationServiceTests.cs`
+- `Assets/Tests/EditMode/HudStringFormatterTests.cs`
+- `Assets/Tests/EditMode/CommercialPresenterTests.cs`
+- `Assets/Tests/PlayMode/CommercialUiPlayModeTests.cs`
+
+*Stage 3 non-goals preserved:* no Stage 4 end-to-end race-to-save loop wiring yet; no third-party localization packages; no uGUI/TMP dependencies; Playgama Bridge strictly deferred to Phase 13 per D-036.

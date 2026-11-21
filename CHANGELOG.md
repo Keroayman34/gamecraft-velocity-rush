@@ -4,6 +4,30 @@ All notable project changes are recorded here.
 This changelog records documentation and process milestones; it does not pre-announce features that have not been implemented.
 
 ## [Unreleased]
+### Phase 11 — Stage 3: Commercial UI Suite, Zero-Allocation HUD & Bilingual EN/AR (2026-11-21)
+- **Bilingual Localization Layer (`VelocityRush.Core` / `VelocityRush.Data`):**
+  - `LocalizationService`: Zero-third-party static service supporting `"en"` (LTR) and `"ar"` (RTL) with dynamic language switching, `LanguageChanged` notifications, RTL layout helpers, and fail-closed missing key fallback returning the key ID with diagnostic warning.
+  - `ILocalizationTable`: Decoupled lookup interface keeping `VelocityRush.Core` free of data dependencies.
+  - `LocalizationTable`: Deterministic bilingual string table in `VelocityRush.Data` covering 60+ keys across Main Menu, Championship, Event Selection, Garage, Upgrades, Race HUD, Pause, Results, Settings, and approved vehicle identities (D-013, D-069).
+- **Zero-Allocation Hot Path (`VelocityRush.Core`):**
+  - `HudStringFormatter`: Pure numeric and string formatting utility writing integers, padded numbers, race times (`M:SS.HH` / `SS.HH`), and ordinal positions (`1st`..`5th`) directly into caller-owned `char[]` buffers without heap allocation (0 B/frame).
+- **Commercial UI Presenters (`VelocityRush.Gameplay`):**
+  - `MainMenuPresenter`: Main menu screen with Play, Garage, Settings, live player credit badge, and instant bilingual language toggle.
+  - `ChampionshipSelectPresenter`: 3 championships (`c1-ignition-series`, `c2-apex-challenger`, `c3-velocity-masters`) displaying lock/unlock status, difficulty tier, and star progress.
+  - `EventSelectPresenter`: 5 rounds per championship with Circuit Race / Time Trial badges, star progress (0–3), personal best times, and launch actions.
+  - `GarageUpgradePresenter`: 10 vehicles with lock/buy/select actions, 6 upgrade categories with tier pips (`0..3`), class-scaled credit pricing, and real-time purchase verification.
+  - `RaceHudPresenter`: Non-allocating in-game HUD with speedometer, race timer, position tracker, and countdown banner.
+  - `PauseOverlayPresenter`: Modal pause menu with Resume, Retry, Settings, and Quit to Menu actions.
+  - `ResultsPresenter`: Post-race results displaying finish position, race time, New Best badge, star score, itemized credit rewards (base + star bonus + first place bonus), unlock notifications, and Next Event / Retry / Menu buttons.
+  - `SettingsPresenter`: Settings overlay with volume sliders (Master, SFX, Engine), language toggle, and controls reference.
+  - `CommercialUiController`: Persistent shell coordinator bound to `GameFlowManager.StateChanged` and `OverlayChanged`, toggling screen root visibility via `DisplayStyle.Flex`/`None`.
+- **Tests & Verification:**
+  - 18 new EditMode unit tests (`LocalizationServiceTests`, `HudStringFormatterTests`, `CommercialPresenterTests`) asserting EN/AR parity, missing key fallback, language switching events, char buffer formatting, button enabled states, and credit breakdown math.
+  - 3 new PlayMode integration tests (`CommercialUiPlayModeTests`) verifying `CommercialUiController` responds to all FSM state/overlay transitions, instant EN↔AR language toggle across presenters, and 0 B GC heap allocation across 100 consecutive HUD ticks.
+  - Batch compile: **0 errors / 0 warnings**; full EditMode suite **573/573** (+18 new), full PlayMode suite **46/46** (+3 new), **0 failed / 0 skipped / 0 inconclusive**.
+- **Documentation:** `production/ROADMAP.md` Phase 11 Stage 3; `docs/TDD.md` §55; `docs/TRACEABILITY.md`; this changelog. No new `.md` files.
+- **Non-Goals Preserved:** Zero modifications to Stage 4 end-to-end race-to-save loop transitions; zero third-party localization packages; zero scene modifications; Playgama Bridge strictly deferred to Phase 13 per D-036. Stage 3 stops cleanly before Stage 4.
+
 ### Phase 11 — Stage 2: GameFlow State Machine, Additive Scene Lifecycle & Loading Veil (2026-11-21)
 - **Stage 2 GameFlow State Machine (`VelocityRush.Core`):**
   - `AppState`: Flat 9-state application lifecycle enum (`Boot`, `MainMenu`, `Garage`, `Upgrades`, `ChampionshipSelection`, `EventSelection`, `PreEvent`, `Race`, `Results`) per TDD §30.2 and D-070.

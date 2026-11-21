@@ -1890,3 +1890,35 @@ Per TDD §30.2 and D-070, `GameFlowManager` in `VelocityRush.Core` owns the auth
 - Batch compile: **0 errors / 0 warnings**.
 - EditMode suite: **555/555** (546 baseline + 9 new tests in `GameFlowManagerTests`), **0 failed / 0 skipped / 0 inconclusive**. Exhaustive 81-cell transition table, overlay stack operations without primary state mutation, selection context mutations, and re-entrancy rejection verified.
 - PlayMode suite: **43/43** (39 baseline + 4 new tests in `GameFlowPlayModeTests`), **0 failed / 0 skipped / 0 inconclusive**. Additive load/activate/unload lifecycle, LoadingVeil visibility lifecycle, fast retry without scene reload, and zero retained scene objects across repeated cycles verified on real scene loads.
+
+## 55. Phase 11 — Commercial UI suite, zero-allocation hot path & bilingual EN/AR (Stage 3)
+
+### 55.1 Bilingual localization layer
+Per D-013 and D-069, `LocalizationService` in `VelocityRush.Core` provides zero-third-party bilingual localization:
+- Supported languages: `"en"` (English, LTR default) and `"ar"` (Arabic, RTL).
+- Interface decoupling: `ILocalizationTable` defines the string lookup contract in `VelocityRush.Core`; concrete table implementation `LocalizationTable` lives in `VelocityRush.Data`.
+- Fail-closed fallback: Missing keys return the key ID and log a warning; null/empty inputs return empty strings without throwing.
+- Dynamic switching: Calling `SetLanguage("en" | "ar")` emits `LanguageChanged` synchronously, updating all registered screen presenters.
+
+### 55.2 Zero-allocation HUD hot path
+Per D-069 and TDD §40.7:
+- `HudStringFormatter` in `VelocityRush.Core` formats integers, zero-padded numbers, race timers (`M:SS.HH`), and ordinal positions (`1st`..`5th`) directly into caller-owned `char[]` buffers without heap allocations.
+- `RaceHudPresenter` maintains dedicated char buffers for speed, race time, and position, re-evaluating text only when integer/hundredth values change.
+- Steady-state hot-path assertion: Verified via `System.GC.GetAllocatedBytesForCurrentThread()` across 100 consecutive race ticks with 0 B GC heap allocation.
+
+### 55.3 Commercial screen presenters & shell architecture
+Per D-069, UI screens follow a strict MVP/Presenter pattern built with UI Toolkit (`UIDocument` / `VisualElement`):
+1. **`MainMenuPresenter`**: Title, live player credit badge, Play, Garage, Settings, and instant Language Toggle buttons.
+2. **`ChampionshipSelectPresenter`**: 3 championships (`c1-ignition-series`, `c2-apex-challenger`, `c3-velocity-masters`) displaying lock/unlock states, difficulty, and earned/max stars.
+3. **`EventSelectPresenter`**: 5 rounds per championship, event type badges (Circuit / Time Trial), earned stars (0–3), best times, and Launch action gated by unlock state.
+4. **`GarageUpgradePresenter`**: 10 vehicle cards with lock/buy/select actions, 6 upgrade categories with tier pips (`0..3`), class-scaled upgrade costs, and purchase verification.
+5. **`RaceHudPresenter`**: Speedometer, race timer, position indicator, and countdown banner with 0 B steady-state hot path.
+6. **`PauseOverlayPresenter`**: Translucent modal overlay with Resume, Retry, Settings, and Quit actions.
+7. **`ResultsPresenter`**: Finish position, race time with New Best badge, star scoring display, itemized credit breakdown, unlock notifications, and Next Event / Retry / Menu buttons.
+8. **`SettingsPresenter`**: Volume sliders for Master, SFX, and Engine, language toggle, and controls reference.
+9. **`CommercialUiController`**: Persistent shell coordinator that binds to `GameFlowManager.StateChanged` and `OverlayChanged`, toggling visibility via `DisplayStyle.Flex`/`None`.
+
+### 55.4 Stage 3 validation evidence
+- Batch compile: **0 errors / 0 warnings**.
+- EditMode suite: **573/573** (555 baseline + 18 new tests in `LocalizationServiceTests`, `HudStringFormatterTests`, `CommercialPresenterTests`), **0 failed / 0 skipped / 0 inconclusive**.
+- PlayMode suite: **46/46** (43 baseline + 3 new tests in `CommercialUiPlayModeTests`), **0 failed / 0 skipped / 0 inconclusive**. Full state machine screen visibility transitions, 0 B GC steady-state HUD tick allocation proof, and instant dynamic EN↔AR language toggle verified.
