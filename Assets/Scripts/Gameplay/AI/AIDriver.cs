@@ -202,6 +202,15 @@ namespace VelocityRush.Gameplay.AI
         }
 
         /// <summary>
+        /// Updates the base target pace multiplier for this rival (Phase 12 Stage 4).
+        /// Clamped strictly within safe driving boundaries [0.5, 1.3].
+        /// </summary>
+        public void SetPaceScale(float scale)
+        {
+            paceScale = Mathf.Clamp(scale, 0.5f, 1.3f);
+        }
+
+        /// <summary>
         /// Enables traffic-aware lane weaving, scanning active traffic ahead and transitioning lateral bias to clear lanes.
         /// </summary>
         public void SetTrafficManager(VelocityRush.Gameplay.Traffic.TrafficLaneManager manager, VelocityRush.Data.TrafficLaneConfig laneConfig)

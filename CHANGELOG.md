@@ -4,6 +4,30 @@ All notable project changes are recorded here.
 This changelog records documentation and process milestones; it does not pre-announce features that have not been implemented.
 
 ## [Unreleased]
+### Phase 12 — Stage 4: 15-Event Difficulty Matrix, Combined Stability & Phase 12 Closure (2026-11-22)
+- **15-Event Progressive Difficulty Matrix (`VelocityRush.Data`):**
+  - Created `HighwayDifficultyProfile` immutable readonly struct with fail-closed validation (`TryValidate`) enforcing safe traffic density `[0.25, 0.85]`, positive speeds, positive coin spacing, positive coin values, non-negative near-miss credits, rival pace scale `[0.5, 1.5]`, and bounded rubber-banding `[0.85, 1.18]`.
+  - Created `HighwayDifficultyTable` deterministic registry mapping all 15 M8 events with safe default fallback to `c1-ignition-series-round-1` (0 B heap allocation on query).
+  - Configured escalating difficulty parameters across C1 (`Ignition Series`: density 0.30..0.45, coin value 10, near miss 25, pace 0.88..0.94), C2 (`Apex Challenger`: density 0.50..0.65, coin value 15, near miss 35, pace 0.95..1.00), and C3 (`Velocity Masters`: density 0.68..0.82, coin value 20, near miss 50, pace 1.01..1.06).
+- **Composition Root Dynamic Event Tuning (`VelocityRush.Gameplay.App`):**
+  - Extended `GameCompositionRoot` to resolve event-tuned `HighwayDifficultyProfile` upon launching any championship event.
+  - Dynamically configured `TrafficLaneManager` (density, min/max speeds) and `RoadCoinManager` (coin value, near-miss credit scaling, arc spacing) via `ApplyConfig`.
+  - Dynamically configured active `AIDriver` rivals in Circuit races (traffic avoidance, smart rubber-banding, base pace scaling via `SetPaceScale`), skipping rivals cleanly in solo Time Trials.
+  - Added `CleanupActiveRaceReferences` cleanly unhooking events and releasing all active race components upon returning to `MainMenu`.
+- **10-Cycle Combined Highway Rival Stability Stress Test (PlayMode):**
+  - Created `Phase12HighwayRivalStabilityPlayModeTests` executing 10 consecutive full-loop cycles (`MainMenu -> Select Event -> Additive Load -> Combined Race Ticks -> Results -> Save -> Additive Unload -> MainMenu`) with Traffic + NearMiss + Coins + Nitro + CameraJuice + AIDriver Rubber-Banding + HUD active concurrently.
+  - Asserted 0 retained `TrafficVehicle`, `CoinPickup`, `RaceController`, or `VehicleController` instances after teardown.
+  - Asserted **0 B/frame** combined steady-state hot path allocation across all Phase 12 systems simultaneously (`GC.GetAllocatedBytesForCurrentThread`).
+  - Asserted cumulative managed heap growth <= 512 KB across cycles 2–10 after warmup (zero monotonic leak).
+- **WebGL Commercial Build Verification:**
+  - Executed clean batch WebGL Development build with profile `Phase11Commercial` (13 scenes: `Bootstrap -> world-arena-reverse`), producing a **63,889,568 B (63.89 MB / 60.93 MiB)** payload in **56.788 s** with **0 build errors** and 3 advisory warnings (≤250 MB ceiling, delta +239,568 B over Phase 11 baseline).
+  - Restored prototype scenes and Standalone Linux 64 build target cleanly.
+- **Tests & Verification:**
+  - 5 new EditMode unit tests in `HighwayDifficultyTableTests` asserting all 15 events resolve to valid distinct profiles, monotonic tier escalation across C1 -> C2 -> C3, fail-closed validation, safe fallback resolution, and 0 B query allocations.
+  - 1 new PlayMode stress test in `Phase12HighwayRivalStabilityPlayModeTests` asserting 10-cycle combined stability and zero retention.
+  - Batch compile: **0 errors / 0 warnings**; full EditMode suite **605/605** (+5 new), full PlayMode suite **64/64** (+1 new), **0 failed / 0 skipped / 0 inconclusive**. Total project tests: **669 / 669 PASSED (100% GREEN)**.
+- **Milestone Acceptance:** Phase 12 (Highway Rival Update) is formally complete. Real browser capture remains OQ-P01; Playgama Bridge strictly deferred to Phase 13 per D-036.
+
 ### Phase 12 — Stage 3: Nitro Boost, Camera Juice, Rival Rubber-Banding & Zero-Alloc HUD (2026-11-22)
 - **Nitro Boost Configuration & Pure Domain Model (`VelocityRush.Data` / `VelocityRush.Gameplay`):**
   - Created `NitroConfig` serializable data structure defining `maxCharge` (100), `minActivationCharge` (15), `drainRatePerSecond` (28), `passiveRegenPerSecond` (2.5), `nearMissChargeBonus` (22), `driftChargePerSecond` (14), `boostTorqueMultiplier` (1.45), and `boostMaxSpeedMultiplier` (1.22) with fail-closed validation (`TryValidate`).

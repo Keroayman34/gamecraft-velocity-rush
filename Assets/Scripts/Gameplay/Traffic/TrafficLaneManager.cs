@@ -36,6 +36,21 @@ namespace VelocityRush.Gameplay.Traffic
         /// <summary>Raised whenever the player collides with a traffic vehicle.</summary>
         public event TrafficCollisionHandler OnTrafficCollision;
 
+        /// <summary>
+        /// Dynamically updates and validates traffic configuration for the active event (Phase 12 Stage 4).
+        /// </summary>
+        public void ApplyConfig(TrafficLaneConfig newConfig)
+        {
+            if (newConfig.TryValidate(out var error))
+            {
+                config = newConfig;
+            }
+            else
+            {
+                Debug.LogWarning(LogPrefix + "ApplyConfig validation failed: " + error);
+            }
+        }
+
         private void Awake()
         {
             if (!config.TryValidate(out var error))

@@ -62,6 +62,26 @@ namespace VelocityRush.Gameplay.Economy
             ResetForRetry();
         }
 
+        /// <summary>
+        /// Dynamically updates and validates coin spawn configuration for the active event (Phase 12 Stage 4).
+        /// </summary>
+        public void ApplyConfig(CoinSpawnConfig newConfig, TrafficLaneConfig? newLaneConfig = null)
+        {
+            if (newConfig.TryValidate(out var error))
+            {
+                _config = newConfig;
+            }
+            else
+            {
+                Debug.LogWarning($"[RoadCoinManager] ApplyConfig validation failed: {error}");
+            }
+
+            if (newLaneConfig.HasValue && newLaneConfig.Value.TryValidate(out _))
+            {
+                _laneConfig = newLaneConfig.Value;
+            }
+        }
+
         private void Update()
         {
             if (_playerTransform == null || _trackPath == null || _pool == null)

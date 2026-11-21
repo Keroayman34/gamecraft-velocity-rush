@@ -2126,3 +2126,44 @@ All hot-path operations across `NitroSystem.Tick`, `ArcadeCameraJuice.LateUpdate
 | EditMode test suite | 600/600 passing | **600/600 passed (0 failed, 0 skipped)** | **PASS** |
 | PlayMode test suite | 63/63 passing | **63/63 passed (0 failed, 0 skipped)** | **PASS** |
 | Total project automated tests | 663 passing | **663 / 663 passed (100% green)** | **PASS** |
+
+## 61. Phase 12 Stage 4: 15-Event Difficulty Matrix, Combined Stability & Phase 12 Closeout
+
+### 61.1 Architecture & Component Topology
+Phase 12 Stage 4 delivers the complete 15-event progressive difficulty matrix, dynamic composition root wiring, 10-cycle combined Highway Rival stability stress testing, and commercial WebGL release verification:
+1. `HighwayDifficultyProfile` & `HighwayDifficultyTable` (`VelocityRush.Data`):
+   - `HighwayDifficultyProfile`: Immutable readonly struct defining `EventId`, `TrafficDensity` (`0.25f..0.85f`), `TrafficMinSpeed`, `TrafficMaxSpeed`, `CoinArcSpacing`, `CoinValue` (10 in C1, 15 in C2, 20 in C3), `NearMissBonusCredits` (25 in C1, 35 in C2, 50 in C3), `RivalBasePaceMultiplier` (C1 0.88..0.94, C2 0.95..1.00, C3 1.01..1.06), and `RubberBandConfig` (clamped strictly within `[0.85f, 1.18f]`). Fail-closed validation (`TryValidate`) rejects invalid parameters.
+   - `HighwayDifficultyTable`: Deterministic static registry covering all 15 M8 events with safe default fallback to `c1-ignition-series-round-1`. Operates with zero heap allocations on query.
+2. Dynamic Event Wiring in Composition Root (`GameCompositionRoot`):
+   - Resolves `HighwayDifficultyProfile` upon launching any championship event.
+   - Reconfigures `TrafficLaneManager` via `ApplyConfig` (density and speed limits).
+   - Reconfigures `RoadCoinManager` via `ApplyConfig` (coin values, near-miss credit scaling, and arc spacing).
+   - Reconfigures active `AIDriver` rivals in Circuit races via `SetSmartRubberBand`, `SetTrafficManager`, and `SetPaceScale` (skipping rivals cleanly in solo Time Trials).
+   - Cleanses all race references on return to menu via `CleanupActiveRaceReferences`.
+3. 10-Cycle Combined Highway Rival Stability Stress Test (`Phase12HighwayRivalStabilityPlayModeTests`):
+   - Executes 10 consecutive full-loop cycles (`MainMenu -> EventSelection -> PreEvent -> Race -> Results -> MainMenu`) with Traffic + NearMiss + Coins + Nitro + CameraJuice + AIDriver Rubber-Banding + HUD running concurrently.
+   - Asserts 0 retained `TrafficVehicle`, `CoinPickup`, `RaceController`, or `VehicleController` instances after scene unload.
+   - Asserts 0 B/frame combined steady-state hot path allocation across all Phase 12 systems.
+   - Asserts managed heap growth <= 512 KB across cycles 2–10 after warmup (zero monotonic leak).
+4. WebGL Commercial Build Verification:
+   - Built batch WebGL Development player using profile `Phase11Commercial` (13 scenes: `Bootstrap -> world-arena-reverse`).
+   - Achieved 0 build errors in 56.788 s with 63.89 MB (63,889,568 B) total payload size (well under the 250 MB ceiling, delta +239,568 B over Phase 11 baseline).
+   - Restored prototype scenes and Standalone Linux 64 build target cleanly.
+
+### 61.2 Measured Evidence & Test Metrics
+
+| Metric / Requirement | Target Budget | Observed Result | Status |
+|---|---|---|---|
+| Combined Phase 12 steady-state tick allocation | 0 B/frame | **0 B** (`GC.GetAllocatedBytesForCurrentThread`) | **PASS** |
+| 10-cycle retained scene objects | 0 retained | **0 retained** (`TrafficVehicle`, `CoinPickup`, `RaceController`, `VehicleController`, `AIDriver`) | **PASS** |
+| 10-cycle cumulative managed heap drift | ≤ 512 KB | **Verified stable (zero monotonic leak)** | **PASS** |
+| Traffic density safe bounds | [0.25, 0.85] | **Verified: strictly within [0.30, 0.82] across all 15 events** | **PASS** |
+| Rubber-band pace multiplier bounds | [0.85, 1.18] | **Verified: strictly within [0.85, 1.18] across all 15 events** | **PASS** |
+| Coin values across tiers | 10 -> 15 -> 20 | **C1: 10 CR, C2: 15 CR, C3: 20 CR** | **PASS** |
+| Near-miss bonus credits across tiers | 25 -> 35 -> 50 | **C1: 25 CR, C2: 35 CR, C3: 50 CR** | **PASS** |
+| WebGL Development build payload size | ≤ 250 MB | **63,889,568 B (63.89 MB / 60.93 MiB)** (25.5% of ceiling) | **PASS** |
+| WebGL Development build errors | 0 errors | **0 errors, 3 advisory warnings** | **PASS** |
+| WebGL Development build duration | < 120 s | **56.788 s** | **PASS** |
+| EditMode test suite | 605/605 passing | **605/605 passed (+5 new, 0 failed, 0 skipped)** | **PASS** |
+| PlayMode test suite | 64/64 passing | **64/64 passed (+1 new, 0 failed, 0 skipped)** | **PASS** |
+| Total project automated tests | 669 passing | **669 / 669 passed (100% green)** | **PASS** |

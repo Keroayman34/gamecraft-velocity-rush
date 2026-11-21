@@ -61,6 +61,7 @@ namespace VelocityRush.Gameplay
         private AIDriver[] _activeAIDrivers;
         private readonly RaceEconomyTracker _economyTracker = new RaceEconomyTracker();
         private readonly NitroSystem _nitroSystem = new NitroSystem(NitroConfig.CreateDefault(), 25f);
+        private HighwayDifficultyProfile _activeDifficultyProfile = HighwayDifficultyTable.DefaultProfile;
 
         private bool _isInitialized;
 
@@ -73,6 +74,7 @@ namespace VelocityRush.Gameplay
         public RoadCoinManager ActiveRoadCoinManager => _activeRoadCoinManager;
         public NitroSystem Nitro => _nitroSystem;
         public ArcadeCameraJuice CameraJuice => _cameraJuice;
+        public HighwayDifficultyProfile ActiveDifficultyProfile => _activeDifficultyProfile;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoBootstrapOnLaunch()
@@ -353,8 +355,11 @@ namespace VelocityRush.Gameplay
             }
         }
 
-        private void FindActiveRaceComponents()
+        public void FindActiveRaceComponents()
         {
+            string eventId = _activeEventDefinition != null ? _activeEventDefinition.EventId : gameFlow.SelectedEventId;
+            _activeDifficultyProfile = HighwayDifficultyTable.Resolve(eventId);
+
             _activeRaceController = FindAnyObjectByType<RaceController>();
             if (_activeRaceController != null)
             {
@@ -410,6 +415,26 @@ namespace VelocityRush.Gameplay
                 }
             }
 
+            // Apply event-tuned difficulty profile to TrafficLaneManager
+            if (_activeTrafficManager != null)
+            {
+                var laneConfig = _activeTrafficManager.Config;
+                laneConfig.density = _activeDifficultyProfile.TrafficDensity;
+                laneConfig.trafficMinSpeed = _activeDifficultyProfile.TrafficMinSpeed;
+                laneConfig.trafficMaxSpeed = _activeDifficultyProfile.TrafficMaxSpeed;
+                _activeTrafficManager.ApplyConfig(laneConfig);
+            }
+
+            // Apply event-tuned difficulty profile to RoadCoinManager
+            if (_activeRoadCoinManager != null)
+            {
+                var coinConfig = _activeRoadCoinManager.Config;
+                coinConfig.coinValue = _activeDifficultyProfile.CoinValue;
+                coinConfig.nearMissBonusCredits = _activeDifficultyProfile.NearMissBonusCredits;
+                coinConfig.minArcSpacing = _activeDifficultyProfile.CoinArcSpacing;
+                _activeRoadCoinManager.ApplyConfig(coinConfig, _activeTrafficManager != null ? _activeTrafficManager.Config : (TrafficLaneConfig?)null);
+            }
+
             // Camera Juice setup
             if (_cameraJuice == null)
             {
@@ -420,14 +445,19 @@ namespace VelocityRush.Gameplay
                 }
             }
 
-            // AI Opponents & Rival Setup
+            // AI Opponents & Rival Setup (Circuit races only; skip rivals cleanly in solo Time Trials)
+            bool isTimeTrial = _activeEventDefinition != null && _activeEventDefinition.EventType == RaceEventType.TimeTrial;
             _activeAIDrivers = FindObjectsByType<AIDriver>();
-            if (_activeAIDrivers != null && _activeTrafficManager != null)
+            if (_activeAIDrivers != null && !isTimeTrial)
             {
                 for (int i = 0; i < _activeAIDrivers.Length; i++)
                 {
-                    _activeAIDrivers[i].SetTrafficManager(_activeTrafficManager, _activeTrafficManager.Config);
-                    _activeAIDrivers[i].SetSmartRubberBand(RubberBandConfig.CreateDefault());
+                    if (_activeTrafficManager != null)
+                    {
+                        _activeAIDrivers[i].SetTrafficManager(_activeTrafficManager, _activeTrafficManager.Config);
+                    }
+                    _activeAIDrivers[i].SetSmartRubberBand(_activeDifficultyProfile.RubberBand);
+                    _activeAIDrivers[i].SetPaceScale(_activeDifficultyProfile.RivalBasePaceMultiplier);
                 }
             }
         }
@@ -440,9 +470,10 @@ namespace VelocityRush.Gameplay
 
         private void HandleNearMiss(in NearMissEvent evt)
         {
-            _economyTracker.RecordNearMiss(evt, 25);
+            int credits = _activeDifficultyProfile.NearMissBonusCredits > 0 ? _activeDifficultyProfile.NearMissBonusCredits : 25;
+            _economyTracker.RecordNearMiss(evt, credits);
             _nitroSystem.AddNearMissCharge();
-            _raceHudPresenter.ShowNearMissPopup(25, _economyTracker.TotalBonusCredits);
+            _raceHudPresenter.ShowNearMissPopup(credits, _economyTracker.TotalBonusCredits);
         }
 
         private void HandleTrafficCollision(in TrafficCollisionEvent evt)
@@ -457,6 +488,7 @@ namespace VelocityRush.Gameplay
             switch (state)
             {
                 case AppState.MainMenu:
+                    CleanupActiveRaceReferences();
                     _mainMenuPresenter.Refresh();
                     break;
                 case AppState.ChampionshipSelection:
@@ -531,6 +563,7 @@ namespace VelocityRush.Gameplay
         private void HandleEventLaunch(string eventId)
         {
             gameFlow.SetEventSelection(eventId);
+            _activeDifficultyProfile = HighwayDifficultyTable.Resolve(eventId);
 
             // Determine target environment scene
             string sceneName = "desert-signature"; // Default fallback
@@ -555,6 +588,7 @@ namespace VelocityRush.Gameplay
             _nitroSystem.Reset(25f);
             _cameraJuice?.ResetJuice();
             _activeRoadCoinManager?.ResetForRetry();
+            _activeTrafficManager?.ResetTraffic();
             gameFlow.RequestFastRetry();
             FindActiveRaceComponents();
         }
@@ -563,20 +597,46 @@ namespace VelocityRush.Gameplay
         {
             Time.timeScale = 1f;
             AudioListener.pause = false;
-            _economyTracker.Reset();
-            _nitroSystem.Reset(25f);
-            _cameraJuice?.ResetJuice();
-            _cameraJuice = null;
-            _activeTrafficManager = null;
-            _activeAIDrivers = null;
+            CleanupActiveRaceReferences();
+            gameFlow.CloseAllOverlays();
+            gameFlow.TryTransitionTo(AppState.MainMenu);
+        }
+
+        private void CleanupActiveRaceReferences()
+        {
+            if (_activeRaceController != null)
+            {
+                _activeRaceController.RaceFinished -= HandleRaceFinished;
+                _activeRaceController = null;
+            }
             if (_activeRoadCoinManager != null)
             {
+                _activeRoadCoinManager.OnCoinCollected -= HandleCoinCollected;
                 _activeRoadCoinManager.Teardown();
                 _activeRoadCoinManager = null;
             }
-            _activeNearMissDetector = null;
-            gameFlow.CloseAllOverlays();
-            gameFlow.TryTransitionTo(AppState.MainMenu);
+            if (_activeNearMissDetector != null)
+            {
+                _activeNearMissDetector.OnNearMiss -= HandleNearMiss;
+                _activeNearMissDetector = null;
+            }
+            if (_activeTrafficManager != null)
+            {
+                _activeTrafficManager.OnTrafficCollision -= HandleTrafficCollision;
+                _activeTrafficManager.Teardown();
+                _activeTrafficManager = null;
+            }
+            if (_cameraJuice != null)
+            {
+                _cameraJuice.ResetJuice();
+                _cameraJuice = null;
+            }
+            _activePlayerVehicle = null;
+            _activeStandings = null;
+            _activeAIDrivers = null;
+            _economyTracker.Reset();
+            _nitroSystem.Reset(25f);
+            _activeDifficultyProfile = HighwayDifficultyTable.DefaultProfile;
         }
 
         private void HandleNextEvent()
@@ -597,6 +657,10 @@ namespace VelocityRush.Gameplay
         public void SetActiveEventDefinition(RaceEventDefinition eventDef)
         {
             _activeEventDefinition = eventDef;
+            if (eventDef != null)
+            {
+                _activeDifficultyProfile = HighwayDifficultyTable.Resolve(eventDef.EventId);
+            }
         }
 
         public void HandleRaceFinished(RaceResult result)
