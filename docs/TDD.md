@@ -1861,3 +1861,32 @@ Because Unity's built-in `JsonUtility` does not serialize C# generic dictionarie
 - Batch compile: **0 errors / 0 warnings**.
 - EditMode suite: **546/546** (514 baseline + 32 new tests), **0 failed / 0 skipped / 0 inconclusive**.
 - Tested coverage: `SaveModelTests` (10 tests: schema validation, JSON round-trip fidelity, error guards); `SaveServiceTests` (7 tests: save/load lifecycle, dirty-tracking, corruption recovery, future version fallback, PlayerPrefs store operations); `UpgradeCalculatorTests` (4 tests: modifier math, cost scaling, tier clamping, 0 B allocation proof); `ProgressionServiceTests` (11 tests: Circuit & Time Trial star scoring, idempotent star rewards, best time updates, championship unlock progression, vehicle unlock class gating, upgrade purchase atomic deduction, 0 B query allocations).
+
+## 54. Phase 11 — GameFlow state machine, additive scene lifecycle & loading veil (Stage 2)
+
+### 54.1 State machine architecture & transition matrix
+Per TDD §30.2 and D-070, `GameFlowManager` in `VelocityRush.Core` owns the authoritative flat 9-state FSM:
+- States: `Boot`, `MainMenu`, `Garage`, `Upgrades`, `ChampionshipSelection`, `EventSelection`, `PreEvent`, `Race`, `Results`.
+- Overlays: `AppOverlay` (`None`, `Pause`, `Settings`, `Rewards`) managed on an isolated overlay stack without mutating or corrupting the underlying `AppState`.
+- Transition matrix (`AppStateTransitionMatrix`): Pure static authority evaluating all 81 transitions in the 9x9 matrix (22 legal, 59 rejected). Illegal transitions are rejected cleanly with structured diagnostic logs and `TransitionRejected` events.
+- Single Writer ownership per §34.3: `GameFlowManager` is the sole coordinator that mutates `SelectionContext` (`SetVehicleSelection`, `SetChampionshipSelection`, `SetEventSelection`, `ClearSelections`) and exposes read-only accessors.
+- Re-entrancy guard: Prevents concurrent state transitions or overlapping scene operations while an operation is in flight.
+
+### 54.2 Additive scene lifecycle & persistent-root coordination
+`SceneLifecycleController` in `VelocityRush.Gameplay` implements `ISceneLifecycleAdapter`:
+- `Bootstrap.unity` remains resident for the entire session and acts as the persistent composition root.
+- Additive loading (`LoadSceneMode.Additive`): When entering `AppState.Race`, loads the environment/event scene additively, sets it as `ActiveScene` for correct skybox and ambient lighting rendering, and invokes completion callbacks.
+- Additive unloading (`UnloadSceneAsync`): When leaving race/results to a menu state (`MainMenu`, `EventSelection`, `Garage`), restores the persistent root scene as `ActiveScene`, unloads the additive scene, and triggers `Resources.UnloadUnusedAssets()` cleanup (§35.6).
+- Fast in-scene retry seam (§35.5): `RequestFastRetry()` finds the active `RaceController` in the resident scene and calls `Retry()`, resetting vehicle spawn pose, velocity, race clock, and participant standings without reloading or touching `SceneManager`.
+
+### 54.3 Lightweight UI Toolkit LoadingVeil
+`LoadingVeil` in `VelocityRush.Core` implements `ILoadingVeil`:
+- Lightweight UI Toolkit fullscreen overlay preallocated on startup.
+- Automatically connects to `UIDocument` or runtime visual roots.
+- Displays transition messages and normalized progress bar updates during async operations.
+- Enforces 0 B/frame steady state runtime allocation when idle or active.
+
+### 54.4 Stage 2 validation evidence
+- Batch compile: **0 errors / 0 warnings**.
+- EditMode suite: **555/555** (546 baseline + 9 new tests in `GameFlowManagerTests`), **0 failed / 0 skipped / 0 inconclusive**. Exhaustive 81-cell transition table, overlay stack operations without primary state mutation, selection context mutations, and re-entrancy rejection verified.
+- PlayMode suite: **43/43** (39 baseline + 4 new tests in `GameFlowPlayModeTests`), **0 failed / 0 skipped / 0 inconclusive**. Additive load/activate/unload lifecycle, LoadingVeil visibility lifecycle, fast retry without scene reload, and zero retained scene objects across repeated cycles verified on real scene loads.

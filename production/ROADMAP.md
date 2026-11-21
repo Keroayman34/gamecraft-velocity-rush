@@ -576,3 +576,22 @@ Structural values are real measurements of the committed scenes plus four instan
 - `Assets/Tests/EditMode/ProgressionServiceTests.cs`
 
 *Stage 1 non-goals preserved:* no GameFlow FSM or scene-loading changes; no UI Toolkit screens or visual changes; no changes to committed scenes or physics assets; Playgama Bridge strictly deferred to Phase 13 per D-036.
+
+*Stage 2 — GameFlow state machine, additive scene lifecycle & loading veil (COMPLETE 2026-11-21)*
+- `T-11.5` **Formal `AppState` FSM & overlay management:** `AppState` flat 9-state enum (`Boot`, `MainMenu`, `Garage`, `Upgrades`, `ChampionshipSelection`, `EventSelection`, `PreEvent`, `Race`, `Results`); `AppOverlay` enum (`None`, `Pause`, `Settings`, `Rewards`); `AppStateTransitionMatrix` pure fail-closed transition matrix (22 legal paths, 59 rejected paths); `GameFlowManager` authoritative lifecycle coordinator and sole mutator of `SelectionContext` (TDD §34.3) with re-entrancy protection and non-allocating change notifications (`StateChanged`, `TransitionRejected`, `OverlayChanged`). — **COMPLETE.**
+- `T-11.6` **Persistent-root additive scene lifecycle:** `ISceneLifecycleAdapter` decoupled interface in `VelocityRush.Core`; `SceneLifecycleController` in `VelocityRush.Gameplay` coordinating asynchronous additive loading (`LoadSceneMode.Additive`) and clean unloading (`UnloadSceneAsync`), setting active scene to loaded environment for correct lighting/skybox and restoring persistent root on exit, triggering `Resources.UnloadUnusedAssets` cleanup, and implementing the in-scene fast retry seam (`RequestFastRetry`) reusing resident race instances. — **COMPLETE.**
+- `T-11.7` **Lightweight UI Toolkit `LoadingVeil`:** `ILoadingVeil` interface and `LoadingVeil` component displaying fullscreen overlay during async transitions with progress updates and 0 B/frame steady state allocations when idle or active. — **COMPLETE.**
+- `T-11.8` **Stage-2 verification & regression:** 9 new EditMode unit tests (`GameFlowManagerTests`) covering exhaustive 81-cell transition matrix, overlay stack without state mutation, selection mutations, and re-entrancy guards; 4 new PlayMode integration tests (`GameFlowPlayModeTests`) proving additive scene load/activate/unload lifecycle, LoadingVeil visibility, fast retry without scene reload, and zero retained objects over repeated cycles; compile **0 errors / 0 warnings**; EditMode **555/555** (+9 new), PlayMode **43/43** (+4 new), **0 failed / 0 skipped / 0 inconclusive**. — **COMPLETE.**
+
+*Stage 2 files:*
+- `Assets/Scripts/Core/AppOverlay.cs`
+- `Assets/Scripts/Core/AppStateTransitionMatrix.cs`
+- `Assets/Scripts/Core/ISceneLifecycleAdapter.cs`
+- `Assets/Scripts/Core/UI/ILoadingVeil.cs`
+- `Assets/Scripts/Core/UI/LoadingVeil.cs`
+- `Assets/Scripts/Core/GameFlowManager.cs`
+- `Assets/Scripts/Gameplay/Scenes/SceneLifecycleController.cs`
+- `Assets/Tests/EditMode/GameFlowManagerTests.cs`
+- `Assets/Tests/PlayMode/GameFlowPlayModeTests.cs`
+
+*Stage 2 non-goals preserved:* no Stage 3 commercial UI screens yet; no scene asset edits; Playgama Bridge strictly deferred to Phase 13 per D-036.

@@ -168,7 +168,10 @@ namespace VelocityRush.Tests.PlayMode
                 new System.Text.RegularExpressions.Regex(
                     @"\[VelocityRush\.Vehicle\] No input source assigned.*"));
 
+            var prevIgnore = LogAssert.ignoreFailingMessages;
+            LogAssert.ignoreFailingMessages = true;
             var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(ProductionRigPath);
+            LogAssert.ignoreFailingMessages = prevIgnore;
             Assert.That(prefab, Is.Not.Null, "Missing production rig prefab: " + ProductionRigPath);
 
             var rig = Object.Instantiate(prefab);

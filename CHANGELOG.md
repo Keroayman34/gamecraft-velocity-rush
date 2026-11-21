@@ -4,6 +4,24 @@ All notable project changes are recorded here.
 This changelog records documentation and process milestones; it does not pre-announce features that have not been implemented.
 
 ## [Unreleased]
+### Phase 11 — Stage 2: GameFlow State Machine, Additive Scene Lifecycle & Loading Veil (2026-11-21)
+- **Stage 2 GameFlow State Machine (`VelocityRush.Core`):**
+  - `AppState`: Flat 9-state application lifecycle enum (`Boot`, `MainMenu`, `Garage`, `Upgrades`, `ChampionshipSelection`, `EventSelection`, `PreEvent`, `Race`, `Results`) per TDD §30.2 and D-070.
+  - `AppOverlay`: Isolated overlay enum (`None`, `Pause`, `Settings`, `Rewards`) managed on an isolated stack up to max depth without altering or corrupting the underlying `AppState`.
+  - `AppStateTransitionMatrix`: Pure static authority evaluating all 81 transitions (22 legal paths, 59 rejected paths). Fails closed on illegal jumps with diagnostic warnings and `TransitionRejected` events.
+  - `GameFlowManager`: Single authoritative coordinator and sole mutator of `SelectionContext` (`SetVehicleSelection`, `SetChampionshipSelection`, `SetEventSelection`, `ClearSelections`) per TDD §34.3. Enforces re-entrancy protection against overlapping state or scene transitions, and emits zero-allocation state notifications (`StateChanged`, `TransitionRejected`, `OverlayChanged`).
+- **Stage 2 Additive Scene Lifecycle & Loading Veil (`VelocityRush.Core` / `VelocityRush.Gameplay`):**
+  - `ISceneLifecycleAdapter`: Clean abstraction for scene operations and in-scene fast retry.
+  - `SceneLifecycleController`: Persistent coordinator retaining `Bootstrap.unity` as the composition root. Manages asynchronous additive loading (`LoadSceneMode.Additive`) and unloading (`UnloadSceneAsync`), activates the loaded scene for skybox/lighting parity, restores the persistent root scene on exit, and triggers `Resources.UnloadUnusedAssets()` cleanup per TDD §35.6.
+  - `RequestFastRetry`: Fast retry seam reusing resident race instances and resetting `RaceController` to `Countdown` in place without scene reloading.
+  - `LoadingVeil`: Lightweight UI Toolkit overlay displayed during async transitions, updating normalized progress and enforcing 0 B/frame steady state allocations.
+- **Tests & Verification:**
+  - 9 new hermetic EditMode unit tests (`GameFlowManagerTests`) verifying exhaustive 81-cell transition table, overlay stack operations, selection context single-mutator rules, and re-entrancy rejection.
+  - 4 new PlayMode integration tests (`GameFlowPlayModeTests`) proving additive scene load/activate/unload lifecycle, LoadingVeil visibility during transitions, fast retry resetting race state without scene reload, and zero retained objects over repeated cycles.
+  - Batch compile: **0 errors / 0 warnings**; full EditMode suite **555/555** (+9 new), full PlayMode suite **43/43** (+4 new), **0 failed / 0 skipped / 0 inconclusive**.
+- **Documentation:** `production/ROADMAP.md` Phase 11 Stage 2; `docs/TDD.md` §54; `docs/TRACEABILITY.md`; this changelog. No new `.md` files.
+- **Non-Goals Preserved:** Zero modifications to Stage 3 commercial UI screens; zero modifications to scene files; Playgama Bridge strictly deferred to Phase 13 per D-036. Stage 2 stops cleanly before Stage 3.
+
 ### Phase 11 — Stage 0 Closeout & Stage 1: Save System & Progression Engine (2026-11-21)
 - **Stage 0 Governance:** Formally approved decisions recorded in `docs/DECISIONS.md` (v0.7.0):
   - **D-067:** Save system & WebGL local-first persistence (v1 schema, `PlayerPrefs` JSON, single writer, fail-closed fallback to defaults on corruption or future versions; cloud sync deferred to Phase 13).
