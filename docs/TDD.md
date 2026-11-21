@@ -1996,3 +1996,48 @@ Added `WebGLBuildProfile.Phase11Commercial = 6` targeting 13 scenes in build ord
 - Total passing automated tests across the project: **631 / 631 PASSED**.
 - **Milestone M9 is formally marked COMPLETE.**
 - Strict governance boundaries preserved: Real browser heap/FPS capture remains **OQ-P01** (unclaimed until live browser testing); Playgama Bridge strictly deferred to Phase 13 per D-036; zero new markdown files created.
+
+## 58. Phase 12 Stage 1: 4-Lane Pooled Traffic System & Near-Miss Detection
+
+### 58.1 Architecture & Component Topology
+Phase 12 Stage 1 delivers the foundation for high-speed highway traffic racing:
+1. `TrafficLaneConfig` (`VelocityRush.Data`): Pure serializable configuration defining 4 parallel highway lanes mapped onto the active track spline.
+   - Lane lateral offset formula:
+     $$\text{offset}(i) = \left(i - \frac{N - 1}{2}\right) \times W_{\text{lane}} \quad \text{for } i \in [0, N-1]$$
+     For $N = 4, W_{\text{lane}} = 3.25\text{m}$: Lane 0 = -4.875m, Lane 1 = -1.625m, Lane 2 = +1.625m, Lane 3 = +4.875m.
+   - Nearest lane resolution:
+     $$\text{index}(x) = \text{clamp}\left(\text{round}\left(\frac{x}{W_{\text{lane}}} + \frac{N - 1}{2}\right), 0, N - 1\right)$$
+2. `TrafficVehiclePool` (`VelocityRush.Gameplay.Traffic`): Pre-warms fixed capacity (16–20 instances) with zero GC allocations during runtime `Rent` / `Return` / `ResetAll` / `Teardown`. Fallback procedural box mesh and shaded materials are generated when visual prefab is omitted.
+3. `TrafficLaneManager` (`VelocityRush.Gameplay.Traffic`):
+   - Advances active traffic along track spline via `TrackPath.SampleAtDistance(d, offset)`.
+   - Maintains uniform highway pace across active vehicles ($v = \text{lerp}(v_{\min}, v_{\max}, 0.5)$), guaranteeing that longitudinal spacings remain invariant under rigid translation ($x_i(t) - x_j(t) = \text{const}$), preventing inter-traffic pile-ups or dynamic bunching.
+   - Recycles vehicles that fall behind despawn horizon ($d < d_{\text{player}} - 35\text{m}$) and spawns new vehicles ahead ($d \le d_{\text{player}} + 150\text{m}$).
+   - Non-blocking physical collision handling: applies glancing impulse to traffic and deflection penalty to player vehicle chassis with cooldown guard.
+4. `NearMissDetector` (`VelocityRush.Gameplay.Traffic`): Evaluates player passes relative to active traffic vehicles:
+   - High-speed qualification: $v_{\text{player}} \ge 15.0\text{m/s}$.
+   - Clearance window: lateral distance $\Delta x \in [0.8\text{m}, 2.8\text{m}]$ and longitudinal distance $|\Delta z| \le 4.0\text{m}$.
+   - Collision cancellation: any contact between player and traffic within the last 1.0s invalidates near-miss points and resets streak.
+   - State tracking: prevents duplicate triggers for the same overtake pass.
+
+### 58.2 Anti-Wall Fairness Guarantee
+To ensure the highway is never completely obstructed, `TrafficLaneManager.CanSpawnAt(candidateLane, candidateDistance)` enforces an anti-wall guarantee:
+- Let $W_{\text{wall}} = \text{minSameLaneSpacing} \times 0.75$.
+- A longitudinal slice is defined as $[d - W_{\text{wall}}, d + W_{\text{wall}}]$.
+- The spawner verifies two conditions before placing a vehicle:
+  1. **Candidate Slice Check:** In the window centered at `candidateDistance`, adding `candidateLane` must not result in all $N = 4$ lanes having an occupied vehicle ($\text{occupiedMask} \ne 15$).
+  2. **Bidirectional Neighbor Check:** For every active vehicle $v_k$ within $W_{\text{wall}}$ of `candidateDistance`, adding `candidateLane` at `candidateDistance` must not cause the window centered at $v_k$ to become fully blocked across all 4 lanes.
+- Together with uniform highway pacing, this mathematically guarantees that at least one escape lane remains open at all times across any longitudinal slice of the track.
+
+### 58.3 Zero-Allocation Discipline & Test Evidence
+All runtime operations in `TrafficLaneManager`, `TrafficVehiclePool`, `TrafficVehicle.Advance`, and `NearMissDetector.Evaluate` operate without GC allocations (0 B/frame) by using preallocated arrays, bitmask arithmetic, and stack-allocated structs (`TrafficCollisionEvent`, `NearMissEvent`).
+
+| Metric / Requirement | Target Budget | Observed Result | Status |
+|---|---|---|---|
+| Traffic steady-state tick allocation | 0 B/frame | **0 B** (`GC.GetAllocatedBytesForCurrentThread`) | **PASS** |
+| Near-Miss evaluation steady-state allocation | 0 B/frame | **0 B** | **PASS** |
+| Anti-Wall fairness over 500 spawn ticks | 0 4-lane walls | **0 simultaneous 4-lane walls** | **PASS** |
+| Traffic pool object retention across retry | 0 leaked GameObjects | **0 leaked / exact 16 capacity maintained** | **PASS** |
+| Teardown cleanup | 0 retained objects | **0 retained `TrafficVehicle` instances** | **PASS** |
+| EditMode test suite | 587/587 passing | **587/587 passed (0 failed, 0 skipped)** | **PASS** |
+| PlayMode test suite | 54/54 passing | **54/54 passed (0 failed, 0 skipped)** | **PASS** |
+| Total project automated tests | 641 passing | **641 / 641 passed (100% green)** | **PASS** |

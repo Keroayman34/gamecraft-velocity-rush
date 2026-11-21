@@ -4,6 +4,26 @@ All notable project changes are recorded here.
 This changelog records documentation and process milestones; it does not pre-announce features that have not been implemented.
 
 ## [Unreleased]
+### Phase 12 — Stage 1: 4-Lane Pooled Traffic System & Near-Miss Detection (2026-11-21)
+- **4-Lane Highway Topology & Data Model (`VelocityRush.Data`):**
+  - Created `TrafficLaneConfig` serializable configuration defining 4 parallel highway lanes (`0..3`), lane width (`3.25m`), pool capacity (16–20 vehicles), spawn ahead (`150m`), despawn behind (`35m`), minimum same-lane spacing (`28m`), speed range (`12–22 m/s`), and density (`0..1`).
+  - Added fail-closed validation (`TryValidate`), symmetric lane lateral offset resolution (`GetLaneLateralOffset(int)`), and nearest lane index calculation (`GetNearestLaneIndex(float)`).
+- **Zero-Allocation Object Pool & Kinematic Traffic Vehicle (`VelocityRush.Gameplay.Traffic`):**
+  - Created `TrafficVehiclePool` pre-warming a fixed capacity of `TrafficVehicle` instances on initialization with procedural visual fallback (chassis, cabin, emissive headlights/taillights, wheels) when a prefab is omitted.
+  - Implemented `Rent()`, `Return()`, `ResetAll()`, and `Teardown()` maintaining 0 B steady-state allocations during runtime recycling.
+  - Created `TrafficVehicle` component moving kinematically along spline path via `Advance` and `TrackPath.SampleAtDistance` with non-blocking physical collision response.
+- **Anti-Wall Fair Spawner & Traffic Coordinator (`VelocityRush.Gameplay.Traffic`):**
+  - Created `TrafficLaneManager` coordinating active vehicles along the track spline ahead of and behind the player.
+  - Implemented bidirectional neighborhood anti-wall fairness check (`CanSpawnAt`), verifying that neither the candidate longitudinal slice nor any surrounding active vehicle slice will form an impassable 4-lane wall, mathematically guaranteeing at least 1 escape lane at all times.
+  - Implemented deterministic uniform highway pacing preventing inter-traffic pile-ups or dynamic bunching over time.
+- **Near-Miss Detector & Combo Event Seam (`VelocityRush.Gameplay.Traffic`):**
+  - Created `NearMissDetector` monitoring high-speed overtakes ($v_{\text{player}} \ge 15.0\text{ m/s}$) with lateral clearance $[0.8\text{m}, 2.8\text{m}]$ and longitudinal clearance $\le 4.0\text{m}$.
+  - Added combo streak multipliers, duplicate trigger guards per pass, and collision cancellation resetting streak on contact.
+- **Tests & Verification:**
+  - 7 new EditMode unit tests in `TrafficSystemTests` covering config validation, symmetric lateral offsets, 500-tick anti-wall fairness simulation, near-miss speed qualification, duplicate trigger suppression, collision cancellation, and 0 B allocation proof.
+  - 3 new PlayMode integration tests in `TrafficPlayModeTests` covering pool pre-warming and recycling behind player, fast retry in-scene traffic reset with zero leaked instances, and teardown zero retention.
+  - Batch compile: **0 errors / 0 warnings**; full EditMode suite **587/587** (+7 new), full PlayMode suite **54/54** (+3 new), **0 failed / 0 skipped / 0 inconclusive**. Total project tests: **641 / 641 PASSED**.
+
 ### Phase 11 — Stage 5: WebGL Commercial Build, 10-Cycle Stability & Milestone M9 Closure (2026-11-21)
 - **Playable Entry Point (`Bootstrap.unity` & `GameCompositionRoot`):**
   - Added `AutoBootstrapOnLaunch` runtime initialization hook ensuring `GameCompositionRoot` and all dependencies are dynamically configured on boot without requiring serialized scene edits.

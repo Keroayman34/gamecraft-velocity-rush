@@ -68,6 +68,9 @@ namespace VelocityRush.Gameplay
         /// <summary>Referenced handling profile (sole source of physics values).</summary>
         public VehiclePhysicsProfile Profile => profile;
 
+        /// <summary>The chassis Rigidbody instance.</summary>
+        public Rigidbody Chassis => chassis;
+
         /// <summary>The bound driving input source, or null before runtime binding.</summary>
         public MonoBehaviour InputSource => inputSource;
 

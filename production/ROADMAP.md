@@ -661,3 +661,28 @@ Structural values are real measurements of the committed scenes plus four instan
 - `Assets/Scripts/Gameplay/Scenes/PrototypeEntry.cs` (multi-component GameFlow suppression check)
 - `Assets/Tests/EditMode/WebGLBuildProfileTests.cs` (Phase11 profile tests)
 - `Assets/Tests/PlayMode/Phase11MemoryStabilityPlayModeTests.cs` (10-cycle zero-drift stress test)
+
+## Phase 12 — Highway Rival Update (IN PROGRESS)
+
+*Phase 12 Goal:* Introduce traffic density, highway lane weaving, near-miss adrenaline mechanics, collectible highway pick-ups, nitro boost pacing, and rival rubber-banding across a 15-event commercial difficulty matrix.
+
+*Stage 1 — 4-Lane Pooled Traffic System & Near-Miss Detection (COMPLETE 2026-11-21)*
+- `T-12.1` **4-Lane Highway Topology & Configuration (`VelocityRush.Data`):** `TrafficLaneConfig` serializable data structure defining 4 parallel lanes (`0..3`) with lane width (`3.25m`), pool capacity (16–20 vehicles), spawn ahead (`150m`), despawn behind (`35m`), minimum same-lane spacing (`28m`), speed range (`12–22 m/s`), and density ratio (`0..1`); fail-closed validation (`TryValidate`) clamping invalid counts/speeds/spacings, symmetric lane lateral offsets calculation (`GetLaneLateralOffset(int)`), and nearest lane resolution (`GetNearestLaneIndex(float)`). — **COMPLETE.**
+- `T-12.2` **Pre-Warmed Zero-Allocation Traffic Pool (`VelocityRush.Gameplay`):** `TrafficVehiclePool` pre-warms fixed capacity of `TrafficVehicle` instances on initialization, activating and recycling via `Rent()`, `Return()`, `ResetAll()`, and `Teardown()`; supports fallback procedural mesh/materials when visual prefab is omitted; 0 B steady-state allocations during runtime recycling. — **COMPLETE.**
+- `T-12.3` **Anti-Wall Safe-Gap Spawner & Traffic Coordinator (`VelocityRush.Gameplay`):** `TrafficLaneManager` coordinates traffic along `TrackPath` spline; implements bidirectional neighborhood anti-wall fairness check (`CanSpawnAt`), mathematically verifying that neither the candidate longitudinal slice nor any surrounding active vehicle slice will have all 4 lanes blocked simultaneously (guaranteeing at least 1 escape lane at all times); uniform highway pacing preventing inter-traffic pile-ups or dynamic bunching; despawns vehicles behind player and recycles forward. — **COMPLETE.**
+- `T-12.4` **Kinematic Vehicle Movement & Non-Blocking Collision Response (`VelocityRush.Gameplay`):** `TrafficVehicle` advances along track path via `Advance` using `TrackPath.SampleAtDistance` + lateral lane offset, keeping vehicle upright and forward-facing; non-blocking physical collision response applies glancing impulses to traffic while imparting deflection penalty to player with cooldown protection. — **COMPLETE.**
+- `T-12.5` **Near-Miss Detector & Event Seam (`VelocityRush.Gameplay`):** `NearMissDetector` monitors high-speed overtakes (`minNearMissSpeed = 15 m/s`, lateral clearance `[collisionMargin = 0.8m, nearMissRadius = 2.8m]`, longitudinal clearance `4.0m`); triggers `OnNearMiss` event with score combo multipliers; duplicate pass guards and collision cancellation ensure clean scoring. — **COMPLETE.**
+- `T-12.6` **Stage-1 Verification & Test Suite:** 7 new EditMode tests (`TrafficSystemTests`) asserting config validation, symmetric lane offsets, 500-tick anti-wall fairness simulation, near-miss speed qualification, duplicate trigger suppression, collision cancellation, and 0 B allocation proof; 3 new PlayMode integration tests (`TrafficPlayModeTests`) asserting pool pre-warming and recycling behind player, fast retry traffic reset with zero leaked instances, and teardown zero retention; full EditMode suite **587/587** (+7 new), full PlayMode suite **54/54** (+3 new), **0 failed / 0 skipped / 0 inconclusive**. Total project passing tests: **641 / 641 PASSED**. — **COMPLETE.**
+
+*Stage 1 files:*
+- `Assets/Scripts/Data/Traffic/TrafficLaneConfig.cs`
+- `Assets/Scripts/Gameplay/Traffic/TrafficEvents.cs`
+- `Assets/Scripts/Gameplay/Traffic/TrafficVehicle.cs`
+- `Assets/Scripts/Gameplay/Traffic/TrafficVehiclePool.cs`
+- `Assets/Scripts/Gameplay/Traffic/TrafficLaneManager.cs`
+- `Assets/Scripts/Gameplay/Traffic/NearMissDetector.cs`
+- `Assets/Scripts/Gameplay/Vehicles/VehicleController.cs` (chassis accessor)
+- `Assets/Tests/EditMode/TrafficSystemTests.cs`
+- `Assets/Tests/PlayMode/TrafficPlayModeTests.cs`
+
+*Stage 1 non-goals preserved:* no Stage 2 collectible coins yet; no Stage 3 nitro boost or rival rubber-banding; no Stage 4 difficulty matrix or WebGL build yet; Playgama Bridge strictly deferred to Phase 13 per D-036.
