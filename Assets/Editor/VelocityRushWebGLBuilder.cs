@@ -44,7 +44,14 @@ namespace VelocityRush.EditorTools
         /// Phase-10 M8 Championship production: Bootstrap + Garage + 10 environment scenes
         /// (5 signature + 5 reverse) for the complete 15-event championship build.
         /// </summary>
-        Phase10Championships = 5
+        Phase10Championships = 5,
+
+        /// <summary>
+        /// Phase-11 Commercial M9: Bootstrap (scene 0, composition root) + Garage +
+        /// ChampionshipCatalog + 10 environment scenes (5 signature + 5 reverse)
+        /// for the commercial end-to-end loop.
+        /// </summary>
+        Phase11Commercial = 6
     }
 
     /// <summary>
@@ -170,6 +177,25 @@ namespace VelocityRush.EditorTools
             "Assets/Scenes/Environments/world-arena-reverse.unity"
         };
 
+        /// <summary>Phase-11 M9 Commercial production scene order.
+        /// Bootstrap (scene 0) + Garage + ChampionshipCatalog + 10 environment scenes (5 signature + 5 reverse).</summary>
+        public static readonly string[] Phase11CommercialScenePaths =
+        {
+            "Assets/Scenes/Bootstrap.unity",
+            "Assets/Scenes/Garage.unity",
+            "Assets/Scenes/ChampionshipCatalog.unity",
+            "Assets/Scenes/Environments/desert-signature.unity",
+            "Assets/Scenes/Environments/desert-reverse.unity",
+            "Assets/Scenes/Environments/coastal-signature.unity",
+            "Assets/Scenes/Environments/coastal-reverse.unity",
+            "Assets/Scenes/Environments/mountain-pass-signature.unity",
+            "Assets/Scenes/Environments/mountain-pass-reverse.unity",
+            "Assets/Scenes/Environments/neon-city-signature.unity",
+            "Assets/Scenes/Environments/neon-city-reverse.unity",
+            "Assets/Scenes/Environments/world-arena-signature.unity",
+            "Assets/Scenes/Environments/world-arena-reverse.unity"
+        };
+
         private static readonly ArtifactCategory[] Categories =
         {
             new ArtifactCategory("indexHtml", "index.html"),
@@ -241,6 +267,8 @@ namespace VelocityRush.EditorTools
                     return Phase10DebugScenePaths;
                 case WebGLBuildProfile.Phase10Championships:
                     return Phase10ChampionshipsScenePaths;
+                case WebGLBuildProfile.Phase11Commercial:
+                    return Phase11CommercialScenePaths;
                 default:
                     return PrototypeScenePaths;
             }
@@ -261,6 +289,8 @@ namespace VelocityRush.EditorTools
                     return "Phase 10 AI Grid";
                 case WebGLBuildProfile.Phase10Championships:
                     return "Phase 10 Championships";
+                case WebGLBuildProfile.Phase11Commercial:
+                    return "Phase 11 Commercial";
                 default:
                     return "Prototype";
             }
@@ -348,6 +378,15 @@ namespace VelocityRush.EditorTools
                 return true;
             }
 
+            if (string.Equals(token, "phase11", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "phase11commercial", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "commercial", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(token, "6", StringComparison.Ordinal))
+            {
+                profile = WebGLBuildProfile.Phase11Commercial;
+                return true;
+            }
+
             return false;
         }
 
@@ -370,7 +409,7 @@ namespace VelocityRush.EditorTools
             }
 
             throw new InvalidOperationException(
-                "Unknown WebGL build profile '" + token + "'. Use 'prototype', 'slice', 'phase8', 'phase9', or 'phase10'.");
+                "Unknown WebGL build profile '" + token + "'. Use 'prototype', 'slice', 'phase8', 'phase9', 'phase10', or 'phase11'.");
         }
 
         /// <summary>
@@ -380,6 +419,16 @@ namespace VelocityRush.EditorTools
         public static WebGLBuildProfile DetectConfiguredProfile()
         {
             var configured = EditorBuildSettings.scenes;
+            if (MatchesSceneOrder(configured, Phase11CommercialScenePaths))
+            {
+                return WebGLBuildProfile.Phase11Commercial;
+            }
+
+            if (MatchesSceneOrder(configured, Phase10ChampionshipsScenePaths))
+            {
+                return WebGLBuildProfile.Phase10Championships;
+            }
+
             if (MatchesSceneOrder(configured, Phase10DebugScenePaths))
             {
                 return WebGLBuildProfile.Phase10Debug;
@@ -549,10 +598,27 @@ namespace VelocityRush.EditorTools
             EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// Batch helper: applies the Phase-11 commercial scene set
+        /// (Bootstrap + Garage + ChampionshipCatalog + ten environment/configuration scenes).
+        /// </summary>
+        public static void ApplyPhase11CommercialScenesFromCommandLine()
+        {
+            ApplySceneSet(WebGLBuildProfile.Phase11Commercial, string.Empty, string.Empty);
+            EditorApplication.Exit(0);
+        }
+
         /// <summary>Batch helper: restores the prototype scene set (Bootstrap → TestTrack).</summary>
         public static void RestorePrototypeScenesFromCommandLine()
         {
             ApplySceneSet(WebGLBuildProfile.Prototype, string.Empty, string.Empty);
+            EditorApplication.Exit(0);
+        }
+
+        /// <summary>Batch helper: restores the active build target to Standalone Linux 64.</summary>
+        public static void RestoreStandaloneTargetFromCommandLine()
+        {
+            EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Standalone, BuildTarget.StandaloneLinux64);
             EditorApplication.Exit(0);
         }
 
@@ -654,6 +720,7 @@ namespace VelocityRush.EditorTools
             var preflight = RunPreflight(outputDirectory, true, allowNonEmptyOutput, profile);
             if (!preflight.Passed)
             {
+                Debug.LogError(LogPrefix + "Preflight failed: " + preflight.FailuresSummary);
                 return new WebGLBuildOutcome
                 {
                     Attempted = false,

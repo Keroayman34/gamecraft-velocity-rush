@@ -60,6 +60,28 @@ namespace VelocityRush.Gameplay
         public ProgressionService ProgressionService => _progressionService;
         public GameFlowManager GameFlow => gameFlow;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void AutoBootstrapOnLaunch()
+        {
+            if (FindAnyObjectByType<GameCompositionRoot>() != null)
+            {
+                return;
+            }
+
+            var activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            if (string.Equals(activeScene.name, "Bootstrap", StringComparison.OrdinalIgnoreCase))
+            {
+                var bootGo = GameObject.Find("Bootstrap");
+                if (bootGo == null)
+                {
+                    bootGo = new GameObject("Bootstrap");
+                }
+
+                var compRoot = bootGo.AddComponent<GameCompositionRoot>();
+                compRoot.EnsureDependencies();
+            }
+        }
+
         private void Awake()
         {
             EnsureDependencies();
@@ -98,6 +120,12 @@ namespace VelocityRush.Gameplay
             if (uiDocument == null)
             {
                 uiDocument = GetComponent<UIDocument>();
+                if (uiDocument == null) uiDocument = gameObject.AddComponent<UIDocument>();
+            }
+
+            if (GetComponent<LoadingVeil>() == null)
+            {
+                gameObject.AddComponent<LoadingVeil>();
             }
 
             if (commercialUi == null)

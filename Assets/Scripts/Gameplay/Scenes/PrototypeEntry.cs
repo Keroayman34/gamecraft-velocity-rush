@@ -45,7 +45,7 @@ namespace VelocityRush.Gameplay
             }
 
             // Commercial GameFlow coordinator suppresses legacy prototype auto-load (TDD §35.1)
-            if (GetComponent<GameFlowManager>() != null)
+            if (GetComponent<GameFlowManager>() != null || FindAnyObjectByType<GameFlowManager>() != null || FindAnyObjectByType<GameCompositionRoot>() != null)
             {
                 return;
             }

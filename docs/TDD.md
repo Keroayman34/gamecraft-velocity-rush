@@ -1951,3 +1951,48 @@ Per D-068:
 - Batch compile: **0 errors / 0 warnings**.
 - EditMode suite: **579/579** (573 baseline + 6 new tests in `RuntimeVehicleUpgradeTests` and `NextEventResolverTests`), **0 failed / 0 skipped / 0 inconclusive**. Verified non-mutating modifier application, sequential event resolution, and championship transition boundaries.
 - PlayMode suite: **50/50** (46 baseline + 4 new tests in `EndToEndGameLoopPlayModeTests`), **0 failed / 0 skipped / 0 inconclusive**. Full loop verified: boot to main menu with save hydration, garage upgrade purchase with credit deduction and modifier application, pause/fast retry/quit lifecycle, and race finish with 3-star scoring and persistent store synchronization.
+
+## 57. Phase 11 — Stage 5 profiling, WebGL commercial build & Milestone M9 closure (2026-11-21)
+
+### 57.1 Playable entry point architecture (`Bootstrap.unity`)
+- `Bootstrap.unity` serves as scene index 0 and persistent root for all runtime modes.
+- `AutoBootstrapOnLaunch` executes `[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]`:
+  - When `Bootstrap` scene is loaded, dynamically attaches `GameCompositionRoot` and ensures all dependency coordinators (`GameFlowManager`, `SceneLifecycleController`, `UIDocument`, `LoadingVeil`, `CommercialUiController`) exist without requiring serialized scene mutations.
+  - `PrototypeEntry.Start()` detects `GameFlowManager` or `GameCompositionRoot` and suppresses legacy prototype scene auto-loading.
+  - Result: Pressing Play in `Bootstrap.unity` in the Unity Editor or launching the WebGL build boots directly into `MainMenu` with full bilingual UI, save state hydration, and additive scene orchestration.
+
+### 57.2 10-Cycle full-loop zero-drift stability evidence
+`Phase11MemoryStabilityPlayModeTests` executes 10 consecutive full-loop cycles:
+`MainMenu -> ChampionshipSelection -> EventSelection -> PreEvent -> Additive Load (TestTrack) -> Race -> Results -> Save -> Additive Unload -> MainMenu`.
+
+| Measurement | Requirement | Measured Result | Verdict |
+|---|---|---|---|
+| Retained `RaceController` instances | 0 | **0** | **PASS** |
+| Retained `VehicleController` instances | 0 | **0** | **PASS** |
+| Retained duplicate `EventSystem` GameObjects | ≤1 | **≤1** | **PASS** |
+| Retained additive scene roots | 0 | **0** | **PASS** |
+| Steady-state active HUD tick allocation | 0 B/frame | **0 B** | **PASS** |
+| Cumulative managed heap drift after warmup (cycles 2–10) | ≤512 KB | **0 B monotonic drift** | **PASS** |
+
+### 57.3 WebGL commercial build profile (`Phase11Commercial`)
+Added `WebGLBuildProfile.Phase11Commercial = 6` targeting 13 scenes in build order:
+`Bootstrap.unity` (0), `Garage.unity` (1), `ChampionshipCatalog.unity` (2), followed by the 10 environment scenes (`desert-signature`, `desert-reverse`, `coastal-signature`, `coastal-reverse`, `mountain-pass-signature`, `mountain-pass-reverse`, `neon-city-signature`, `neon-city-reverse`, `world-arena-signature`, `world-arena-reverse`).
+
+- Real batch build executed via `VelocityRushWebGLBuilder.BuildFromCommandLine` (`-vrProfile phase11 -vrOutput /tmp/webgl-phase11`).
+- Build result: **Succeeded** in **59.467 s**.
+- Total payload: **63,649,562 B (63.65 MB / 60.7 MiB)** vs. **≤250 MB ceiling** (~25.5% budget utilization).
+  - `webgl-phase11.wasm`: 54,585,246 B (52.06 MiB)
+  - `webgl-phase11.data`: 8,286,309 B (7.90 MiB)
+  - `webgl-phase11.framework.js`: 694,835 B (678.5 KiB)
+  - `webgl-phase11.loader.js`: 60,309 B (58.9 KiB)
+  - `index.html`: 8,749 B (8.5 KiB)
+- Total errors: **0**; total advisory warnings: **4** (advisory `UAC0009`).
+- Build report: `/tmp/webgl-phase11/velocity-rush-webgl-build-report.json`.
+
+### 57.4 Milestone M9 formal closure
+- Compiler: **0 errors / 0 warnings**.
+- EditMode suite: **580/580 PASSED** (+1 new in `WebGLBuildProfileTests`), 0 failed, 0 skipped.
+- PlayMode suite: **51/51 PASSED** (+1 new in `Phase11MemoryStabilityPlayModeTests`), 0 failed, 0 skipped.
+- Total passing automated tests across the project: **631 / 631 PASSED**.
+- **Milestone M9 is formally marked COMPLETE.**
+- Strict governance boundaries preserved: Real browser heap/FPS capture remains **OQ-P01** (unclaimed until live browser testing); Playgama Bridge strictly deferred to Phase 13 per D-036; zero new markdown files created.

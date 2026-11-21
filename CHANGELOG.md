@@ -4,6 +4,25 @@ All notable project changes are recorded here.
 This changelog records documentation and process milestones; it does not pre-announce features that have not been implemented.
 
 ## [Unreleased]
+### Phase 11 — Stage 5: WebGL Commercial Build, 10-Cycle Stability & Milestone M9 Closure (2026-11-21)
+- **Playable Entry Point (`Bootstrap.unity` & `GameCompositionRoot`):**
+  - Added `AutoBootstrapOnLaunch` runtime initialization hook ensuring `GameCompositionRoot` and all dependencies are dynamically configured on boot without requiring serialized scene edits.
+  - Hardened `PrototypeEntry.Start()` to suppress legacy prototype auto-loading whenever `GameFlowManager` or `GameCompositionRoot` is present.
+- **10-Cycle Zero-Drift PlayMode Stress Test (`Phase11MemoryStabilityPlayModeTests.cs`):**
+  - Implemented automated 10-cycle stress test driving full commercial loops (`MainMenu -> Select Event -> Additive Load -> Race -> Results -> Save -> Unload -> MainMenu`).
+  - Verified **0 retained** `RaceController`, `VehicleController`, or duplicate `EventSystem`/additive scene objects.
+  - Verified active in-race HUD hot-path steady state remains **0 B/frame**.
+  - Verified managed heap stability across cycles with zero monotonic memory drift after warmup.
+- **WebGL Commercial Build Profile (`Assets/Editor/VelocityRushWebGLBuilder.cs`):**
+  - Added `WebGLBuildProfile.Phase11Commercial = 6` targeting 13 scenes in build order (`Bootstrap.unity`, `Garage.unity`, `ChampionshipCatalog.unity`, and all 10 environment scenes).
+  - Executed clean batch WebGL Development build via `BuildFromCommandLine`: **Succeeded in 59.467 s at 63,649,562 B (63.65 MB / 60.7 MiB) / 0 errors, 4 advisory warnings** (~25.5% of 250 MB ceiling).
+  - Added CLI helper `RestoreStandaloneTargetFromCommandLine` to cleanly restore Standalone target after WebGL builds.
+- **Tests & Verification:**
+  - 1 new EditMode test in `WebGLBuildProfileTests` asserting 13-scene profile paths, order, token parsing, and descriptor formatting.
+  - 1 new PlayMode stress test in `Phase11MemoryStabilityPlayModeTests` executing 10 full loops.
+  - Batch compile: **0 errors / 0 warnings**; full EditMode suite **580/580** (+1 new), full PlayMode suite **51/51** (+1 new), **0 failed / 0 skipped / 0 inconclusive**. Total project tests: **631 / 631 PASSED**.
+- **Milestone M9 Closeout:** Phase 11 / Milestone M9 formally closed. Real browser capture remains OQ-P01; Playgama Bridge strictly deferred to Phase 13 per D-036.
+
 ### Phase 11 — Stage 4: End-to-End Game Loop Integration (2026-11-21)
 - **Composition Root (`Assets/Scripts/Gameplay/App/GameCompositionRoot.cs`):**
   - Centralized composition root in `Bootstrap.unity` coordinating `SaveService`, `PlayerProgress`, `ProgressionService`, `GameFlowManager`, `SceneLifecycleController`, `CommercialUiController`, and all 8 MVP screen presenters.

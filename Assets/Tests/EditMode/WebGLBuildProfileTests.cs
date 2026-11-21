@@ -72,6 +72,20 @@ namespace VelocityRush.Tests.EditMode
         }
 
         [Test]
+        public void Phase11CommercialProfile_TargetsBootstrapGarageCatalogAndTenEnvironments()
+        {
+            var paths = VelocityRushWebGLBuilder.GetScenePaths(WebGLBuildProfile.Phase11Commercial);
+
+            Assert.That(paths[0], Is.EqualTo(BootstrapScenePath));
+            Assert.That(paths[1], Is.EqualTo("Assets/Scenes/Garage.unity"));
+            Assert.That(paths[2], Is.EqualTo("Assets/Scenes/ChampionshipCatalog.unity"));
+            Assert.That(paths.Length, Is.EqualTo(13));
+            Assert.That(
+                VelocityRushWebGLBuilder.DescribeSceneOrder(WebGLBuildProfile.Phase11Commercial),
+                Is.EqualTo("Bootstrap -> world-arena-reverse (13 scenes)"));
+        }
+
+        [Test]
         public void DescribeSceneOrder_NamesTheProfileScenes()
         {
             Assert.That(
@@ -111,6 +125,12 @@ namespace VelocityRush.Tests.EditMode
 
             Assert.That(VelocityRushWebGLBuilder.TryParseProfile("all-environments", out var all), Is.True);
             Assert.That(all, Is.EqualTo(WebGLBuildProfile.Phase9Debug));
+
+            Assert.That(VelocityRushWebGLBuilder.TryParseProfile("phase11", out var phase11), Is.True);
+            Assert.That(phase11, Is.EqualTo(WebGLBuildProfile.Phase11Commercial));
+
+            Assert.That(VelocityRushWebGLBuilder.TryParseProfile("commercial", out var commercial), Is.True);
+            Assert.That(commercial, Is.EqualTo(WebGLBuildProfile.Phase11Commercial));
 
             Assert.That(VelocityRushWebGLBuilder.TryParseProfile("unknown", out _), Is.False);
             Assert.That(VelocityRushWebGLBuilder.TryParseProfile("  ", out _), Is.False);
