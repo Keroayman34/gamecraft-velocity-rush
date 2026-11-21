@@ -4,6 +4,35 @@ All notable project changes are recorded here.
 This changelog records documentation and process milestones; it does not pre-announce features that have not been implemented.
 
 ## [Unreleased]
+### Phase 11 — Stage 0 Closeout & Stage 1: Save System & Progression Engine (2026-11-21)
+- **Stage 0 Governance:** Formally approved decisions recorded in `docs/DECISIONS.md` (v0.7.0):
+  - **D-067:** Save system & WebGL local-first persistence (v1 schema, `PlayerPrefs` JSON, single writer, fail-closed fallback to defaults on corruption or future versions; cloud sync deferred to Phase 13).
+  - **D-068:** Scoring, stars, economy & upgrade system (Circuit 1-3★, Time Trial 1-3★, idempotent rewards with base + delta star bonuses + gold bonus, 6 upgrade categories tiers 0..3 with class cost scaling, non-mutating modifiers).
+  - **D-069:** Commercial UI suite & navigation (UI Toolkit screens, unified landscape layout, RTL/LTR localization support).
+  - **D-070:** GameFlow scene orchestration (`GameFlowManager` state machine, additive/single scene transitions).
+  - **Open Questions:** Marked resolved in `docs/OPEN_QUESTIONS.md`: OQ-03, OQ-04, OQ-07, OQ-09, OQ-17, OQ-A01–A03, OQ-T05 (local-first), OQ-T06.
+- **Stage 1 Save System (`VelocityRush.Core` / `VelocityRush.Data`):**
+  - `ISaveStore`: Pure interface (`Exists`, `TryLoad`, `TrySave`, `TryDelete`).
+  - `SaveModel`: Versioned plain DTO (`saveVersion = 1`, `credits = 500`, `selectedVehicleId = "starter-apex-v"`, unlocked collections, `VehicleUpgradeEntry[]`, `EventProgressEntry[]`, `PlayerSettingsDto`). Enforces Unity `JsonUtility` compatibility via serializable entry arrays (avoiding unsupported generic Dictionaries). Implements `CreateDefault()` and fail-closed `TryValidate()`.
+  - `PlayerPrefsJsonSaveStore`: Production WebGL store handling serialization and guarding against `PlayerPrefsException`.
+  - `InMemorySaveStore`: Hermetic test store supporting fault injection (load/save failure simulation and raw payload overrides).
+  - `SaveService`: Single-writer dirty-tracking persistence coordinator. Fails closed with clean fallback to `SaveModel.CreateDefault()` on missing data, malformed JSON, or future schema versions.
+- **Stage 1 Progression & Upgrade Domain (`VelocityRush.Gameplay` / `VelocityRush.Data`):**
+  - `UpgradeCategory`: Enum for all 6 approved categories (`Engine`, `Tires`, `Brakes`, `Suspension`, `Transmission`, `Aerodynamics`).
+  - `VehicleUpgradeState`: Immutable tier snapshot struct [0..3].
+  - `VehicleUpgradeModifiers`: Readonly value-type struct (0 B heap allocation) holding calculated physics multipliers.
+  - `UpgradeCalculator`: Stateless math computing class-scaled tier costs (Starter 250..750 CR up to Supercar 1000..3000 CR) and percentage modifiers (+3%/+4% per tier). Non-mutating guarantee for ScriptableObject assets.
+  - `TimeTrialTargetTable`: Deterministic Bronze, Silver, Gold target times for all 6 M8 Time Trial events with dynamic fallback.
+  - `ProgressionOutcome`: Immutable race progression evaluation report.
+  - `PlayerProgress`: Aggregate root and sole progression mutator (`docs/TDD.md` §34.3). Provides O(1) in-memory lookups, atomic credit mutations and upgrade purchasing, vehicle unlocks, and change notifications without per-frame allocations.
+  - `ProgressionService`: Evaluates Circuit Races (1★ Finish, 2★ Podium, 3★ 1st Place) and Time Trials (1★ Complete, 2★ Silver, 3★ Gold) deterministically; enforces idempotent economy (no star double-farming; delta star rewards only) and linear championship/event unlocks.
+- **Tests & Verification:**
+  - 32 new hermetic EditMode tests across 4 test fixtures (`SaveModelTests`, `SaveServiceTests`, `UpgradeCalculatorTests`, `ProgressionServiceTests`).
+  - Zero-allocation runtime proofs: 0 B over 1,000 modifier computations and 0 B over 500 progression read queries.
+  - Test suites: compile **0 errors / 0 warnings**; full EditMode **546/546** passed (514 baseline + 32 new), 0 failed, 0 skipped, 0 inconclusive.
+- **Documentation:** `docs/DECISIONS.md` v0.7.0; `docs/OPEN_QUESTIONS.md`; `production/ROADMAP.md` Phase 11 Stage 0 & Stage 1; `docs/TDD.md` §53; `docs/TRACEABILITY.md`; this changelog. No new `.md` files.
+- **Non-Goals Preserved:** Zero modifications to `GameFlowManager`, UI Toolkit screens, scene files, or Playgama Bridge (Phase 13 per D-036). Stage 1 stops cleanly before Stage 2.
+
 ### Phase 10B — signature start pose traction fix (player spins but does not move)
 - **Bug:** in `desert-signature` the rear wheels reported grounded at 1.00 slip with higher compression while the chassis never translated; `desert-reverse` drove normally. This was **scene geometry, not drivetrain tuning**. The road ribbon starts at track distance 0 with its surface at `y = 0`, and the 0.45 m `Skirt` face rises from the `-0.45 m` ground plane along that same edge. The car centre was spawned at distance 0, so the 1.3 m rear axle and body overhang sat behind the road edge and the rear tyres spun against a curb taller than the 0.35 m wheel radius.
 - **Fix:** `Assets/Editor/EnvironmentSceneBuilder.cs` adds `PlayerStartSetback = 3.5f` and places the player, camera, `SpawnPoint`, and `Start Line` at that setback in both signature builds and derived reverse scenes instead of at distance 0. The value clears the rear axle, body overhang, and skirt. A new `AuditStartClearance` fails any scene whose player pose is not the computed setback pose for its variant.

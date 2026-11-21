@@ -1834,3 +1834,30 @@ The committed `ProjectSettings/EditorBuildSettings.asset` is unchanged after the
 **Regeneration policy.** The full builder re-creates every object, so Unity renumbers every scene fileID: the first regeneration produced a 157,638-line diff, and a second identical build produced a different renumbering — the IDs are **not reproducible between runs**. Committed generated scenes are therefore reoriented in place: `ReorientSignatureSpawnsFromCommandLine` opens each committed signature scene, moves only the start-relative transforms, re-audits, and saves; `BuildReverseAllFromCommandLine` then re-derives the reverse copies from those signatures. The committed diff is 8–10 lines per scene, all other fileIDs are preserved, and meshes/materials are byte-identical.
 
 **Validation (isolated copy, 2026-11-20).** Batch compile **0 errors / 0 warnings**; EditMode **514/514**; PlayMode **39/39**; 0 failed / 0 skipped / 0 inconclusive. New regression `EnvironmentScenePlayModeTests.SignatureScene_PlayerAcceleratesForwardFromTheStart` loads `desert-signature`, waits for GO, applies full throttle for 2.5 s, and requires more than **4 m** of forward travel. Diagnostic evidence after the fix: all four wheels hit `Road` at `y = 0`, rear slip falls from 0.89 to ~0.3, and the chassis reaches ~1.9 m/s while advancing from `z = 3.5` to `z = 3.911` in ~0.4 s. The `Update`/`FixedUpdate` **0 B/frame** contract is unchanged; `AuditStartClearance` runs only at build/audit time. No real-browser capture is implied; **OQ-P01** remains open.
+
+## 53. Phase 11 — Save system and progression domain engine (Stage 0/1)
+
+### 53.1 Stage 0 governance & owner decisions
+Phase 11 kicked off under owner sign-off on four core architectural decisions:
+- **D-067 (Save system & local persistence):** Layered persistence (`SaveModel` ⇄ `ISaveStore` ⇄ `SaveService`) local-first for WebGL via `PlayerPrefsJsonSaveStore`, schema versioning (`saveVersion = 1`), and fail-closed recovery to clean defaults on corruption or future versions. Playgama Bridge Cloud Save remains strictly Phase 13 per D-036.
+- **D-068 (Scoring, stars, economy & upgrades):** Circuit Race (1★ Finish, 2★ Podium, 3★ 1st); Time Trial (1★ Complete, 2★ Silver, 3★ Gold via `TimeTrialTargetTable`). Economy: +100 CR base, +150 CR/new star delta (idempotent; no double-farming), +200 CR 1st place/gold bonus. Vehicle class unlocks: Starter (Apex-V default, Nova Hatch 1000 CR), Sport (C1 completed + 2500–3500 CR), Drift (C2 completed + 4000–5000 CR), Supercar (C3 unlocked + 7500–10000 CR). 6 upgrade categories (Engine, Tires, Brakes, Suspension, Transmission, Aero), max 3 tiers, class-scaled costs (Starter 250..750 CR to Supercar 1000..3000 CR), +3%/+4% modifiers output as a 0 B allocation `VehicleUpgradeModifiers` struct without mutating base assets.
+- **D-069 (Commercial UI suite & navigation):** Programmatic UI Toolkit (no uGUI/TMP package churn), 7 screens (Main Menu, Championship Selection, Event Selection, Garage & Upgrades, In-Game HUD + Pause, Results & Rewards, Settings Overlay), bilingual English/Arabic with LTR/RTL dynamic mirroring, and 0 B/frame hot-path allocation.
+- **D-070 (GameFlow scene orchestration):** Flat 9-state FSM (`AppState`) inside persistent root (`Bootstrap.unity`); additive environment/event scene loading; non-allocating Loading Veil; in-scene fast retry without scene reload.
+
+### 53.2 Save architecture & Unity JsonUtility serialization discipline
+Because Unity's built-in `JsonUtility` does not serialize C# generic dictionaries, `SaveModel` explicitly serializes collections as arrays of serializable entry DTOs:
+- `VehicleUpgradeEntry[] vehicleUpgrades`: holds `vehicleId`, `engineTier`, `tiresTier`, `brakesTier`, `suspensionTier`, `transmissionTier`, `aeroTier`.
+- `EventProgressEntry[] eventRecords`: holds `eventId`, `bestTimeSeconds`, `starsEarned`, `completed`.
+- `PlayerSettingsDto settings`: holds `language` ("en" or "ar") and volume levels (`masterVolume`, `sfxVolume`, `engineVolume`).
+
+`SaveService` coordinates dirty-tracking (`MarkDirty()`, `Flush()`) and enforces fail-closed recovery: if the storage payload is missing, malformed JSON, or carries an unsupported future `saveVersion`, `SaveService` logs a structured diagnostic warning and establishes clean default state (`SaveModel.CreateDefault()`) without throwing unhandled exceptions.
+
+### 53.3 Progression, economy & upgrade domain engine
+- `PlayerProgress` is the sole progression mutator per §34.3. It maintains $O(1)$ fast in-memory hash sets and dictionaries for vehicle unlocks, championship unlocks, upgrade states, and event records, and exports back to `SaveModel` cleanly.
+- `ProgressionService` evaluates race outcomes deterministically, awards stars according to race type, computes credit bonuses (base, new-star delta, and 1st place/gold bonus), and advances the D-065 linear championship and round unlock chains.
+- `UpgradeCalculator` provides pure, stateless mathematical evaluation of upgrade costs per vehicle class and computes `VehicleUpgradeModifiers` structs (value type, 0 heap allocation) without ever mutating base `VehiclePhysicsProfile` ScriptableObject assets.
+
+### 53.4 Stage 1 validation evidence
+- Batch compile: **0 errors / 0 warnings**.
+- EditMode suite: **546/546** (514 baseline + 32 new tests), **0 failed / 0 skipped / 0 inconclusive**.
+- Tested coverage: `SaveModelTests` (10 tests: schema validation, JSON round-trip fidelity, error guards); `SaveServiceTests` (7 tests: save/load lifecycle, dirty-tracking, corruption recovery, future version fallback, PlayerPrefs store operations); `UpgradeCalculatorTests` (4 tests: modifier math, cost scaling, tier clamping, 0 B allocation proof); `ProgressionServiceTests` (11 tests: Circuit & Time Trial star scoring, idempotent star rewards, best time updates, championship unlock progression, vehicle unlock class gating, upgrade purchase atomic deduction, 0 B query allocations).
