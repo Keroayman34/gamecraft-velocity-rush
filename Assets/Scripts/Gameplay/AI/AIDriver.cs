@@ -75,6 +75,7 @@ namespace VelocityRush.Gameplay.AI
         private bool _initialized;
         private bool _startHold;
         private float _lateralBias;
+        private float _targetLateralBias;
         private float _speed;
         private float _previousSpeed;
         private float _distanceTravelled;
@@ -88,6 +89,9 @@ namespace VelocityRush.Gameplay.AI
         private bool _hasPlayerDistance;
         private Vector3 _pushOffset;
         private Quaternion _rotation = Quaternion.identity;
+        private RubberBandConfig _smartRubberBandConfig;
+        private VelocityRush.Gameplay.Traffic.TrafficLaneManager _trafficManager;
+        private VelocityRush.Data.TrafficLaneConfig _trafficLaneConfig;
 
         /// <summary>Whether <see cref="Initialize"/> has completed.</summary>
         public bool IsInitialized => _initialized;
@@ -190,6 +194,23 @@ namespace VelocityRush.Gameplay.AI
         }
 
         /// <summary>
+        /// Enables smart rubber-banding using Phase 12 dead-zone and bounded catch-up/slow-down rules (Phase 12 Stage 3; TDD §60).
+        /// </summary>
+        public void SetSmartRubberBand(RubberBandConfig config)
+        {
+            _smartRubberBandConfig = config;
+        }
+
+        /// <summary>
+        /// Enables traffic-aware lane weaving, scanning active traffic ahead and transitioning lateral bias to clear lanes.
+        /// </summary>
+        public void SetTrafficManager(VelocityRush.Gameplay.Traffic.TrafficLaneManager manager, VelocityRush.Data.TrafficLaneConfig laneConfig)
+        {
+            _trafficManager = manager;
+            _trafficLaneConfig = laneConfig;
+        }
+
+        /// <summary>
         /// Holds or releases the car for the synchronized grid start (T-10.3.2). While held,
         /// <see cref="Tick"/> is a no-op and the commands are neutralized so a held car cannot creep
         /// forward. Releasing does not add speed or move the car; the normal path step starts on the
@@ -268,6 +289,17 @@ namespace VelocityRush.Gameplay.AI
             else
             {
                 _rubberBandScale = 1f;
+            }
+
+            // Phase 12 Stage 3: Smooth traffic avoidance lane weaving
+            if (_trafficManager != null && _trafficLaneConfig.laneCount > 0)
+            {
+                _targetLateralBias = RivalTrafficAvoidance.EvaluateTargetLateralBias(
+                    _lateralBias,
+                    _cursor.Distance,
+                    _trafficManager,
+                    _trafficLaneConfig);
+                _lateralBias = Mathf.MoveTowards(_lateralBias, _targetLateralBias, 5f * deltaTime);
             }
 
             if (!_cursor.TrySample(_lateralBias, out var current) ||
@@ -393,6 +425,12 @@ namespace VelocityRush.Gameplay.AI
 
             _playerDistance = _path.WaypointAt(bestIndex).Distance;
             _hasPlayerDistance = true;
+
+            if (_smartRubberBandConfig != null)
+            {
+                _rubberBandScale = RubberBandCalculator.CalculateMultiplier(_cursor.Distance, _playerDistance, 1f, _smartRubberBandConfig);
+                return;
+            }
 
             var delta = _playerDistance - _cursor.Distance;
             if (_path.IsClosedLoop && _path.TotalLength > 0.001f)

@@ -48,9 +48,31 @@ namespace VelocityRush.Gameplay
         private readonly WheelTelemetry[] _wheelTelemetry = new WheelTelemetry[4];
         private IVehicleInput _input;
         private VehicleUpgradeModifiers _upgradeModifiers = VehicleUpgradeModifiers.Default;
+        private bool _isNitroBoosting;
+        private float _nitroTorqueMultiplier = 1f;
+        private float _nitroSpeedMultiplier = 1f;
 
         /// <summary>Active upgrade modifiers applied to this vehicle (0 B/frame).</summary>
         public VehicleUpgradeModifiers UpgradeModifiers => _upgradeModifiers;
+
+        /// <summary>True if nitro boost is currently active on this vehicle.</summary>
+        public bool IsNitroBoosting => _isNitroBoosting;
+
+        /// <summary>
+        /// Sets nitro boost active state and physics multipliers without mutating the ScriptableObject profile (Phase 12 Stage 3).
+        /// </summary>
+        public void SetNitroBoostActive(bool active, float torqueMultiplier = 1.45f, float maxSpeedMultiplier = 1.22f)
+        {
+            _isNitroBoosting = active;
+            _nitroTorqueMultiplier = active ? Mathf.Max(1f, torqueMultiplier) : 1f;
+            _nitroSpeedMultiplier = active ? Mathf.Max(1f, maxSpeedMultiplier) : 1f;
+
+            if (chassis != null && profile != null)
+            {
+                float baseDamping = profile.LinearDamping * _upgradeModifiers.DragMultiplier;
+                chassis.linearDamping = active ? (baseDamping / _nitroSpeedMultiplier) : baseDamping;
+            }
+        }
 
         /// <summary>
         /// Applies upgrade modifiers non-mutatingly to the runtime physics instance (TDD §40.7, D-068).
@@ -308,7 +330,7 @@ namespace VelocityRush.Gameplay
             chassis.centerOfMass = profile.CenterOfMassOffset;
             chassis.interpolation = RigidbodyInterpolation.Interpolate;
             chassis.collisionDetectionMode = CollisionDetectionMode.Discrete;
-            chassis.linearDamping = profile.LinearDamping * _upgradeModifiers.DragMultiplier;
+            chassis.linearDamping = (profile.LinearDamping * _upgradeModifiers.DragMultiplier) / _nitroSpeedMultiplier;
             chassis.angularDamping = profile.AngularDamping;
             // A driven vehicle must never sleep (TDD §36.5); 0 disables the sleep threshold.
             chassis.sleepThreshold = 0f;
@@ -368,7 +390,7 @@ namespace VelocityRush.Gameplay
             SampleTelemetry(velocity, speed, forwardSpeed);
 
             var torqueMultiplier = profile.EngineTorqueCurve.Evaluate(speedForCurves);
-            var motorTorque = VehicleControlMath.MotorTorque(_input.Throttle, profile.MotorTorque * _upgradeModifiers.TorqueMultiplier, torqueMultiplier);
+            var motorTorque = VehicleControlMath.MotorTorque(_input.Throttle, profile.MotorTorque * _upgradeModifiers.TorqueMultiplier * _nitroTorqueMultiplier, torqueMultiplier);
 
             var effectiveBrakeTorque = profile.BrakeTorque * _upgradeModifiers.BrakeTorqueMultiplier;
             var frontBrakeTorque = VehicleControlMath.BrakeTorqueForAxle(

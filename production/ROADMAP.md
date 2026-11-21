@@ -711,3 +711,29 @@ Structural values are real measurements of the committed scenes plus four instan
 - `Assets/Tests/PlayMode/RoadCoinPlayModeTests.cs`
 
 *Stage 2 non-goals preserved:* no Stage 3 nitro boost, dynamic FOV, or rival rubber-banding yet; no Stage 4 difficulty matrix or WebGL build yet; Playgama Bridge strictly deferred to Phase 13 per D-036.
+
+*Stage 3 — Nitro Boost, Camera Juice, Rival Rubber-Banding & Zero-Alloc HUD (COMPLETE 2026-11-22)*
+- `T-12.13` **Nitro Boost Configuration & Domain State Machine (`VelocityRush.Data` / `VelocityRush.Gameplay`):** `NitroConfig` serializable data structure defining `maxCharge` (100), `minActivationCharge` (15), `drainRatePerSecond` (28), `passiveRegenPerSecond` (2.5), `nearMissChargeBonus` (22), `driftChargePerSecond` (14), `boostTorqueMultiplier` (1.45), and `boostMaxSpeedMultiplier` (1.22); fail-closed validation (`TryValidate`); `NitroSystem` pure C# state machine with hysteresis activation, drift/regen accumulation, and instant near-miss rewards operating at 0 B/frame. — **COMPLETE.**
+- `T-12.14` **Non-Mutating Vehicle Controller Nitro Application (`VelocityRush.Gameplay`):** Extended `VehicleController` with `SetNitroBoostActive(bool active, float torqueMultiplier, float maxSpeedMultiplier)` dynamically scaling motor torque and reducing linear damping ceiling without mutating base `VehiclePhysicsProfile` assets. — **COMPLETE.**
+- `T-12.15` **Dynamic Camera Juice — Speed/Nitro FOV & Damped Shake (`VelocityRush.Gameplay`):** `ArcadeCameraJuice` component executing in `LateUpdate` after `VehicleCameraRig`, smoothly modulating FOV with speed and nitro kick (+11°), clamped strictly to safe WebGL bounds `[60°, 84°]`; damped impulse shake decaying cleanly to `Vector3.zero` offset on traffic collisions; freezes on pause and clears on retry with 0 B allocations. — **COMPLETE.**
+- `T-12.16` **Smart Rival Rubber-Banding & Traffic-Aware Lane Weaving (`VelocityRush.Data` / `VelocityRush.Gameplay.AI`):** `RubberBandConfig` & `RubberBandCalculator` pure C# stateless math clamping pace multipliers strictly within `[0.85f, 1.18f]`, enforcing a ±15m dead-zone for fair racing, gradual trailing catch-up (up to +12%), and lead rival damping (down to -8%); `RivalTrafficAvoidance` detects traffic vehicles in rival's current lane and smoothly shifts target lateral bias to adjacent open lanes. — **COMPLETE.**
+- `T-12.17` **Zero-Allocation HUD Nitro Bar, Rival Gap & Localization (`VelocityRush.Core` / `VelocityRush.Data` / `VelocityRush.Gameplay.UI`):** `HudStringFormatter.WriteRivalGap` formats signed meters (`+24m` / `-18m`) into caller-owned `char[]`; `RaceHudPresenter` adds quantized nitro bar with boost glow and lead rival distance badge; `LocalizationTable` adds 3 bilingual EN/AR keys with 100% parity (`hud.nitro`, `hud.rival`, `hud.boost_active`); `GameCompositionRoot` wires nitro inputs, camera impulses, near-miss charge, and lead rival gap. — **COMPLETE.**
+- `T-12.18` **Stage-3 Verification & Test Suite:** 7 new EditMode tests (`NitroAndRivalSystemTests`) asserting config validation, hysteresis and drain, near-miss/drift charging, rubber-band dead zone and clamping, rival gap formatting, 0 B allocation proof, and bilingual parity; 4 new PlayMode integration tests (`NitroAndRivalPlayModeTests`) asserting non-mutating nitro speed boost, camera juice FOV and collision shake, HUD 0 B steady-state tick, and fast retry state reset; full EditMode suite **600/600** (+7 new), full PlayMode suite **63/63** (+4 new), **0 failed / 0 skipped / 0 inconclusive**. Total project passing tests: **663 / 663 PASSED**. — **COMPLETE.**
+
+*Stage 3 files:*
+- `Assets/Scripts/Data/Vehicles/NitroConfig.cs`
+- `Assets/Scripts/Gameplay/Vehicles/NitroSystem.cs`
+- `Assets/Scripts/Gameplay/Cameras/ArcadeCameraJuice.cs`
+- `Assets/Scripts/Data/AI/RubberBandConfig.cs`
+- `Assets/Scripts/Gameplay/AI/RubberBandCalculator.cs`
+- `Assets/Scripts/Gameplay/AI/RivalTrafficAvoidance.cs`
+- `Assets/Scripts/Gameplay/Vehicles/VehicleController.cs` (nitro multiplier application)
+- `Assets/Scripts/Gameplay/AI/AIDriver.cs` (smart rubber-banding and traffic avoidance)
+- `Assets/Scripts/Core/UI/HudStringFormatter.cs` (`WriteRivalGap`)
+- `Assets/Scripts/Data/Localization/LocalizationTable.cs` (bilingual EN/AR nitro & rival keys)
+- `Assets/Scripts/Gameplay/UI/RaceHudPresenter.cs` (nitro bar & rival gap elements)
+- `Assets/Scripts/Gameplay/App/GameCompositionRoot.cs` (nitro, camera juice, rival wiring)
+- `Assets/Tests/EditMode/NitroAndRivalSystemTests.cs`
+- `Assets/Tests/PlayMode/NitroAndRivalPlayModeTests.cs`
+
+*Stage 3 non-goals preserved:* no Stage 4 difficulty matrix tuning or WebGL commercial build yet; Playgama Bridge strictly deferred to Phase 13 per D-036.

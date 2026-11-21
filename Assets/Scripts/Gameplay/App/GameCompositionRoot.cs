@@ -7,6 +7,7 @@ using VelocityRush.Core;
 using VelocityRush.Data;
 using VelocityRush.Gameplay.Economy;
 using VelocityRush.Gameplay.Traffic;
+using VelocityRush.Gameplay.AI;
 
 namespace VelocityRush.Gameplay
 {
@@ -55,7 +56,11 @@ namespace VelocityRush.Gameplay
         private RaceEventDefinition _activeEventDefinition;
         private RoadCoinManager _activeRoadCoinManager;
         private NearMissDetector _activeNearMissDetector;
+        private TrafficLaneManager _activeTrafficManager;
+        private ArcadeCameraJuice _cameraJuice;
+        private AIDriver[] _activeAIDrivers;
         private readonly RaceEconomyTracker _economyTracker = new RaceEconomyTracker();
+        private readonly NitroSystem _nitroSystem = new NitroSystem(NitroConfig.CreateDefault(), 25f);
 
         private bool _isInitialized;
 
@@ -66,6 +71,8 @@ namespace VelocityRush.Gameplay
         public GameFlowManager GameFlow => gameFlow;
         public RaceEconomyTracker EconomyTracker => _economyTracker;
         public RoadCoinManager ActiveRoadCoinManager => _activeRoadCoinManager;
+        public NitroSystem Nitro => _nitroSystem;
+        public ArcadeCameraJuice CameraJuice => _cameraJuice;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoBootstrapOnLaunch()
@@ -269,10 +276,33 @@ namespace VelocityRush.Gameplay
 
             if (_activeRaceController != null)
             {
+                float speed = 0f;
                 int speedKph = 0;
+                bool isDrifting = false;
                 if (_activePlayerVehicle != null)
                 {
-                    speedKph = SliceHudFormat.SpeedToKph(_activePlayerVehicle.Telemetry.Speed);
+                    speed = _activePlayerVehicle.Telemetry.Speed;
+                    speedKph = SliceHudFormat.SpeedToKph(speed);
+                    isDrifting = Mathf.Abs(_activePlayerVehicle.Telemetry.LateralSpeed) > 3.0f || _activePlayerVehicle.Telemetry.WheelSlip > 0.35f;
+                }
+
+                // Nitro Boost Input & State Machine (Phase 12 Stage 3)
+                bool boostInput = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) || Input.GetKey(KeyCode.Space);
+                _nitroSystem.Tick(Time.deltaTime, boostInput, speed, isDrifting);
+
+                if (_activePlayerVehicle != null)
+                {
+                    _activePlayerVehicle.SetNitroBoostActive(
+                        _nitroSystem.IsBoosting,
+                        _nitroSystem.Config.boostTorqueMultiplier,
+                        _nitroSystem.Config.boostMaxSpeedMultiplier);
+                }
+
+                // Camera Juice: Dynamic FOV & Nitro Kick
+                if (_cameraJuice != null)
+                {
+                    _cameraJuice.SetSpeed(speed);
+                    _cameraJuice.SetNitroActive(_nitroSystem.IsBoosting);
                 }
 
                 int rank = _activeStandings != null ? _activeStandings.PlayerRank : 1;
@@ -283,6 +313,43 @@ namespace VelocityRush.Gameplay
                     _activeRaceController.CountdownRemainingSeconds,
                     rank,
                     speedKph);
+                _raceHudPresenter.SetNitroCharge(_nitroSystem.NormalizedCharge, _nitroSystem.IsBoosting);
+
+                // Lead Rival Distance Gap
+                UpdateRivalHudGap();
+            }
+        }
+
+        private void UpdateRivalHudGap()
+        {
+            if (_activeAIDrivers != null && _activeAIDrivers.Length > 0)
+            {
+                float bestRivalDist = float.MinValue;
+                for (int i = 0; i < _activeAIDrivers.Length; i++)
+                {
+                    var driver = _activeAIDrivers[i];
+                    if (driver != null && driver.IsInitialized && driver.DistanceTravelled > bestRivalDist)
+                    {
+                        bestRivalDist = driver.DistanceTravelled;
+                    }
+                }
+
+                float playerDist = 0f;
+                if (_activeStandings != null && _activeStandings.TryGetStanding(0, out var standing))
+                {
+                    playerDist = standing.PathDistance;
+                }
+                else if (_activePlayerVehicle != null)
+                {
+                    playerDist = _activePlayerVehicle.transform.position.z;
+                }
+
+                float rivalGap = bestRivalDist - playerDist;
+                _raceHudPresenter.SetRivalGap(rivalGap, true);
+            }
+            else
+            {
+                _raceHudPresenter.SetRivalGap(0f, false);
             }
         }
 
@@ -332,6 +399,37 @@ namespace VelocityRush.Gameplay
                     _activeNearMissDetector.OnNearMiss += HandleNearMiss;
                 }
             }
+
+            if (_activeTrafficManager == null)
+            {
+                _activeTrafficManager = FindAnyObjectByType<TrafficLaneManager>();
+                if (_activeTrafficManager != null)
+                {
+                    _activeTrafficManager.OnTrafficCollision -= HandleTrafficCollision;
+                    _activeTrafficManager.OnTrafficCollision += HandleTrafficCollision;
+                }
+            }
+
+            // Camera Juice setup
+            if (_cameraJuice == null)
+            {
+                var mainCam = Camera.main;
+                if (mainCam != null)
+                {
+                    _cameraJuice = mainCam.GetComponent<ArcadeCameraJuice>() ?? mainCam.gameObject.AddComponent<ArcadeCameraJuice>();
+                }
+            }
+
+            // AI Opponents & Rival Setup
+            _activeAIDrivers = FindObjectsByType<AIDriver>();
+            if (_activeAIDrivers != null && _activeTrafficManager != null)
+            {
+                for (int i = 0; i < _activeAIDrivers.Length; i++)
+                {
+                    _activeAIDrivers[i].SetTrafficManager(_activeTrafficManager, _activeTrafficManager.Config);
+                    _activeAIDrivers[i].SetSmartRubberBand(RubberBandConfig.CreateDefault());
+                }
+            }
         }
 
         private void HandleCoinCollected(CoinCollectedEvent evt)
@@ -343,7 +441,13 @@ namespace VelocityRush.Gameplay
         private void HandleNearMiss(in NearMissEvent evt)
         {
             _economyTracker.RecordNearMiss(evt, 25);
+            _nitroSystem.AddNearMissCharge();
             _raceHudPresenter.ShowNearMissPopup(25, _economyTracker.TotalBonusCredits);
+        }
+
+        private void HandleTrafficCollision(in TrafficCollisionEvent evt)
+        {
+            _cameraJuice?.TriggerImpulse(0.55f, 0.45f);
         }
 
         #region GameFlow & State Routing
@@ -448,6 +552,8 @@ namespace VelocityRush.Gameplay
         {
             gameFlow.CloseAllOverlays();
             _economyTracker.Reset();
+            _nitroSystem.Reset(25f);
+            _cameraJuice?.ResetJuice();
             _activeRoadCoinManager?.ResetForRetry();
             gameFlow.RequestFastRetry();
             FindActiveRaceComponents();
@@ -458,6 +564,11 @@ namespace VelocityRush.Gameplay
             Time.timeScale = 1f;
             AudioListener.pause = false;
             _economyTracker.Reset();
+            _nitroSystem.Reset(25f);
+            _cameraJuice?.ResetJuice();
+            _cameraJuice = null;
+            _activeTrafficManager = null;
+            _activeAIDrivers = null;
             if (_activeRoadCoinManager != null)
             {
                 _activeRoadCoinManager.Teardown();

@@ -4,6 +4,29 @@ All notable project changes are recorded here.
 This changelog records documentation and process milestones; it does not pre-announce features that have not been implemented.
 
 ## [Unreleased]
+### Phase 12 — Stage 3: Nitro Boost, Camera Juice, Rival Rubber-Banding & Zero-Alloc HUD (2026-11-22)
+- **Nitro Boost Configuration & Pure Domain Model (`VelocityRush.Data` / `VelocityRush.Gameplay`):**
+  - Created `NitroConfig` serializable data structure defining `maxCharge` (100), `minActivationCharge` (15), `drainRatePerSecond` (28), `passiveRegenPerSecond` (2.5), `nearMissChargeBonus` (22), `driftChargePerSecond` (14), `boostTorqueMultiplier` (1.45), and `boostMaxSpeedMultiplier` (1.22) with fail-closed validation (`TryValidate`).
+  - Created `NitroSystem` pure C# state machine enforcing hysteresis activation, drift/passive charging, near-miss boosts, and instant drain at 0 B/frame.
+  - Extended `VehicleController` with non-mutating `SetNitroBoostActive(bool active, float torqueMult, float speedMult)` scaling motor torque and reducing linear damping without altering base `VehiclePhysicsProfile` assets.
+- **Arcade Camera Juice — Speed/Nitro FOV & Damped Shake (`VelocityRush.Gameplay`):**
+  - Created `ArcadeCameraJuice` component executing in `LateUpdate` after `VehicleCameraRig`.
+  - Implemented dynamic speed-scaled FOV with punchy `+11°` nitro boost kick, strictly clamped within safe WebGL boundaries `[60°, 84°]`.
+  - Implemented damped impulse shake decaying cleanly to `Vector3.zero` offset on traffic collisions and nitro ignition, freezing on pause and clearing on retry.
+- **Smart Rival Rubber-Banding & Traffic-Aware Lane Weaving (`VelocityRush.Data` / `VelocityRush.Gameplay.AI`):**
+  - Created `RubberBandConfig` & `RubberBandCalculator` pure C# static math clamping pace multipliers strictly within `[0.85f, 1.18f]`, with a ±15m dead-zone, trailing catch-up (up to +12%), and lead rival damping (down to -8%).
+  - Created `RivalTrafficAvoidance` detecting active traffic in rival's current lane and smoothly shifting target lateral bias to adjacent open lanes.
+  - Extended `AIDriver` with `SetSmartRubberBand` and `SetTrafficManager` methods.
+- **Zero-Allocation HUD Nitro Bar, Rival Gap & Localization (`VelocityRush.Core` / `VelocityRush.Data` / `VelocityRush.Gameplay.UI`):**
+  - Added `WriteRivalGap` formatting signed meters (`+24m` / `-18m`) into caller-owned `char[]` in `HudStringFormatter`.
+  - Added quantized nitro bar with boost glow state and live lead rival distance badge in `RaceHudPresenter`.
+  - Added 3 bilingual EN/AR keys with 100% parity in `LocalizationTable` (`hud.nitro`, `hud.rival`, `hud.boost_active`).
+  - Wired boost input, drift telemetry, near-miss charge, camera collision impulses, and rival gap in `GameCompositionRoot`.
+- **Tests & Verification:**
+  - 7 new EditMode unit tests in `NitroAndRivalSystemTests` covering config validation, hysteresis and drain, near-miss/drift charging, rubber-band dead zone and clamping, rival gap formatting, 0 B allocation proof, and bilingual parity.
+  - 4 new PlayMode integration tests in `NitroAndRivalPlayModeTests` covering non-mutating nitro speed boost, camera juice FOV and collision shake, HUD 0 B steady-state tick, and fast retry state reset.
+  - Batch compile: **0 errors / 0 warnings**; full EditMode suite **600/600** (+7 new), full PlayMode suite **63/63** (+4 new), **0 failed / 0 skipped / 0 inconclusive**. Total project tests: **663 / 663 PASSED**.
+
 ### Phase 12 — Stage 2: Road Coins, Live Race Economy Ledger, Zero-Alloc HUD & Atomic Persistence (2026-11-22)
 - **Road Coin Topology, Pooling & Procedural Visuals (`VelocityRush.Data` / `VelocityRush.Gameplay.Economy`):**
   - Created `CoinSpawnConfig` serializable data structure defining coin values (10 credits default), near-miss credits (25 default), pool capacity (36 default), pickup radius (2.4m), spawn ahead (140m), despawn behind (25m), arc lengths, spacing, and hover heights with fail-closed validation (`TryValidate`).

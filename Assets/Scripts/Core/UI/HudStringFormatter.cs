@@ -24,6 +24,9 @@ namespace VelocityRush.Core
         /// <summary>Minimum buffer size for popup formatting (e.g., "NEAR MISS! +25 CR" = 24 chars).</summary>
         public const int PopupBufferSize = 32;
 
+        /// <summary>Minimum buffer size for rival gap formatting (e.g., "+120m" = 6 chars).</summary>
+        public const int RivalGapBufferSize = 12;
+
         /// <summary>
         /// Writes an integer (0–999999) into the buffer at the given offset.
         /// Returns the number of characters written. Negative values write "0".
@@ -274,6 +277,61 @@ namespace VelocityRush.Core
 
             pos += WriteBonusCredits(buffer, pos, credits);
             return pos - offset;
+        }
+
+        /// <summary>
+        /// Formats signed rival gap in meters (e.g., "+24m" or "-18m") into a buffer without allocations (Phase 12 Stage 3).
+        /// Returns number of characters written.
+        /// </summary>
+        public static int WriteRivalGap(char[] buffer, int offset, float gapMeters)
+        {
+            if (buffer == null || offset < 0 || offset >= buffer.Length)
+            {
+                return 0;
+            }
+
+            int pos = offset;
+            int intMeters = (int)Math.Round(gapMeters);
+
+            if (intMeters > 0)
+            {
+                if (pos < buffer.Length)
+                {
+                    buffer[pos++] = '+';
+                }
+            }
+            else if (intMeters < 0)
+            {
+                if (pos < buffer.Length)
+                {
+                    buffer[pos++] = '-';
+                }
+                intMeters = -intMeters;
+            }
+            else
+            {
+                if (pos < buffer.Length)
+                {
+                    buffer[pos++] = '+';
+                }
+            }
+
+            pos += WriteInt(buffer, pos, intMeters);
+
+            if (pos < buffer.Length)
+            {
+                buffer[pos++] = 'm';
+            }
+
+            return pos - offset;
+        }
+
+        /// <summary>
+        /// Formats signed rival gap in meters into the beginning of the buffer.
+        /// </summary>
+        public static int WriteRivalGap(char[] buffer, float gapMeters)
+        {
+            return WriteRivalGap(buffer, 0, gapMeters);
         }
     }
 }

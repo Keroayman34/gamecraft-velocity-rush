@@ -122,6 +122,9 @@ namespace VelocityRush.Data
             Add("hud.countdown_go", "GO!", "!انطلق");
             Add("hud.bonus_credits", "BONUS", "مكافأة");
             Add("hud.near_miss_popup", "NEAR MISS!", "مناورة خطيرة!");
+            Add("hud.nitro", "NITRO", "نيترو");
+            Add("hud.rival", "RIVAL", "المنافس");
+            Add("hud.boost_active", "BOOST!", "انطلاق!");
 
             // ═══════════════════════════════════════════════════════
             // Pause Overlay

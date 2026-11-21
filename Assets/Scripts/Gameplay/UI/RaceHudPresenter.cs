@@ -25,18 +25,34 @@ namespace VelocityRush.Gameplay
         private Label _bonusValueLabel;
         private Label _popupBannerLabel;
 
+        // Nitro Bar UI elements
+        private VisualElement _nitroBox;
+        private Label _nitroLabel;
+        private VisualElement _nitroBarFill;
+        private Label _boostActiveLabel;
+
+        // Rival Distance UI elements
+        private VisualElement _rivalBox;
+        private Label _rivalLabel;
+        private Label _rivalValueLabel;
+
         // Pre-allocated char buffers for 0 B/frame string updates
         private readonly char[] _speedBuffer = new char[HudStringFormatter.IntBufferSize];
         private readonly char[] _timeBuffer = new char[HudStringFormatter.TimeBufferSize];
         private readonly char[] _positionBuffer = new char[HudStringFormatter.PositionBufferSize];
         private readonly char[] _bonusBuffer = new char[HudStringFormatter.BonusBufferSize];
         private readonly char[] _popupBuffer = new char[HudStringFormatter.PopupBufferSize];
+        private readonly char[] _rivalBuffer = new char[HudStringFormatter.RivalGapBufferSize];
 
         // Cached values to avoid redundant string allocations when values haven't changed
         private int _lastSpeed = -1;
         private int _lastHundredths = -1;
         private int _lastPosition = -1;
         private int _lastBonusCredits = -1;
+        private int _lastNitroPercent = -1;
+        private bool _lastIsBoosting = false;
+        private int _lastRivalIntMeters = int.MinValue;
+        private bool _lastRivalVisible = false;
         private float _popupRemainingSeconds = 0f;
         private RaceState _lastRaceState = (RaceState)(-1);
 
@@ -172,6 +188,91 @@ namespace VelocityRush.Gameplay
             speedBox.Add(_speedUnitLabel);
 
             _root.Add(speedBox);
+
+            // Bottom Center: Nitro Bar
+            _nitroBox = new VisualElement { name = "hud-nitro-box" };
+            _nitroBox.style.position = Position.Absolute;
+            _nitroBox.style.bottom = 25f;
+            _nitroBox.style.left = 0f;
+            _nitroBox.style.right = 0f;
+            _nitroBox.style.alignItems = Align.Center;
+
+            var nitroRow = new VisualElement { name = "hud-nitro-row" };
+            nitroRow.style.flexDirection = FlexDirection.Row;
+            nitroRow.style.alignItems = Align.Center;
+
+            _nitroLabel = new Label { name = "hud-nitro-label" };
+            _nitroLabel.style.fontSize = 14f;
+            _nitroLabel.style.color = new Color(0.2f, 0.85f, 1f);
+            _nitroLabel.style.marginRight = 8f;
+            nitroRow.Add(_nitroLabel);
+
+            var nitroTrack = new VisualElement { name = "hud-nitro-track" };
+            nitroTrack.style.width = 200f;
+            nitroTrack.style.height = 12f;
+            nitroTrack.style.backgroundColor = new Color(0.1f, 0.15f, 0.22f, 0.85f);
+            nitroTrack.style.borderTopLeftRadius = 4f;
+            nitroTrack.style.borderTopRightRadius = 4f;
+            nitroTrack.style.borderBottomLeftRadius = 4f;
+            nitroTrack.style.borderBottomRightRadius = 4f;
+            nitroTrack.style.overflow = Overflow.Hidden;
+
+            _nitroBarFill = new VisualElement { name = "hud-nitro-fill" };
+            _nitroBarFill.style.width = Length.Percent(25);
+            _nitroBarFill.style.height = Length.Percent(100);
+            _nitroBarFill.style.backgroundColor = new Color(0.15f, 0.8f, 1f);
+            _nitroBarFill.style.borderTopLeftRadius = 4f;
+            _nitroBarFill.style.borderTopRightRadius = 4f;
+            _nitroBarFill.style.borderBottomLeftRadius = 4f;
+            _nitroBarFill.style.borderBottomRightRadius = 4f;
+            nitroTrack.Add(_nitroBarFill);
+            nitroRow.Add(nitroTrack);
+
+            _boostActiveLabel = new Label { name = "hud-boost-active" };
+            _boostActiveLabel.style.fontSize = 14f;
+            _boostActiveLabel.style.color = new Color(1f, 0.9f, 0.2f);
+            _boostActiveLabel.style.marginLeft = 8f;
+            _boostActiveLabel.style.display = DisplayStyle.None;
+            nitroRow.Add(_boostActiveLabel);
+
+            _nitroBox.Add(nitroRow);
+            _root.Add(_nitroBox);
+
+            // Top Center: Rival Gap Badge
+            _rivalBox = new VisualElement { name = "hud-rival-box" };
+            _rivalBox.style.position = Position.Absolute;
+            _rivalBox.style.top = 70f;
+            _rivalBox.style.left = 0f;
+            _rivalBox.style.right = 0f;
+            _rivalBox.style.alignItems = Align.Center;
+            _rivalBox.style.display = DisplayStyle.None;
+
+            var rivalRow = new VisualElement { name = "hud-rival-row" };
+            rivalRow.style.flexDirection = FlexDirection.Row;
+            rivalRow.style.alignItems = Align.Center;
+            rivalRow.style.backgroundColor = new Color(0.1f, 0.1f, 0.15f, 0.75f);
+            rivalRow.style.paddingLeft = 10f;
+            rivalRow.style.paddingRight = 10f;
+            rivalRow.style.paddingTop = 4f;
+            rivalRow.style.paddingBottom = 4f;
+            rivalRow.style.borderTopLeftRadius = 6f;
+            rivalRow.style.borderTopRightRadius = 6f;
+            rivalRow.style.borderBottomLeftRadius = 6f;
+            rivalRow.style.borderBottomRightRadius = 6f;
+
+            _rivalLabel = new Label { name = "hud-rival-label" };
+            _rivalLabel.style.fontSize = 14f;
+            _rivalLabel.style.color = new Color(1f, 0.4f, 0.3f);
+            _rivalLabel.style.marginRight = 6f;
+            rivalRow.Add(_rivalLabel);
+
+            _rivalValueLabel = new Label { name = "hud-rival-val" };
+            _rivalValueLabel.style.fontSize = 18f;
+            _rivalValueLabel.style.color = Color.white;
+            rivalRow.Add(_rivalValueLabel);
+
+            _rivalBox.Add(rivalRow);
+            _root.Add(_rivalBox);
         }
 
         public void RefreshLocalization()
@@ -180,6 +281,9 @@ namespace VelocityRush.Gameplay
             _positionLabel.text = LocalizationService.Tr("hud.position_label");
             _speedUnitLabel.text = LocalizationService.Tr("hud.speed_unit");
             _bonusLabel.text = LocalizationService.Tr("hud.bonus_credits");
+            _nitroLabel.text = LocalizationService.Tr("hud.nitro");
+            _rivalLabel.text = LocalizationService.Tr("hud.rival");
+            _boostActiveLabel.text = LocalizationService.Tr("hud.boost_active");
         }
 
         /// <summary>
@@ -318,6 +422,66 @@ namespace VelocityRush.Gameplay
                 {
                     _positionValueLabel.style.display = DisplayStyle.None;
                     _positionLabel.style.display = DisplayStyle.None;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Updates the nitro bar fill width and boost glow state (Phase 12 Stage 3).
+        /// Only updates styles when integer percentage or boosting state changes (0 B hot path).
+        /// </summary>
+        public void SetNitroCharge(float normalizedCharge, bool isBoosting)
+        {
+            int percent = Mathf.Clamp(Mathf.RoundToInt(normalizedCharge * 100f), 0, 100);
+            if (percent != _lastNitroPercent)
+            {
+                _lastNitroPercent = percent;
+                _nitroBarFill.style.width = Length.Percent(percent);
+            }
+
+            if (isBoosting != _lastIsBoosting)
+            {
+                _lastIsBoosting = isBoosting;
+                _boostActiveLabel.style.display = isBoosting ? DisplayStyle.Flex : DisplayStyle.None;
+                _nitroBarFill.style.backgroundColor = isBoosting
+                    ? new Color(1f, 0.85f, 0.2f) // Electric yellow/orange glow
+                    : new Color(0.15f, 0.8f, 1f); // Cool cyan
+            }
+        }
+
+        /// <summary>
+        /// Updates the lead rival distance gap badge (Phase 12 Stage 3).
+        /// Visible during Circuit/Rival races and hidden in solo Time Trials.
+        /// Only formats and assigns label text when rounded integer meter value changes (0 B hot path).
+        /// </summary>
+        public void SetRivalGap(float gapMeters, bool isVisible)
+        {
+            if (isVisible != _lastRivalVisible)
+            {
+                _lastRivalVisible = isVisible;
+                _rivalBox.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (!isVisible)
+            {
+                return;
+            }
+
+            int intMeters = Mathf.RoundToInt(gapMeters);
+            if (intMeters != _lastRivalIntMeters)
+            {
+                _lastRivalIntMeters = intMeters;
+                int len = HudStringFormatter.WriteRivalGap(_rivalBuffer, 0, gapMeters);
+                _rivalValueLabel.text = new string(_rivalBuffer, 0, len);
+
+                // Tint red/orange if rival is ahead (+), green/cyan if rival is behind (-)
+                if (intMeters > 0)
+                {
+                    _rivalValueLabel.style.color = new Color(1f, 0.45f, 0.35f);
+                }
+                else
+                {
+                    _rivalValueLabel.style.color = new Color(0.35f, 0.95f, 0.5f);
                 }
             }
         }

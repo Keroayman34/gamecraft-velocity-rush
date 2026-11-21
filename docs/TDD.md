@@ -2084,3 +2084,45 @@ All hot-path operations across `RoadCoinManager.Tick`, `CoinPickup.TickSpin`, `R
 | EditMode test suite | 593/593 passing | **593/593 passed (0 failed, 0 skipped)** | **PASS** |
 | PlayMode test suite | 59/59 passing | **59/59 passed (0 failed, 0 skipped)** | **PASS** |
 | Total project automated tests | 652 passing | **652 / 652 passed (100% green)** | **PASS** |
+
+## 60. Phase 12 Stage 3: Nitro Boost, Camera Juice, Rival Rubber-Banding & Zero-Alloc HUD
+
+### 60.1 Architecture & Component Topology
+Phase 12 Stage 3 introduces high-octane nitro boost mechanics, dynamic camera juice, intelligent rival rubber-banding with traffic avoidance, and zero-allocation HUD elements:
+1. `NitroConfig` (`VelocityRush.Data`) & `NitroSystem` (`VelocityRush.Gameplay`):
+   - `NitroConfig`: Pure serializable configuration defining `maxCharge` (100), `minActivationCharge` (15), `drainRatePerSecond` (28), `passiveRegenPerSecond` (2.5), `nearMissChargeBonus` (22), `driftChargePerSecond` (14), `boostTorqueMultiplier` (1.45), and `boostMaxSpeedMultiplier` (1.22). Fail-closed validation (`TryValidate`) rejects invalid parameters.
+   - `NitroSystem`: Pure C# state machine. Enforces activation threshold hysteresis: once active, drains until empty or input released. Charges passively at high speeds, during lateral drifts, and instantly on near-misses. 0 B heap allocation.
+2. Non-Mutating Runtime Vehicle Boost Application (`VehicleController`):
+   - `SetNitroBoostActive(bool active, float torqueMult, float speedMult)`: Dynamically multiplies motor torque by `1.45` and reduces chassis linear damping by `1 / 1.22`, expanding the vehicle's terminal speed without mutating underlying `VehiclePhysicsProfile` ScriptableObject assets.
+3. `ArcadeCameraJuice` (`VelocityRush.Gameplay`):
+   - Executes in `LateUpdate` after `VehicleCameraRig`.
+   - **Dynamic Speed + Nitro FOV:** Smoothly interpolates `Camera.fieldOfView` based on speed + `+11°` nitro boost kick, strictly clamped within safe WebGL boundaries `[60°, 84°]`.
+   - **Damped Impulse Shake:** Directional Perlin shake triggered by traffic collisions and nitro ignition, decaying cleanly to `Vector3.zero` offset. Freezes on pause (`Time.timeScale == 0`) and clears immediately on retry.
+4. Smart Rival Rubber-Banding & Traffic Avoidance (`VelocityRush.Data` / `VelocityRush.Gameplay.AI`):
+   - `RubberBandConfig` & `RubberBandCalculator`: Pure static math clamping rival pace multipliers strictly to `[0.85f, 1.18f]`. Enforces a ±15m dead-zone around player where multiplier is strictly 1.0f, with bounded trailing catch-up (up to +12%) and lead rival damping (down to -8%). Rivals never teleport or stall.
+   - `RivalTrafficAvoidance`: Queries active traffic from `TrafficLaneManager` and calculates adjacent open lane offsets, allowing AI drivers to smoothly weave through highway traffic.
+5. Zero-Allocation HUD Nitro Bar & Rival Gap Presentation:
+   - `HudStringFormatter.WriteRivalGap`: Writes signed relative distance (`+24m` / `-18m`) into caller-owned `char[]` buffer without allocations.
+   - `RaceHudPresenter`: Displays quantized nitro bar fill with boost glow state and live lead rival distance badge.
+   - `LocalizationTable`: 3 bilingual EN/AR keys added with 100% parity (`hud.nitro`, `hud.rival`, `hud.boost_active`).
+6. Composition Root Integration (`GameCompositionRoot`):
+   - Binds boost input (Shift / Space) and drift telemetry to `NitroSystem`.
+   - Binds near-miss events to instant nitro charge and traffic collisions to camera shake impulses.
+   - Computes signed distance to lead rival and feeds HUD gap badge.
+   - Cleanly resets nitro charge, camera shake, and rival state on in-scene fast retry and quit to menu.
+
+### 60.2 Zero-Allocation Discipline & Test Evidence
+All hot-path operations across `NitroSystem.Tick`, `ArcadeCameraJuice.LateUpdate`, `RubberBandCalculator.CalculateMultiplier`, `RivalTrafficAvoidance.EvaluateTargetLateralBias`, and `RaceHudPresenter.SetNitroCharge`/`SetRivalGap` operate at strict 0 B/frame.
+
+| Metric / Requirement | Target Budget | Observed Result | Status |
+|---|---|---|---|
+| Nitro state machine steady-state tick allocation | 0 B/frame | **0 B** (`GC.GetAllocatedBytesForCurrentThread`) | **PASS** |
+| Rubber-band & Rival gap hot path allocation | 0 B/frame | **0 B** | **PASS** |
+| HUD Nitro & Rival gap steady-state tick allocation | 0 B/frame | **0 B** | **PASS** |
+| Vehicle physics profile immutability | Unchanged | **Verified: 0 field mutations on base ScriptableObject** | **PASS** |
+| Camera FOV WebGL clamp range | [60°, 84°] | **Verified: clamped strictly within [60°, 84°]** | **PASS** |
+| Camera shake decay on retry | Vector3.zero | **Verified: offset exactly Vector3.zero on reset** | **PASS** |
+| Rubber-band pace multiplier bounds | [0.85, 1.18] | **Verified: strictly within [0.85, 1.18] across all gaps** | **PASS** |
+| EditMode test suite | 600/600 passing | **600/600 passed (0 failed, 0 skipped)** | **PASS** |
+| PlayMode test suite | 63/63 passing | **63/63 passed (0 failed, 0 skipped)** | **PASS** |
+| Total project automated tests | 663 passing | **663 / 663 passed (100% green)** | **PASS** |
