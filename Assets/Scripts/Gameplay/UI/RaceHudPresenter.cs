@@ -20,16 +20,24 @@ namespace VelocityRush.Gameplay
         private Label _positionLabel;
         private Label _positionValueLabel;
         private Label _countdownLabel;
+        private VisualElement _bonusBox;
+        private Label _bonusLabel;
+        private Label _bonusValueLabel;
+        private Label _popupBannerLabel;
 
         // Pre-allocated char buffers for 0 B/frame string updates
         private readonly char[] _speedBuffer = new char[HudStringFormatter.IntBufferSize];
         private readonly char[] _timeBuffer = new char[HudStringFormatter.TimeBufferSize];
         private readonly char[] _positionBuffer = new char[HudStringFormatter.PositionBufferSize];
+        private readonly char[] _bonusBuffer = new char[HudStringFormatter.BonusBufferSize];
+        private readonly char[] _popupBuffer = new char[HudStringFormatter.PopupBufferSize];
 
         // Cached values to avoid redundant string allocations when values haven't changed
         private int _lastSpeed = -1;
         private int _lastHundredths = -1;
         private int _lastPosition = -1;
+        private int _lastBonusCredits = -1;
+        private float _popupRemainingSeconds = 0f;
         private RaceState _lastRaceState = (RaceState)(-1);
 
         public VisualElement Root => _root;
@@ -67,6 +75,18 @@ namespace VelocityRush.Gameplay
             _countdownLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
             _countdownLabel.style.display = DisplayStyle.None;
             _root.Add(_countdownLabel);
+
+            // Action popup banner (center-top)
+            _popupBannerLabel = new Label { name = "hud-popup-banner" };
+            _popupBannerLabel.style.position = Position.Absolute;
+            _popupBannerLabel.style.left = 0f;
+            _popupBannerLabel.style.right = 0f;
+            _popupBannerLabel.style.top = 90f;
+            _popupBannerLabel.style.fontSize = 32f;
+            _popupBannerLabel.style.color = new Color(1f, 0.85f, 0.2f);
+            _popupBannerLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _popupBannerLabel.style.display = DisplayStyle.None;
+            _root.Add(_popupBannerLabel);
 
             // Top Bar: Time and Position
             var topBar = new VisualElement { name = "hud-top-bar" };
@@ -114,6 +134,26 @@ namespace VelocityRush.Gameplay
             topBar.Add(timeBox);
             _root.Add(topBar);
 
+            // Bottom Left: Live Bonus Credits
+            _bonusBox = new VisualElement { name = "hud-bonus-box" };
+            _bonusBox.style.position = Position.Absolute;
+            _bonusBox.style.bottom = 30f;
+            _bonusBox.style.left = 30f;
+            _bonusBox.style.alignItems = Align.FlexStart;
+            _bonusBox.style.display = DisplayStyle.None;
+
+            _bonusLabel = new Label { name = "hud-bonus-label" };
+            _bonusLabel.style.fontSize = 16f;
+            _bonusLabel.style.color = new Color(0.9f, 0.75f, 0.2f);
+            _bonusBox.Add(_bonusLabel);
+
+            _bonusValueLabel = new Label { name = "hud-bonus-val" };
+            _bonusValueLabel.style.fontSize = 36f;
+            _bonusValueLabel.style.color = new Color(1f, 0.95f, 0.4f);
+            _bonusBox.Add(_bonusValueLabel);
+
+            _root.Add(_bonusBox);
+
             // Bottom Right: Speedometer
             var speedBox = new VisualElement { name = "hud-speed-box" };
             speedBox.style.position = Position.Absolute;
@@ -139,6 +179,70 @@ namespace VelocityRush.Gameplay
             _timeLabel.text = LocalizationService.Tr("hud.time_label");
             _positionLabel.text = LocalizationService.Tr("hud.position_label");
             _speedUnitLabel.text = LocalizationService.Tr("hud.speed_unit");
+            _bonusLabel.text = LocalizationService.Tr("hud.bonus_credits");
+        }
+
+        /// <summary>
+        /// Ticks visual banner timers on the HUD hot path (0 B allocation).
+        /// </summary>
+        public void Tick(float deltaSeconds)
+        {
+            if (_popupRemainingSeconds > 0f)
+            {
+                _popupRemainingSeconds -= deltaSeconds;
+                if (_popupRemainingSeconds <= 0f)
+                {
+                    _popupBannerLabel.style.display = DisplayStyle.None;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Updates the live bonus credit tally label on the HUD.
+        /// 0 B allocation in steady state.
+        /// </summary>
+        public void SetBonusCredits(int totalBonus)
+        {
+            if (totalBonus == _lastBonusCredits) return;
+
+            _lastBonusCredits = totalBonus;
+            if (totalBonus > 0)
+            {
+                int len = HudStringFormatter.WriteBonusCredits(_bonusBuffer, 0, totalBonus);
+                _bonusValueLabel.text = new string(_bonusBuffer, 0, len);
+                _bonusBox.style.display = DisplayStyle.Flex;
+            }
+            else
+            {
+                _bonusBox.style.display = DisplayStyle.None;
+            }
+        }
+
+        /// <summary>
+        /// Displays action popup banner for road coin pickup.
+        /// </summary>
+        public void ShowCoinPopup(int coinValue, int totalBonus)
+        {
+            SetBonusCredits(totalBonus);
+            int len = HudStringFormatter.WritePopup(_popupBuffer, 0, "COIN", coinValue);
+            _popupBannerLabel.text = new string(_popupBuffer, 0, len);
+            _popupBannerLabel.style.color = new Color(1f, 0.85f, 0.2f);
+            _popupBannerLabel.style.display = DisplayStyle.Flex;
+            _popupRemainingSeconds = 1.2f;
+        }
+
+        /// <summary>
+        /// Displays action popup banner for high-speed near-miss overtake.
+        /// </summary>
+        public void ShowNearMissPopup(int bonusCredits, int totalBonus)
+        {
+            SetBonusCredits(totalBonus);
+            string prefix = LocalizationService.Tr("hud.near_miss_popup");
+            int len = HudStringFormatter.WritePopup(_popupBuffer, 0, prefix, bonusCredits);
+            _popupBannerLabel.text = new string(_popupBuffer, 0, len);
+            _popupBannerLabel.style.color = new Color(1f, 0.45f, 0.2f);
+            _popupBannerLabel.style.display = DisplayStyle.Flex;
+            _popupRemainingSeconds = 1.5f;
         }
 
         private void OnLanguageChanged(string lang)

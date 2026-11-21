@@ -26,6 +26,9 @@ namespace VelocityRush.Gameplay
 
         private ProgressionOutcome _outcome;
         private bool _hasOutcome;
+        private int _finishPosition;
+        private int _roadCoinCredits;
+        private int _nearMissCredits;
 
         public event Action NextEventRequested;
         public event Action RetryRequested;
@@ -141,9 +144,17 @@ namespace VelocityRush.Gameplay
 
         public void DisplayOutcome(ProgressionOutcome outcome, int finishPosition = 0)
         {
+            DisplayOutcome(outcome, finishPosition, 0, 0);
+        }
+
+        public void DisplayOutcome(ProgressionOutcome outcome, int finishPosition, int roadCoinCredits, int nearMissCredits)
+        {
             _outcome = outcome;
             _hasOutcome = true;
-            RefreshDisplay(finishPosition);
+            _finishPosition = finishPosition;
+            _roadCoinCredits = roadCoinCredits;
+            _nearMissCredits = nearMissCredits;
+            RefreshDisplay();
         }
 
         public void RefreshLocalization()
@@ -159,13 +170,13 @@ namespace VelocityRush.Gameplay
             }
         }
 
-        private void RefreshDisplay(int finishPosition = 0)
+        private void RefreshDisplay()
         {
             if (!_hasOutcome) return;
 
-            if (finishPosition > 0)
+            if (_finishPosition > 0)
             {
-                _positionLabel.text = LocalizationService.Tr("results.position") + ": " + finishPosition;
+                _positionLabel.text = LocalizationService.Tr("results.position") + ": " + _finishPosition;
                 _positionLabel.style.display = DisplayStyle.Flex;
             }
             else
@@ -196,9 +207,18 @@ namespace VelocityRush.Gameplay
             {
                 breakdown += "\n" + LocalizationService.Tr("results.first_place_bonus") + ": +" + _outcome.FirstPlaceBonusCredits + " " + LocalizationService.Tr("common.cr");
             }
+            if (_roadCoinCredits > 0)
+            {
+                breakdown += "\n" + LocalizationService.Tr("results.road_coins") + ": +" + _roadCoinCredits + " " + LocalizationService.Tr("common.cr");
+            }
+            if (_nearMissCredits > 0)
+            {
+                breakdown += "\n" + LocalizationService.Tr("results.near_miss_bonus") + ": +" + _nearMissCredits + " " + LocalizationService.Tr("common.cr");
+            }
             _creditsBreakdownLabel.text = breakdown;
 
-            _totalCreditsLabel.text = LocalizationService.Tr("results.total_credits") + ": +" + _outcome.TotalCreditsAwarded + " " + LocalizationService.Tr("common.cr");
+            int totalCredits = _outcome.TotalCreditsAwarded + _roadCoinCredits + _nearMissCredits;
+            _totalCreditsLabel.text = LocalizationService.Tr("results.total_credits") + ": +" + totalCredits + " " + LocalizationService.Tr("common.cr");
 
             if (_outcome.NewlyUnlockedEventIds.Count > 0 || _outcome.NewlyUnlockedChampionshipIds.Count > 0)
             {

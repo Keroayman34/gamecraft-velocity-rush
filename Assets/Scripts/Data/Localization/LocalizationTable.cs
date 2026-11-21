@@ -120,6 +120,8 @@ namespace VelocityRush.Data
             Add("hud.position_label", "Position", "الترتيب");
             Add("hud.lap_label", "Lap", "اللفة");
             Add("hud.countdown_go", "GO!", "!انطلق");
+            Add("hud.bonus_credits", "BONUS", "مكافأة");
+            Add("hud.near_miss_popup", "NEAR MISS!", "مناورة خطيرة!");
 
             // ═══════════════════════════════════════════════════════
             // Pause Overlay
@@ -142,6 +144,8 @@ namespace VelocityRush.Data
             Add("results.base_reward", "Completion Bonus", "مكافأة الإكمال");
             Add("results.star_bonus", "Star Bonus", "مكافأة النجوم");
             Add("results.first_place_bonus", "1st Place Bonus", "مكافأة المركز الأول");
+            Add("results.road_coins", "Road Coins", "عملات الطريق");
+            Add("results.near_miss_bonus", "Near-Miss Bonus", "مكافأة المناورة");
             Add("results.total_credits", "Total Credits", "إجمالي الرصيد");
             Add("results.next_event", "Next Event", "الحدث التالي");
             Add("results.retry", "Retry", "إعادة المحاولة");

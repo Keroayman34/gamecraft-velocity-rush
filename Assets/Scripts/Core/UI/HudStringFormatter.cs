@@ -18,6 +18,12 @@ namespace VelocityRush.Core
         /// <summary>Minimum buffer size for position formatting (e.g., "1st" = 4 chars).</summary>
         public const int PositionBufferSize = 8;
 
+        /// <summary>Minimum buffer size for bonus credit formatting (e.g., "+9999 CR" = 10 chars).</summary>
+        public const int BonusBufferSize = 16;
+
+        /// <summary>Minimum buffer size for popup formatting (e.g., "NEAR MISS! +25 CR" = 24 chars).</summary>
+        public const int PopupBufferSize = 32;
+
         /// <summary>
         /// Writes an integer (0–999999) into the buffer at the given offset.
         /// Returns the number of characters written. Negative values write "0".
@@ -209,6 +215,64 @@ namespace VelocityRush.Core
                 }
             }
 
+            return pos - offset;
+        }
+
+        /// <summary>
+        /// Formats "+{credits} CR" into a buffer without allocations.
+        /// Returns number of characters written.
+        /// </summary>
+        public static int WriteBonusCredits(char[] buffer, int offset, int credits)
+        {
+            if (buffer == null || offset < 0 || offset >= buffer.Length)
+            {
+                return 0;
+            }
+
+            int pos = offset;
+            if (pos < buffer.Length)
+            {
+                buffer[pos++] = '+';
+            }
+
+            pos += WriteInt(buffer, pos, credits);
+
+            if (pos + 3 <= buffer.Length)
+            {
+                buffer[pos++] = ' ';
+                buffer[pos++] = 'C';
+                buffer[pos++] = 'R';
+            }
+
+            return pos - offset;
+        }
+
+        /// <summary>
+        /// Formats popup text with prefix and credit value (e.g., "COIN +10 CR") into a buffer without allocations.
+        /// Returns number of characters written.
+        /// </summary>
+        public static int WritePopup(char[] buffer, int offset, string prefix, int credits)
+        {
+            if (buffer == null || offset < 0 || offset >= buffer.Length)
+            {
+                return 0;
+            }
+
+            int pos = offset;
+            if (!string.IsNullOrEmpty(prefix))
+            {
+                for (int i = 0; i < prefix.Length && pos < buffer.Length; i++)
+                {
+                    buffer[pos++] = prefix[i];
+                }
+
+                if (pos < buffer.Length)
+                {
+                    buffer[pos++] = ' ';
+                }
+            }
+
+            pos += WriteBonusCredits(buffer, pos, credits);
             return pos - offset;
         }
     }

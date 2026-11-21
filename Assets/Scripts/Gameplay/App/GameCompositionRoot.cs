@@ -5,6 +5,8 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 using VelocityRush.Core;
 using VelocityRush.Data;
+using VelocityRush.Gameplay.Economy;
+using VelocityRush.Gameplay.Traffic;
 
 namespace VelocityRush.Gameplay
 {
@@ -51,6 +53,9 @@ namespace VelocityRush.Gameplay
         private VehicleController _activePlayerVehicle;
         private RaceStandings _activeStandings;
         private RaceEventDefinition _activeEventDefinition;
+        private RoadCoinManager _activeRoadCoinManager;
+        private NearMissDetector _activeNearMissDetector;
+        private readonly RaceEconomyTracker _economyTracker = new RaceEconomyTracker();
 
         private bool _isInitialized;
 
@@ -59,6 +64,8 @@ namespace VelocityRush.Gameplay
         public PlayerProgress PlayerProgress => _progress;
         public ProgressionService ProgressionService => _progressionService;
         public GameFlowManager GameFlow => gameFlow;
+        public RaceEconomyTracker EconomyTracker => _economyTracker;
+        public RoadCoinManager ActiveRoadCoinManager => _activeRoadCoinManager;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoBootstrapOnLaunch()
@@ -269,6 +276,7 @@ namespace VelocityRush.Gameplay
                 }
 
                 int rank = _activeStandings != null ? _activeStandings.PlayerRank : 1;
+                _raceHudPresenter.Tick(Time.deltaTime);
                 _raceHudPresenter.UpdateRaceState(
                     _activeRaceController.State,
                     _activeRaceController.ElapsedSeconds,
@@ -304,6 +312,38 @@ namespace VelocityRush.Gameplay
                 var modifiers = UpgradeCalculator.ComputeModifiers(upgradeState);
                 _activePlayerVehicle.ApplyUpgradeModifiers(modifiers);
             }
+
+            if (_activeRoadCoinManager == null)
+            {
+                _activeRoadCoinManager = FindAnyObjectByType<RoadCoinManager>();
+                if (_activeRoadCoinManager != null)
+                {
+                    _activeRoadCoinManager.OnCoinCollected -= HandleCoinCollected;
+                    _activeRoadCoinManager.OnCoinCollected += HandleCoinCollected;
+                }
+            }
+
+            if (_activeNearMissDetector == null)
+            {
+                _activeNearMissDetector = FindAnyObjectByType<NearMissDetector>();
+                if (_activeNearMissDetector != null)
+                {
+                    _activeNearMissDetector.OnNearMiss -= HandleNearMiss;
+                    _activeNearMissDetector.OnNearMiss += HandleNearMiss;
+                }
+            }
+        }
+
+        private void HandleCoinCollected(CoinCollectedEvent evt)
+        {
+            _economyTracker.RecordCoinCollected(evt);
+            _raceHudPresenter.ShowCoinPopup(evt.CoinValue, _economyTracker.TotalBonusCredits);
+        }
+
+        private void HandleNearMiss(in NearMissEvent evt)
+        {
+            _economyTracker.RecordNearMiss(evt, 25);
+            _raceHudPresenter.ShowNearMissPopup(25, _economyTracker.TotalBonusCredits);
         }
 
         #region GameFlow & State Routing
@@ -407,6 +447,8 @@ namespace VelocityRush.Gameplay
         private void HandleFastRetry()
         {
             gameFlow.CloseAllOverlays();
+            _economyTracker.Reset();
+            _activeRoadCoinManager?.ResetForRetry();
             gameFlow.RequestFastRetry();
             FindActiveRaceComponents();
         }
@@ -415,6 +457,13 @@ namespace VelocityRush.Gameplay
         {
             Time.timeScale = 1f;
             AudioListener.pause = false;
+            _economyTracker.Reset();
+            if (_activeRoadCoinManager != null)
+            {
+                _activeRoadCoinManager.Teardown();
+                _activeRoadCoinManager = null;
+            }
+            _activeNearMissDetector = null;
             gameFlow.CloseAllOverlays();
             gameFlow.TryTransitionTo(AppState.MainMenu);
         }
@@ -461,10 +510,11 @@ namespace VelocityRush.Gameplay
             }
 
             var outcome = _progressionService.ProcessRaceOutcome(result, eventDef, finishPos);
+            _economyTracker.CommitToProgress(_progress);
             SyncAndSave();
 
             gameFlow.TryTransitionTo(AppState.Results);
-            _resultsPresenter.DisplayOutcome(outcome, finishPos);
+            _resultsPresenter.DisplayOutcome(outcome, finishPos, _economyTracker.CoinCredits, _economyTracker.NearMissCredits);
         }
 
         private void HandleVehicleSelected(string vehicleId)
@@ -706,6 +756,16 @@ namespace VelocityRush.Gameplay
             if (_activeRaceController != null)
             {
                 _activeRaceController.RaceFinished -= HandleRaceFinished;
+            }
+
+            if (_activeRoadCoinManager != null)
+            {
+                _activeRoadCoinManager.OnCoinCollected -= HandleCoinCollected;
+            }
+
+            if (_activeNearMissDetector != null)
+            {
+                _activeNearMissDetector.OnNearMiss -= HandleNearMiss;
             }
 
             _mainMenuPresenter?.Dispose();

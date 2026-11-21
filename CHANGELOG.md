@@ -4,6 +4,28 @@ All notable project changes are recorded here.
 This changelog records documentation and process milestones; it does not pre-announce features that have not been implemented.
 
 ## [Unreleased]
+### Phase 12 — Stage 2: Road Coins, Live Race Economy Ledger, Zero-Alloc HUD & Atomic Persistence (2026-11-22)
+- **Road Coin Topology, Pooling & Procedural Visuals (`VelocityRush.Data` / `VelocityRush.Gameplay.Economy`):**
+  - Created `CoinSpawnConfig` serializable data structure defining coin values (10 credits default), near-miss credits (25 default), pool capacity (36 default), pickup radius (2.4m), spawn ahead (140m), despawn behind (25m), arc lengths, spacing, and hover heights with fail-closed validation (`TryValidate`).
+  - Created `CoinPickupPool` pre-warming fixed capacity array of `CoinPickup` instances at initialization; supports 0 B runtime `TryRent`, `Return`, `ResetAll`, and `Teardown`.
+  - Created `CoinPickup` visual component with procedural golden disc mesh and cached single shared material fallback (0 texture bloat, 0 Colliders/Rigidbodies) with zero-alloc visual rotation via `TickSpin`.
+  - Created `RoadCoinManager` spawning 4-lane coin arcs along track path with deterministic PRNG seeding, dynamic traffic avoidance margin (6.0m), and reverse-loop proximity pickup detection.
+- **Live Race Economy Ledger & Anti-Exploit Atomic Persistence (`VelocityRush.Gameplay.Economy`):**
+  - Created pure C# `RaceEconomyTracker` ledger tracking live coin earnings, near-miss credits, and combo multipliers.
+  - Implemented exploit-proof reset: `Reset()` cleanses tallies on retry/quit, preventing credit duplication or farming.
+  - Implemented atomic idempotent commitment: `CommitToProgress(PlayerProgress progress)` commits bonus credits ONLY upon verified race completion.
+- **Zero-Allocation HUD Hot Path & Itemized Results Presentation (`VelocityRush.Core` / `VelocityRush.Gameplay`):**
+  - Added zero-allocation buffer writers `WriteBonusCredits` and `WritePopup` to `HudStringFormatter`.
+  - Added live bonus tally label (`BONUS: +X`) and pop-in animated near-miss/coin banners to `RaceHudPresenter` operating at 0 B/frame steady state.
+  - Added itemized road coin and near-miss earnings breakdown rows to `ResultsPresenter`.
+  - Added 4 bilingual EN/AR keys with 100% parity in `LocalizationTable` (`hud.bonus_credits`, `hud.near_miss_popup`, `results.road_coins`, `results.near_miss_bonus`).
+- **Composition Root Integration (`VelocityRush.Gameplay.App`):**
+  - Wired `RaceEconomyTracker` and `RoadCoinManager` in `GameCompositionRoot`, connecting coin pickups and near-miss events to live HUD popups, atomic race finish persistence, and clean retry/quit resets.
+- **Tests & Verification:**
+  - 6 new EditMode unit tests in `RoadCoinSystemTests` covering config validation, ledger accumulation, exploit-proof reset, atomic idempotent commit, string formatter, and 200-tick steady-state 0 B allocation proof.
+  - 5 new PlayMode integration tests in `RoadCoinPlayModeTests` covering pool pre-warming and recycling, proximity collection event, fast retry reset with zero leaks, race finish atomic save/reload & garage upgrade spendability, and teardown zero retention.
+  - Batch compile: **0 errors / 0 warnings**; full EditMode suite **593/593** (+6 new), full PlayMode suite **59/59** (+5 new), **0 failed / 0 skipped / 0 inconclusive**. Total project tests: **652 / 652 PASSED**.
+
 ### Phase 12 — Stage 1: 4-Lane Pooled Traffic System & Near-Miss Detection (2026-11-21)
 - **4-Lane Highway Topology & Data Model (`VelocityRush.Data`):**
   - Created `TrafficLaneConfig` serializable configuration defining 4 parallel highway lanes (`0..3`), lane width (`3.25m`), pool capacity (16–20 vehicles), spawn ahead (`150m`), despawn behind (`35m`), minimum same-lane spacing (`28m`), speed range (`12–22 m/s`), and density (`0..1`).

@@ -2041,3 +2041,46 @@ All runtime operations in `TrafficLaneManager`, `TrafficVehiclePool`, `TrafficVe
 | EditMode test suite | 587/587 passing | **587/587 passed (0 failed, 0 skipped)** | **PASS** |
 | PlayMode test suite | 54/54 passing | **54/54 passed (0 failed, 0 skipped)** | **PASS** |
 | Total project automated tests | 641 passing | **641 / 641 passed (100% green)** | **PASS** |
+
+## 59. Phase 12 Stage 2: Road Coins, Live Race Economy Ledger, Zero-Alloc HUD & Atomic Persistence
+
+### 59.1 Architecture & Component Topology
+Phase 12 Stage 2 introduces collectible road coin arcs, live race economy aggregation, zero-allocation HUD presentation, and anti-exploit atomic persistence:
+1. `CoinSpawnConfig` (`VelocityRush.Data`): Serializable configuration defining pool capacity (`36`), base coin value (`10` credits), near-miss bonus (`25` credits), pickup radius (`2.4m`), spawn ahead distance (`140m`), despawn behind distance (`25m`), arc length (`3..5` coins), intra-arc spacing (`7.0m`), inter-arc minimum spacing (`45.0m`), hover height (`0.75m`), and spin speed (`180 deg/s`).
+   - Fail-closed validation (`TryValidate`) guarantees positive dimensions and safe bounds.
+2. `CoinPickup` & `CoinPickupPool` (`VelocityRush.Gameplay.Economy`):
+   - `CoinPickup`: Visual component providing procedural golden disc mesh and cached single shared material fallback (0 texture bloat, 0 Colliders/Rigidbodies). Rotates visually via `TickSpin` at 0 B GC cost.
+   - `CoinPickupPool`: Pre-warms fixed capacity array of `CoinPickup` instances at initialization. Runtime `TryRent`, `Return`, `ResetAll`, and `Teardown` operate at strict 0 B GC allocation.
+3. `RoadCoinManager` (`VelocityRush.Gameplay.Economy`):
+   - Spawns multi-coin arcs along the active track spline in deterministic lanes (`0..3`) using seeded pseudo-random distribution.
+   - Traffic vehicle avoidance: checks longitudinal and lateral clearance (margin $\ge 6.0\text{m}$) against active traffic in `TrafficLaneManager` to prevent coins spawning inside traffic vehicles.
+   - Zero-allocation proximity pickup detection: iterates backwards through active coins checking player distance against $R_{\text{pickup}} = 2.4\text{m}$. On pickup, recycles coin to pool, updates session tallies, and fires `OnCoinCollected` value event.
+4. `RaceEconomyTracker` (`VelocityRush.Gameplay.Economy`):
+   - Pure C# runtime ledger tracking `SessionCoinsCollected`, `SessionCoinCredits`, `SessionNearMissCredits`, and combo streaks.
+   - Calculates combo multiplier bonus: $\text{bonus} = \text{baseCredits} \times (1 + (\text{combo} - 1) \times 0.25)$.
+   - Exploit-proof reset: `Reset()` wipes session tallies clean upon race restart or quit, preventing double-counting or farming.
+   - Atomic idempotent persistence: `CommitToProgress(PlayerProgress progress)` adds `TotalBonusCredits` directly to player progress credits atomically only once upon verified race completion.
+5. Zero-Allocation HUD & Itemized Results Presentation:
+   - `HudStringFormatter` (`VelocityRush.Core.UI`): Static buffer writers `WriteBonusCredits` and `WritePopup` write formatted UTF-16 character sequences into caller-owned `char[]` buffers without string allocations.
+   - `RaceHudPresenter` (`VelocityRush.Gameplay.UI`): Maintains live bonus credits counter (`BONUS: +X`) and pop-in animated near-miss/coin banners at 0 B/frame steady state.
+   - `ResultsPresenter` (`VelocityRush.Gameplay.UI`): Displays itemized breakdown rows for Road Coins (`+X CR`) and Near-Miss Bonus (`+Y CR`) alongside standard placement rewards.
+   - `LocalizationTable` (`VelocityRush.Data.Localization`): 4 bilingual EN/AR keys added with 100% parity (`hud.bonus_credits`, `hud.near_miss_popup`, `results.road_coins`, `results.near_miss_bonus`).
+6. Composition Root Integration (`GameCompositionRoot`):
+   - Dynamically resolves and wires `RoadCoinManager` and `RaceEconomyTracker`.
+   - Hooks `OnCoinCollected` and `NearMissDetector.OnNearMiss` to live HUD popups and economy ledger.
+   - Hooks race finish event to commit economy bonus credits atomically to `PlayerProgress` and trigger immediate persistence via `SaveService.SaveNow()`.
+   - Cleanses ledger on in-scene fast retry and menu return.
+
+### 59.2 Zero-Allocation Discipline & Test Evidence
+All hot-path operations across `RoadCoinManager.Tick`, `CoinPickup.TickSpin`, `RaceEconomyTracker.RecordCoin`, `RaceEconomyTracker.RecordNearMiss`, and `RaceHudPresenter.Tick` operate with zero heap allocations (0 B/frame).
+
+| Metric / Requirement | Target Budget | Observed Result | Status |
+|---|---|---|---|
+| Coin manager steady-state tick allocation | 0 B/frame | **0 B** (`GC.GetAllocatedBytesForCurrentThread`) | **PASS** |
+| HUD bonus & popup steady-state tick allocation | 0 B/frame | **0 B** | **PASS** |
+| Coin pool object retention across retry | 0 leaked GameObjects | **0 leaked / exact pre-warmed capacity maintained** | **PASS** |
+| Atomic persistence on race finish | Committed & saved | **Verified: progress credits updated & saved to disk** | **PASS** |
+| Exploit protection on fast retry / quit | 0 unearned credits | **0 credits leaked or committed to progress** | **PASS** |
+| EditMode test suite | 593/593 passing | **593/593 passed (0 failed, 0 skipped)** | **PASS** |
+| PlayMode test suite | 59/59 passing | **59/59 passed (0 failed, 0 skipped)** | **PASS** |
+| Total project automated tests | 652 passing | **652 / 652 passed (100% green)** | **PASS** |

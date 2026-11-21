@@ -686,3 +686,28 @@ Structural values are real measurements of the committed scenes plus four instan
 - `Assets/Tests/PlayMode/TrafficPlayModeTests.cs`
 
 *Stage 1 non-goals preserved:* no Stage 2 collectible coins yet; no Stage 3 nitro boost or rival rubber-banding; no Stage 4 difficulty matrix or WebGL build yet; Playgama Bridge strictly deferred to Phase 13 per D-036.
+
+*Stage 2 — Road Coins, Live Race Economy Ledger, Zero-Alloc HUD & Atomic Persistence (COMPLETE 2026-11-22)*
+- `T-12.7` **Road Coin Configuration & Procedural Mesh (`VelocityRush.Data` / `VelocityRush.Gameplay`):** `CoinSpawnConfig` serializable data structure defining coin values (10 credits default), near-miss credits (25 default), pool size (36 default), pickup radius (2.4m), spawn ahead (140m), despawn behind (25m), arc spacing and hover height; fail-closed validation (`TryValidate`); `CoinPickup` visual component with procedural golden disc mesh and single shared material fallback (0 texture bloat, 0 Colliders/Rigidbodies). — **COMPLETE.**
+- `T-12.8` **Zero-Allocation Coin Pool & Arc Spawner (`VelocityRush.Gameplay`):** `CoinPickupPool` pre-warms fixed capacity with zero GC allocations during runtime `TryRent`, `Return`, `ResetAll`, and `Teardown`; `RoadCoinManager` spawns 4-lane coin arcs along `TrackPath` spline with deterministic PRNG seeding, vehicle avoidance margin (6.0m), and reverse-loop proximity pickup detection; fast retry reset and teardown zero object retention. — **COMPLETE.**
+- `T-12.9` **Live Race Economy Ledger & Anti-Exploit Atomic Persistence (`VelocityRush.Gameplay`):** `RaceEconomyTracker` pure C# ledger tracking collected coins, near-miss credits, and combo streaks during live race; idempotent and atomic `CommitToProgress(PlayerProgress progress)` commits bonus credits ONLY upon valid race finish; reset on retry/quit prevents credit duplication/farming. — **COMPLETE.**
+- `T-12.10` **Zero-Allocation HUD Hot Path & Bilingual Overlays (`VelocityRush.Core` / `VelocityRush.Gameplay`):** `HudStringFormatter` added zero-allocation buffer writers (`WriteBonusCredits`, `WritePopup`); `RaceHudPresenter` displays bonus credit tally and pop-in animated near-miss/coin banners at 0 B/frame steady state; `ResultsPresenter` displays itemized road coins and near-miss earnings; `LocalizationTable` added 4 bilingual EN/AR keys with 100% parity (`hud.bonus_credits`, `hud.near_miss_popup`, `results.road_coins`, `results.near_miss_bonus`). — **COMPLETE.**
+- `T-12.11` **Composition Root Integration (`GameCompositionRoot`):** Wired `RaceEconomyTracker`, `RoadCoinManager`, and `NearMissDetector` to live HUD presenter; committed economy ledger atomically on race finish to `PlayerProgress` and `SaveService.SaveNow()`; reset cleanly on fast retry and menu quit. — **COMPLETE.**
+- `T-12.12` **Stage-2 Verification & Test Suite:** 6 new EditMode tests (`RoadCoinSystemTests`) asserting config validation, ledger accumulation, exploit-proof reset, atomic idempotent commit, string formatter, and 200-tick steady-state 0 B allocation proof; 5 new PlayMode integration tests (`RoadCoinPlayModeTests`) asserting pool pre-warming and recycling, proximity collection event, fast retry reset with zero leaks, race finish atomic save/reload & garage upgrade spendability, and teardown zero retention; full EditMode suite **593/593** (+6 new), full PlayMode suite **59/59** (+5 new), **0 failed / 0 skipped / 0 inconclusive**. Total project passing tests: **652 / 652 PASSED**. — **COMPLETE.**
+
+*Stage 2 files:*
+- `Assets/Scripts/Data/Economy/CoinSpawnConfig.cs`
+- `Assets/Scripts/Data/Economy/CoinCollectedEvent.cs`
+- `Assets/Scripts/Gameplay/Economy/CoinPickup.cs`
+- `Assets/Scripts/Gameplay/Economy/CoinPickupPool.cs`
+- `Assets/Scripts/Gameplay/Economy/RoadCoinManager.cs`
+- `Assets/Scripts/Gameplay/Economy/RaceEconomyTracker.cs`
+- `Assets/Scripts/Core/UI/HudStringFormatter.cs` (bonus & popup writers)
+- `Assets/Scripts/Data/Localization/LocalizationTable.cs` (bilingual EN/AR bonus keys)
+- `Assets/Scripts/Gameplay/UI/RaceHudPresenter.cs` (bonus label & popups)
+- `Assets/Scripts/Gameplay/UI/ResultsPresenter.cs` (itemized coin & near-miss breakdown)
+- `Assets/Scripts/Gameplay/App/GameCompositionRoot.cs` (economy wiring & atomic persistence)
+- `Assets/Tests/EditMode/RoadCoinSystemTests.cs`
+- `Assets/Tests/PlayMode/RoadCoinPlayModeTests.cs`
+
+*Stage 2 non-goals preserved:* no Stage 3 nitro boost, dynamic FOV, or rival rubber-banding yet; no Stage 4 difficulty matrix or WebGL build yet; Playgama Bridge strictly deferred to Phase 13 per D-036.
