@@ -47,6 +47,23 @@ namespace VelocityRush.Gameplay
         private readonly WheelBinding[] _wheels = new WheelBinding[4];
         private readonly WheelTelemetry[] _wheelTelemetry = new WheelTelemetry[4];
         private IVehicleInput _input;
+        private VehicleUpgradeModifiers _upgradeModifiers = VehicleUpgradeModifiers.Default;
+
+        /// <summary>Active upgrade modifiers applied to this vehicle (0 B/frame).</summary>
+        public VehicleUpgradeModifiers UpgradeModifiers => _upgradeModifiers;
+
+        /// <summary>
+        /// Applies upgrade modifiers non-mutatingly to the runtime physics instance (TDD §40.7, D-068).
+        /// Does NOT mutate the underlying VehiclePhysicsProfile ScriptableObject.
+        /// </summary>
+        public void ApplyUpgradeModifiers(in VehicleUpgradeModifiers modifiers)
+        {
+            _upgradeModifiers = modifiers;
+            if (chassis != null && profile != null)
+            {
+                ConfigureRig();
+            }
+        }
 
         /// <summary>Referenced handling profile (sole source of physics values).</summary>
         public VehiclePhysicsProfile Profile => profile;
@@ -73,10 +90,7 @@ namespace VelocityRush.Gameplay
 
         private void Awake()
         {
-            _wheels[0] = frontLeft;
-            _wheels[1] = frontRight;
-            _wheels[2] = rearLeft;
-            _wheels[3] = rearRight;
+            EnsureWheelArray();
 
             if (inputSource == null)
             {
@@ -285,19 +299,32 @@ namespace VelocityRush.Gameplay
 
         private void ConfigureRig()
         {
+            EnsureWheelArray();
+
             chassis.mass = profile.Mass;
             chassis.centerOfMass = profile.CenterOfMassOffset;
             chassis.interpolation = RigidbodyInterpolation.Interpolate;
             chassis.collisionDetectionMode = CollisionDetectionMode.Discrete;
-            chassis.linearDamping = profile.LinearDamping;
+            chassis.linearDamping = profile.LinearDamping * _upgradeModifiers.DragMultiplier;
             chassis.angularDamping = profile.AngularDamping;
             // A driven vehicle must never sleep (TDD §36.5); 0 disables the sleep threshold.
             chassis.sleepThreshold = 0f;
 
             for (var i = 0; i < _wheels.Length; i++)
             {
-                ConfigureWheel(_wheels[i].Collider);
+                if (_wheels[i] != null && _wheels[i].Collider != null)
+                {
+                    ConfigureWheel(_wheels[i].Collider);
+                }
             }
+        }
+
+        private void EnsureWheelArray()
+        {
+            _wheels[0] = frontLeft;
+            _wheels[1] = frontRight;
+            _wheels[2] = rearLeft;
+            _wheels[3] = rearRight;
         }
 
         private void ConfigureWheel(WheelCollider wheel)
@@ -307,17 +334,17 @@ namespace VelocityRush.Gameplay
             wheel.suspensionDistance = profile.SuspensionDistance;
 
             var spring = wheel.suspensionSpring;
-            spring.spring = profile.SuspensionSpring;
-            spring.damper = profile.SuspensionDamper;
+            spring.spring = profile.SuspensionSpring * _upgradeModifiers.SuspensionMultiplier;
+            spring.damper = profile.SuspensionDamper * _upgradeModifiers.SuspensionMultiplier;
             spring.targetPosition = profile.SuspensionTargetPosition;
             wheel.suspensionSpring = spring;
 
             var forward = wheel.forwardFriction;
-            forward.stiffness = profile.ForwardFrictionStiffness;
+            forward.stiffness = profile.ForwardFrictionStiffness * _upgradeModifiers.FrictionMultiplier;
             wheel.forwardFriction = forward;
 
             var sideways = wheel.sidewaysFriction;
-            sideways.stiffness = profile.SidewaysFrictionStiffness;
+            sideways.stiffness = profile.SidewaysFrictionStiffness * _upgradeModifiers.FrictionMultiplier;
             wheel.sidewaysFriction = sideways;
         }
 
@@ -338,15 +365,16 @@ namespace VelocityRush.Gameplay
             SampleTelemetry(velocity, speed, forwardSpeed);
 
             var torqueMultiplier = profile.EngineTorqueCurve.Evaluate(speedForCurves);
-            var motorTorque = VehicleControlMath.MotorTorque(_input.Throttle, profile.MotorTorque, torqueMultiplier);
+            var motorTorque = VehicleControlMath.MotorTorque(_input.Throttle, profile.MotorTorque * _upgradeModifiers.TorqueMultiplier, torqueMultiplier);
 
+            var effectiveBrakeTorque = profile.BrakeTorque * _upgradeModifiers.BrakeTorqueMultiplier;
             var frontBrakeTorque = VehicleControlMath.BrakeTorqueForAxle(
                 _input.Brake,
-                profile.BrakeTorque,
+                effectiveBrakeTorque,
                 profile.BrakeBiasFront);
             var rearPedalBrakeTorque = VehicleControlMath.BrakeTorqueForAxle(
                 _input.Brake,
-                profile.BrakeTorque,
+                effectiveBrakeTorque,
                 1f - profile.BrakeBiasFront);
             var handbrakeTorque = VehicleControlMath.HandbrakeTorque(_input.Handbrake, profile.HandbrakeTorque);
             var rearBrakeTorque = VehicleControlMath.RearBrakeTorque(rearPedalBrakeTorque, handbrakeTorque);

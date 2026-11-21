@@ -4,6 +4,25 @@ All notable project changes are recorded here.
 This changelog records documentation and process milestones; it does not pre-announce features that have not been implemented.
 
 ## [Unreleased]
+### Phase 11 — Stage 4: End-to-End Game Loop Integration (2026-11-21)
+- **Composition Root (`Assets/Scripts/Gameplay/App/GameCompositionRoot.cs`):**
+  - Centralized composition root in `Bootstrap.unity` coordinating `SaveService`, `PlayerProgress`, `ProgressionService`, `GameFlowManager`, `SceneLifecycleController`, `CommercialUiController`, and all 8 MVP screen presenters.
+  - Implements keyboard input routing (`Esc`/`P` modal pause toggle during `AppState.Race`), master volume audio listener synchronization, and instant dynamic bilingual language switching.
+  - Subscribes to `RaceController.RaceFinished`, evaluates race outcome through `ProgressionService`, awards stars/credits, triggers immediate dirty flush via `SaveService.SaveNow()`, and displays outcome on `ResultsPresenter`.
+- **Runtime Vehicle Upgrades (`Assets/Scripts/Gameplay/Vehicles/VehicleController.cs`):**
+  - Added `ApplyUpgradeModifiers(in VehicleUpgradeModifiers)` to scale linear damping, tire friction stiffness, suspension spring/damper, motor torque, and brake torque at runtime directly on active `Rigidbody` and `WheelCollider` instances.
+  - Guaranteed non-mutating behavior: base `VehiclePhysicsProfile` ScriptableObject assets are never modified.
+- **Progression & Event Navigation (`Assets/Scripts/Gameplay/Progression/NextEventResolver.cs`):**
+  - Pure static resolution of next event across rounds (`1..5`) and championship tier boundaries (`c1-ignition-series -> c2-apex-challenger -> c3-velocity-masters`).
+  - Resolves target environment scene names for all 15 events.
+  - Integrated in-scene fast retry seam (`RequestFastRetry`) resetting race clock, checkpoints, and player spawn pose within the resident scene in under a single frame without scene reloading.
+- **Tests & Verification:**
+  - 6 new EditMode tests (`RuntimeVehicleUpgradeTests`, `NextEventResolverTests`) asserting non-mutating upgrade modifier application, sequential event advancement, and championship progression boundaries.
+  - 4 new PlayMode integration tests (`EndToEndGameLoopPlayModeTests`) asserting Boot -> Save hydration -> MainMenu, race finish -> 3-star progression evaluation -> persistence to save store, garage upgrade purchase -> credit deduction -> rig modifier application, and pause/fast retry/quit lifecycle without scene reload.
+  - Batch compile: **0 errors / 0 warnings**; full EditMode suite **579/579** (+6 new), full PlayMode suite **50/50** (+4 new), **0 failed / 0 skipped / 0 inconclusive**.
+- **Documentation:** `production/ROADMAP.md` Phase 11 Stage 4; `docs/TDD.md` §56; `docs/TRACEABILITY.md`; this changelog. No new `.md` files.
+- **Non-Goals Preserved:** Zero modifications to Stage 5 WebGL profiling matrix or mobile QA; Playgama Bridge strictly deferred to Phase 13 per D-036. Stage 4 stops cleanly before Stage 5.
+
 ### Phase 11 — Stage 3: Commercial UI Suite, Zero-Allocation HUD & Bilingual EN/AR (2026-11-21)
 - **Bilingual Localization Layer (`VelocityRush.Core` / `VelocityRush.Data`):**
   - `LocalizationService`: Zero-third-party static service supporting `"en"` (LTR) and `"ar"` (RTL) with dynamic language switching, `LanguageChanged` notifications, RTL layout helpers, and fail-closed missing key fallback returning the key ID with diagnostic warning.

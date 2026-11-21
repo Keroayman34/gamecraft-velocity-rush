@@ -1922,3 +1922,32 @@ Per D-069, UI screens follow a strict MVP/Presenter pattern built with UI Toolki
 - Batch compile: **0 errors / 0 warnings**.
 - EditMode suite: **573/573** (555 baseline + 18 new tests in `LocalizationServiceTests`, `HudStringFormatterTests`, `CommercialPresenterTests`), **0 failed / 0 skipped / 0 inconclusive**.
 - PlayMode suite: **46/46** (43 baseline + 3 new tests in `CommercialUiPlayModeTests`), **0 failed / 0 skipped / 0 inconclusive**. Full state machine screen visibility transitions, 0 B GC steady-state HUD tick allocation proof, and instant dynamic EN↔AR language toggle verified.
+
+## 56. Phase 11 — End-to-end game loop integration (Stage 4)
+
+### 56.1 Persistent composition root (`GameCompositionRoot`)
+Per TDD §30.2, §34.3, and D-070:
+- `GameCompositionRoot` serves as the centralized composition root residing in `Bootstrap.unity`.
+- Lifecycle initialization: On `Awake`/`Start`, boots `SaveService` (`PlayerPrefsJsonSaveStore`), hydrates `PlayerProgress`, constructs `ProgressionService`, registers `GameFlowManager` with `SceneLifecycleController`, initializes `CommercialUiController`, and binds all 8 MVP presenters (`MainMenuPresenter`, `ChampionshipSelectPresenter`, `EventSelectPresenter`, `GarageUpgradePresenter`, `RaceHudPresenter`, `PauseOverlayPresenter`, `ResultsPresenter`, `SettingsPresenter`).
+- Input & overlay management: Polls `KeyCode.Escape` and `KeyCode.P` to toggle the modal `Pause` overlay during `AppState.Race`; synchronizes master volume with `AudioListener.volume` and language with `LocalizationService`.
+- Single Writer discipline: Synchronizes progression changes immediately to `SaveService.SaveNow()` whenever credits, vehicle purchases, upgrades, or race outcomes are processed.
+
+### 56.2 Non-mutating runtime vehicle upgrade modifier application
+Per D-068:
+- `VehicleController.ApplyUpgradeModifiers(in VehicleUpgradeModifiers modifiers)` scales vehicle physics parameters at runtime:
+  - Linear drag / damping scaled inversely by aerodynamics modifier.
+  - Forward and sideways tire friction stiffness scaled by tires grip multiplier.
+  - Suspension spring and damper stiffness scaled by suspension multiplier.
+  - Engine motor torque scaled by engine power multiplier and transmission top speed multiplier.
+  - Brake torque scaled by brake force multiplier.
+- Zero asset mutation: All scaling factors are applied to the active runtime `Rigidbody` and `WheelCollider` instances on the spawned vehicle rig. Base `VehiclePhysicsProfile` ScriptableObject assets remain untouched.
+
+### 56.3 Next event resolution & fast retry seam
+- `NextEventResolver`: Pure static helper in `VelocityRush.Gameplay` calculating round advancement (`1 -> 2 -> ... -> 5`), championship tier advancement (`c1-ignition-series -> c2-apex-challenger -> c3-velocity-masters`), completion status, and target scene mapping.
+- Fast in-scene retry: `RequestFastRetry` resets race clock, checkpoints, and player spawn pose within the resident scene in under a single frame without scene reloading or WebGL memory reallocation.
+- Race outcome processing: `HandleRaceFinished` computes star rating based on race type, awards base credits, star delta bonuses, and 1st place gold bonuses, updates personal best time, and transitions cleanly to `ResultsPresenter` before persisting to storage.
+
+### 56.4 Stage 4 validation evidence
+- Batch compile: **0 errors / 0 warnings**.
+- EditMode suite: **579/579** (573 baseline + 6 new tests in `RuntimeVehicleUpgradeTests` and `NextEventResolverTests`), **0 failed / 0 skipped / 0 inconclusive**. Verified non-mutating modifier application, sequential event resolution, and championship transition boundaries.
+- PlayMode suite: **50/50** (46 baseline + 4 new tests in `EndToEndGameLoopPlayModeTests`), **0 failed / 0 skipped / 0 inconclusive**. Full loop verified: boot to main menu with save hydration, garage upgrade purchase with credit deduction and modifier application, pause/fast retry/quit lifecycle, and race finish with 3-star scoring and persistent store synchronization.

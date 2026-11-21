@@ -623,3 +623,21 @@ Structural values are real measurements of the committed scenes plus four instan
 - `Assets/Tests/PlayMode/CommercialUiPlayModeTests.cs`
 
 *Stage 3 non-goals preserved:* no Stage 4 end-to-end race-to-save loop wiring yet; no third-party localization packages; no uGUI/TMP dependencies; Playgama Bridge strictly deferred to Phase 13 per D-036.
+
+*Stage 4 — End-to-End Game Loop Integration (COMPLETE 2026-11-21)*
+- `T-11.14` **Persistent Composition Root (`Bootstrap.unity` & `GameCompositionRoot`):** `GameCompositionRoot` orchestrates the complete lifecycle: initializes `SaveService`, `PlayerProgress`, `ProgressionService`, `GameFlowManager`, `SceneLifecycleController`, `CommercialUiController`, and all 8 MVP screen presenters; binds state routing, input polling (Esc/P for Pause overlay), language toggling, and audio master volume. — **COMPLETE.**
+- `T-11.15` **Race Event Launch, Live HUD & Finish Progression:** Launching an event triggers `EventSelection -> PreEvent -> Race`, dynamically loads the target environment scene, applies saved vehicle upgrades to player vehicle at runtime, hooks live 0 B/frame HUD updates, evaluates race finish (`ProcessRaceOutcome`), writes stars/credits to `PlayerProgress`, immediately flushes to `SaveService`, and transitions to `Results` screen. — **COMPLETE.**
+- `T-11.16` **Non-Mutating Runtime Vehicle Upgrade Application:** `VehicleController.ApplyUpgradeModifiers(in VehicleUpgradeModifiers)` scales linear damping, tire friction stiffness, suspension spring/damper, motor torque, and brake torque at runtime directly on the spawned vehicle rig without mutating `VehiclePhysicsProfile` ScriptableObject assets. — **COMPLETE.**
+- `T-11.17` **Fast In-Scene Retry & Next Event Progression Seams:** `NextEventResolver` provides pure static next-event progression across championship rounds (`1..5`) and championship tier boundaries (`c1 -> c2 -> c3`); `RequestFastRetry` in-scene retry resets race state and vehicle pose in place without reloading scenes; Pause and Results screens wire Retry, Next Event, and Quit to Menu cleanly. — **COMPLETE.**
+- `T-11.18` **Stage-4 Verification & Full-Loop PlayMode Suite:** 6 new EditMode tests (`RuntimeVehicleUpgradeTests`, `NextEventResolverTests`) asserting non-mutating modifier application, sequential event resolution, and championship progression boundaries; 4 new PlayMode integration tests (`EndToEndGameLoopPlayModeTests`) asserting Boot -> Save hydration -> MainMenu, race finish -> 3-star progression evaluation -> persistence to save store, garage upgrade purchase -> credit deduction -> rig modifier application, and pause/fast retry/quit lifecycle without scene reload; batch compile **0 errors / 0 warnings**; full EditMode suite **579/579** (+6 new), full PlayMode suite **50/50** (+4 new), **0 failed / 0 skipped / 0 inconclusive**. — **COMPLETE.**
+
+*Stage 4 files:*
+- `Assets/Scripts/Gameplay/App/GameCompositionRoot.cs`
+- `Assets/Scripts/Gameplay/Progression/NextEventResolver.cs`
+- `Assets/Scripts/Gameplay/Vehicles/VehicleController.cs` (runtime upgrade modifier seam)
+- `Assets/Scripts/Gameplay/Scenes/PrototypeEntry.cs` (GameFlow bypass suppression)
+- `Assets/Tests/EditMode/RuntimeVehicleUpgradeTests.cs`
+- `Assets/Tests/EditMode/NextEventResolverTests.cs`
+- `Assets/Tests/PlayMode/EndToEndGameLoopPlayModeTests.cs`
+
+*Stage 4 non-goals preserved:* no Stage 5 WebGL profiling matrix or mobile QA yet; Playgama Bridge strictly deferred to Phase 13 per D-036.

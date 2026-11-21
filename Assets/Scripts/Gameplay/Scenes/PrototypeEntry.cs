@@ -44,6 +44,12 @@ namespace VelocityRush.Gameplay
                 return;
             }
 
+            // Commercial GameFlow coordinator suppresses legacy prototype auto-load (TDD §35.1)
+            if (GetComponent<GameFlowManager>() != null)
+            {
+                return;
+            }
+
             if (!PrototypeSceneLoader.TryLoadContentScene(out var error))
             {
                 Debug.LogError(LogPrefix + error, this);
