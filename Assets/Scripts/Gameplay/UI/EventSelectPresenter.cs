@@ -110,8 +110,15 @@ namespace VelocityRush.Gameplay
 
                 int capturedIndex = i;
                 _eventLaunchButtons[i] = new Button { name = "event-launch-" + i };
-                _eventLaunchButtons[i].style.width = 100f;
-                _eventLaunchButtons[i].style.height = 32f;
+                _eventLaunchButtons[i].style.width = 110f;
+                _eventLaunchButtons[i].style.height = 34f;
+                _eventLaunchButtons[i].style.fontSize = 14f;
+                _eventLaunchButtons[i].style.unityFontStyleAndWeight = UnityEngine.FontStyle.Bold;
+                _eventLaunchButtons[i].style.color = UnityEngine.Color.white;
+                _eventLaunchButtons[i].style.borderTopLeftRadius = 6f;
+                _eventLaunchButtons[i].style.borderTopRightRadius = 6f;
+                _eventLaunchButtons[i].style.borderBottomLeftRadius = 6f;
+                _eventLaunchButtons[i].style.borderBottomRightRadius = 6f;
                 _eventLaunchButtons[i].style.marginTop = 8f;
                 _eventLaunchButtons[i].clicked += () =>
                 {
@@ -127,8 +134,16 @@ namespace VelocityRush.Gameplay
             }
 
             _backButton = new Button { name = "event-back" };
-            _backButton.style.width = 120f;
+            _backButton.style.width = 130f;
             _backButton.style.height = 40f;
+            _backButton.style.fontSize = 16f;
+            _backButton.style.unityFontStyleAndWeight = UnityEngine.FontStyle.Bold;
+            _backButton.style.color = UnityEngine.Color.white;
+            _backButton.style.backgroundColor = new UnityEngine.Color(0.216f, 0.255f, 0.318f, 1f);
+            _backButton.style.borderTopLeftRadius = 6f;
+            _backButton.style.borderTopRightRadius = 6f;
+            _backButton.style.borderBottomLeftRadius = 6f;
+            _backButton.style.borderBottomRightRadius = 6f;
             _backButton.style.marginTop = 15f;
             _backButton.clicked += () => BackRequested?.Invoke();
             _root.Add(_backButton);
@@ -172,11 +187,13 @@ namespace VelocityRush.Gameplay
                 if (d.IsUnlocked)
                 {
                     _eventLaunchButtons[i].text = LocalizationService.Tr("event.launch");
+                    _eventLaunchButtons[i].style.backgroundColor = new UnityEngine.Color(0.145f, 0.388f, 0.922f, 1f);
                     _eventLaunchButtons[i].SetEnabled(true);
                 }
                 else
                 {
                     _eventLaunchButtons[i].text = LocalizationService.Tr("event.locked");
+                    _eventLaunchButtons[i].style.backgroundColor = new UnityEngine.Color(0.216f, 0.255f, 0.318f, 0.6f);
                     _eventLaunchButtons[i].SetEnabled(false);
                 }
 

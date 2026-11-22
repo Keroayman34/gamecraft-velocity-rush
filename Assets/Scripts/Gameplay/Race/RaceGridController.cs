@@ -87,6 +87,15 @@ namespace VelocityRush.Gameplay
         /// <summary>1-based player position, or zero before initialization.</summary>
         public int PlayerRank => _standings != null ? _standings.PlayerRank : 0;
 
+        /// <summary>The generated TrackPath for this grid, or null before initialization.</summary>
+        public TrackPath Path => _path;
+
+        /// <summary>Authored track layout used by this grid controller.</summary>
+        public TrackLayout TrackLayout => trackLayout;
+
+        /// <summary>Layout variant (Signature or Reverse) used by this grid controller.</summary>
+        public EnvironmentLayoutVariant Variant => variant;
+
 #if UNITY_EDITOR
         /// <summary>
         /// Editor-only authoring seam used by the deterministic Phase-10 AI-grid scene builder

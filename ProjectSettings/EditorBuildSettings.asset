@@ -9,6 +9,39 @@ EditorBuildSettings:
     path: Assets/Scenes/Bootstrap.unity
     guid: 48ace000459390ad0add3789ec87ee26
   - enabled: 1
-    path: Assets/Scenes/TestTrack.unity
-    guid: a8580a36fbc0405fc848a29159217ea3
+    path: Assets/Scenes/Garage.unity
+    guid: 4099d6143137d9d3db01ec12b4d13a13
+  - enabled: 1
+    path: Assets/Scenes/ChampionshipCatalog.unity
+    guid: c931f13b9df04ad748bafde313c8ead4
+  - enabled: 1
+    path: Assets/Scenes/Environments/desert-signature.unity
+    guid: 3ab1e82d99d7bfd3dbfd192b5d3abc48
+  - enabled: 1
+    path: Assets/Scenes/Environments/desert-reverse.unity
+    guid: 10669ba4326aaa8d4acae092716cf840
+  - enabled: 1
+    path: Assets/Scenes/Environments/coastal-signature.unity
+    guid: 5c568090098f617a8aceebfaaa54e747
+  - enabled: 1
+    path: Assets/Scenes/Environments/coastal-reverse.unity
+    guid: 9cae46f45c4003064a9bd09e70ca2f62
+  - enabled: 1
+    path: Assets/Scenes/Environments/mountain-pass-signature.unity
+    guid: a203f3e7e0a43e94fbb83b1069723415
+  - enabled: 1
+    path: Assets/Scenes/Environments/mountain-pass-reverse.unity
+    guid: 386ff4f6196e5e0f1a9230383b9e5833
+  - enabled: 1
+    path: Assets/Scenes/Environments/neon-city-signature.unity
+    guid: 43dce04c834ceded7a06b09c31668810
+  - enabled: 1
+    path: Assets/Scenes/Environments/neon-city-reverse.unity
+    guid: b450a35c78f4a61ca83d90aba8a5ea68
+  - enabled: 1
+    path: Assets/Scenes/Environments/world-arena-signature.unity
+    guid: 7dc714f07f7dfee3e88381525ef272bb
+  - enabled: 1
+    path: Assets/Scenes/Environments/world-arena-reverse.unity
+    guid: 8418bf6ec6ae264619a51df322f2472b
   m_configObjects: {}

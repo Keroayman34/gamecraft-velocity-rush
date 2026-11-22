@@ -73,6 +73,8 @@ namespace VelocityRush.Gameplay
             _shellRoot.style.top = 0f;
             _shellRoot.style.right = 0f;
             _shellRoot.style.bottom = 0f;
+            _shellRoot.style.width = Length.Percent(100f);
+            _shellRoot.style.height = Length.Percent(100f);
 
             _mainMenuRoot = CreateScreen("screen-main-menu");
             _champSelectRoot = CreateScreen("screen-champ-select");
@@ -83,6 +85,14 @@ namespace VelocityRush.Gameplay
             _resultsRoot = CreateScreen("screen-results");
             _pauseOverlayRoot = CreateScreen("overlay-pause");
             _settingsOverlayRoot = CreateScreen("overlay-settings");
+
+            // Dark arcade canvas for primary menu screens (#0B1020)
+            var menuBgColor = new Color(0.043f, 0.063f, 0.125f, 0.98f);
+            _mainMenuRoot.style.backgroundColor = menuBgColor;
+            _champSelectRoot.style.backgroundColor = menuBgColor;
+            _eventSelectRoot.style.backgroundColor = menuBgColor;
+            _garageRoot.style.backgroundColor = menuBgColor;
+            _upgradesRoot.style.backgroundColor = menuBgColor;
 
             _shellRoot.Add(_mainMenuRoot);
             _shellRoot.Add(_champSelectRoot);
@@ -118,6 +128,8 @@ namespace VelocityRush.Gameplay
             screen.style.top = 0f;
             screen.style.right = 0f;
             screen.style.bottom = 0f;
+            screen.style.width = Length.Percent(100f);
+            screen.style.height = Length.Percent(100f);
             screen.style.display = DisplayStyle.None;
             return screen;
         }

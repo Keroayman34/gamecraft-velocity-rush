@@ -28,6 +28,10 @@ namespace VelocityRush.Gameplay
         [SerializeField] private CommercialUiController commercialUi;
         [SerializeField] private UIDocument uiDocument;
 
+        [Header("UI & Camera Dependencies")]
+        [SerializeField] private PanelSettings panelSettings;
+        [SerializeField] private Camera fallbackCamera;
+
         [Header("Content Registries (Optional serialized; auto-resolved if empty)")]
         [SerializeField] private ChampionshipDefinition[] championships;
         [SerializeField] private RaceEventDefinition[] events;
@@ -75,6 +79,8 @@ namespace VelocityRush.Gameplay
         public NitroSystem Nitro => _nitroSystem;
         public ArcadeCameraJuice CameraJuice => _cameraJuice;
         public HighwayDifficultyProfile ActiveDifficultyProfile => _activeDifficultyProfile;
+        public PanelSettings ActivePanelSettings => panelSettings;
+        public Camera FallbackCamera => fallbackCamera;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoBootstrapOnLaunch()
@@ -152,6 +158,93 @@ namespace VelocityRush.Gameplay
 
             // Bind GameFlow scene lifecycle adapter
             gameFlow.Initialize(sceneLifecycle, AppState.Boot);
+
+            EnsurePanelSettings();
+            EnsureFallbackCamera();
+        }
+
+        private void EnsurePanelSettings()
+        {
+            if (uiDocument == null)
+            {
+                uiDocument = GetComponent<UIDocument>();
+                if (uiDocument == null) uiDocument = gameObject.AddComponent<UIDocument>();
+            }
+
+            if (uiDocument.panelSettings == null)
+            {
+                if (panelSettings == null)
+                {
+#if UNITY_EDITOR
+                    panelSettings = UnityEditor.AssetDatabase.LoadAssetAtPath<PanelSettings>("Assets/UI/Slice/SlicePanelSettings.asset");
+#endif
+                    if (panelSettings == null)
+                    {
+                        panelSettings = Resources.Load<PanelSettings>("SlicePanelSettings");
+                    }
+
+                    if (panelSettings == null)
+                    {
+                        panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+                        panelSettings.name = "RuntimeFallbackPanelSettings";
+                        panelSettings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
+                        panelSettings.referenceResolution = new Vector2Int(1920, 1080);
+                        panelSettings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
+                        panelSettings.match = 0.5f;
+                        panelSettings.sortingOrder = 10;
+                    }
+                }
+
+                uiDocument.panelSettings = panelSettings;
+            }
+        }
+
+        private void EnsureFallbackCamera()
+        {
+            if (fallbackCamera == null)
+            {
+                var existingCam = GetComponentInChildren<Camera>(true);
+                if (existingCam != null)
+                {
+                    fallbackCamera = existingCam;
+                }
+                else
+                {
+                    var camGo = new GameObject("BootstrapFallbackCamera");
+                    camGo.transform.SetParent(transform, false);
+                    fallbackCamera = camGo.AddComponent<Camera>();
+                    fallbackCamera.clearFlags = CameraClearFlags.SolidColor;
+                    fallbackCamera.backgroundColor = new Color(0.043f, 0.063f, 0.125f, 1f); // Dark navy #0B1020
+                    fallbackCamera.depth = -10;
+                    fallbackCamera.cullingMask = 0;
+                    fallbackCamera.useOcclusionCulling = false;
+                }
+            }
+
+            if (fallbackCamera != null && FindAnyObjectByType<AudioListener>() == null)
+            {
+                if (fallbackCamera.GetComponent<AudioListener>() == null)
+                {
+                    fallbackCamera.gameObject.AddComponent<AudioListener>();
+                }
+            }
+        }
+
+        private void UpdateFallbackCameraVisibility(AppState state)
+        {
+            if (fallbackCamera == null) return;
+
+            if (state == AppState.Race || state == AppState.PreEvent)
+            {
+                var mainCam = Camera.main;
+                if (mainCam != null && mainCam != fallbackCamera && mainCam.isActiveAndEnabled)
+                {
+                    fallbackCamera.enabled = false;
+                    return;
+                }
+            }
+
+            fallbackCamera.enabled = true;
         }
 
         /// <summary>
@@ -415,6 +508,50 @@ namespace VelocityRush.Gameplay
                 }
             }
 
+            // Phase 12 Live Systems Auto-Spawn Seam:
+            // If traffic, coins, or near-miss are missing in an active race scene, resolve TrackPath and auto-spawn
+            if ((_activeTrafficManager == null || _activeRoadCoinManager == null || _activeNearMissDetector == null) && _activePlayerVehicle != null)
+            {
+                var resolvedPath = ResolveTrackPath();
+                if (resolvedPath != null)
+                {
+                    if (_activeTrafficManager == null)
+                    {
+                        var highwayGo = new GameObject("Phase12_HighwaySystems");
+                        SceneManager.MoveGameObjectToScene(highwayGo, _activePlayerVehicle.gameObject.scene);
+                        _activeTrafficManager = highwayGo.AddComponent<TrafficLaneManager>();
+                        var laneConfig = TrafficLaneConfig.CreateDefault();
+                        laneConfig.density = _activeDifficultyProfile.TrafficDensity;
+                        laneConfig.trafficMinSpeed = _activeDifficultyProfile.TrafficMinSpeed;
+                        laneConfig.trafficMaxSpeed = _activeDifficultyProfile.TrafficMaxSpeed;
+                        _activeTrafficManager.ApplyConfig(laneConfig);
+                        _activeTrafficManager.Initialize(resolvedPath, _activePlayerVehicle);
+                        _activeTrafficManager.OnTrafficCollision -= HandleTrafficCollision;
+                        _activeTrafficManager.OnTrafficCollision += HandleTrafficCollision;
+                    }
+
+                    if (_activeNearMissDetector == null && _activeTrafficManager != null)
+                    {
+                        _activeNearMissDetector = _activeTrafficManager.gameObject.AddComponent<NearMissDetector>();
+                        _activeNearMissDetector.Initialize(_activeTrafficManager, _activePlayerVehicle);
+                        _activeNearMissDetector.OnNearMiss -= HandleNearMiss;
+                        _activeNearMissDetector.OnNearMiss += HandleNearMiss;
+                    }
+
+                    if (_activeRoadCoinManager == null && _activeTrafficManager != null)
+                    {
+                        _activeRoadCoinManager = _activeTrafficManager.gameObject.AddComponent<RoadCoinManager>();
+                        var coinConfig = CoinSpawnConfig.CreateDefault();
+                        coinConfig.coinValue = _activeDifficultyProfile.CoinValue;
+                        coinConfig.nearMissBonusCredits = _activeDifficultyProfile.NearMissBonusCredits;
+                        coinConfig.minArcSpacing = _activeDifficultyProfile.CoinArcSpacing;
+                        _activeRoadCoinManager.Initialize(resolvedPath, _activeTrafficManager.Config, coinConfig, _activeTrafficManager, _activePlayerVehicle.transform);
+                        _activeRoadCoinManager.OnCoinCollected -= HandleCoinCollected;
+                        _activeRoadCoinManager.OnCoinCollected += HandleCoinCollected;
+                    }
+                }
+            }
+
             // Apply event-tuned difficulty profile to TrafficLaneManager
             if (_activeTrafficManager != null)
             {
@@ -460,6 +597,58 @@ namespace VelocityRush.Gameplay
                     _activeAIDrivers[i].SetPaceScale(_activeDifficultyProfile.RivalBasePaceMultiplier);
                 }
             }
+
+            UpdateFallbackCameraVisibility(gameFlow != null ? gameFlow.CurrentState : AppState.Race);
+        }
+
+        private TrackPath ResolveTrackPath()
+        {
+            var eventRuntime = FindAnyObjectByType<RaceEventRuntime>();
+            if (eventRuntime != null && eventRuntime.Plan != null && eventRuntime.Plan.TrackPath != null)
+            {
+                return eventRuntime.Plan.TrackPath;
+            }
+
+            var grid = FindAnyObjectByType<RaceGridController>();
+            if (grid != null)
+            {
+                if (grid.Path != null)
+                {
+                    return grid.Path;
+                }
+                if (grid.TrackLayout != null)
+                {
+                    try
+                    {
+                        return TrackPath.Create(grid.TrackLayout, grid.Variant);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning(LogPrefix + "Could not create path from RaceGridController: " + ex.Message);
+                    }
+                }
+            }
+
+            var sceneContext = FindAnyObjectByType<EnvironmentSceneContext>();
+            if (sceneContext != null && sceneContext.Definition != null && sceneContext.Definition.TrackLayout != null)
+            {
+                var activeScene = SceneManager.GetActiveScene();
+                var variant = (_activeEventDefinition != null)
+                    ? _activeEventDefinition.LayoutVariant
+                    : (activeScene.name.IndexOf("reverse", StringComparison.OrdinalIgnoreCase) >= 0
+                        ? EnvironmentLayoutVariant.Reverse
+                        : EnvironmentLayoutVariant.Signature);
+                try
+                {
+                    return TrackPath.Create(sceneContext.Definition.TrackLayout, variant);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning(LogPrefix + "Could not create path from EnvironmentSceneContext: " + ex.Message);
+                }
+            }
+
+            return null;
         }
 
         private void HandleCoinCollected(CoinCollectedEvent evt)
@@ -485,6 +674,8 @@ namespace VelocityRush.Gameplay
 
         private void HandleStateChanged(AppState state)
         {
+            UpdateFallbackCameraVisibility(state);
+
             switch (state)
             {
                 case AppState.MainMenu:
@@ -637,6 +828,10 @@ namespace VelocityRush.Gameplay
             _economyTracker.Reset();
             _nitroSystem.Reset(25f);
             _activeDifficultyProfile = HighwayDifficultyTable.DefaultProfile;
+            if (fallbackCamera != null)
+            {
+                fallbackCamera.enabled = true;
+            }
         }
 
         private void HandleNextEvent()

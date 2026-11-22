@@ -56,42 +56,76 @@ namespace VelocityRush.Gameplay
             _root.style.justifyContent = Justify.Center;
 
             _titleLabel = new Label { name = "main-menu-title" };
-            _titleLabel.style.fontSize = 48f;
+            _titleLabel.style.fontSize = 52f;
+            _titleLabel.style.unityFontStyleAndWeight = UnityEngine.FontStyle.Bold;
             _titleLabel.style.color = UnityEngine.Color.white;
-            _titleLabel.style.marginBottom = 40f;
+            _titleLabel.style.marginBottom = 36f;
             _root.Add(_titleLabel);
 
             _creditsLabel = new Label { name = "main-menu-credits" };
-            _creditsLabel.style.fontSize = 20f;
+            _creditsLabel.style.fontSize = 24f;
+            _creditsLabel.style.unityFontStyleAndWeight = UnityEngine.FontStyle.Bold;
             _creditsLabel.style.color = new UnityEngine.Color(1f, 0.85f, 0.2f);
-            _creditsLabel.style.marginBottom = 30f;
+            _creditsLabel.style.marginBottom = 28f;
             _root.Add(_creditsLabel);
 
             _playButton = new Button { name = "main-menu-play" };
-            _playButton.style.width = 200f;
-            _playButton.style.height = 50f;
-            _playButton.style.marginBottom = 10f;
+            _playButton.style.width = 240f;
+            _playButton.style.height = 48f;
+            _playButton.style.fontSize = 20f;
+            _playButton.style.unityFontStyleAndWeight = UnityEngine.FontStyle.Bold;
+            _playButton.style.color = UnityEngine.Color.white;
+            _playButton.style.backgroundColor = new UnityEngine.Color(0.145f, 0.388f, 0.922f, 1f); // #2563EB
+            _playButton.style.borderTopLeftRadius = 8f;
+            _playButton.style.borderTopRightRadius = 8f;
+            _playButton.style.borderBottomLeftRadius = 8f;
+            _playButton.style.borderBottomRightRadius = 8f;
+            _playButton.style.marginBottom = 12f;
             _playButton.clicked += () => PlayRequested?.Invoke();
             _root.Add(_playButton);
 
             _garageButton = new Button { name = "main-menu-garage" };
-            _garageButton.style.width = 200f;
-            _garageButton.style.height = 50f;
-            _garageButton.style.marginBottom = 10f;
+            _garageButton.style.width = 240f;
+            _garageButton.style.height = 48f;
+            _garageButton.style.fontSize = 20f;
+            _garageButton.style.unityFontStyleAndWeight = UnityEngine.FontStyle.Bold;
+            _garageButton.style.color = UnityEngine.Color.white;
+            _garageButton.style.backgroundColor = new UnityEngine.Color(0.851f, 0.467f, 0.024f, 1f); // #D97706
+            _garageButton.style.borderTopLeftRadius = 8f;
+            _garageButton.style.borderTopRightRadius = 8f;
+            _garageButton.style.borderBottomLeftRadius = 8f;
+            _garageButton.style.borderBottomRightRadius = 8f;
+            _garageButton.style.marginBottom = 12f;
             _garageButton.clicked += () => GarageRequested?.Invoke();
             _root.Add(_garageButton);
 
             _settingsButton = new Button { name = "main-menu-settings" };
-            _settingsButton.style.width = 200f;
-            _settingsButton.style.height = 50f;
-            _settingsButton.style.marginBottom = 10f;
+            _settingsButton.style.width = 240f;
+            _settingsButton.style.height = 48f;
+            _settingsButton.style.fontSize = 20f;
+            _settingsButton.style.unityFontStyleAndWeight = UnityEngine.FontStyle.Bold;
+            _settingsButton.style.color = UnityEngine.Color.white;
+            _settingsButton.style.backgroundColor = new UnityEngine.Color(0.216f, 0.255f, 0.318f, 1f); // #374151
+            _settingsButton.style.borderTopLeftRadius = 8f;
+            _settingsButton.style.borderTopRightRadius = 8f;
+            _settingsButton.style.borderBottomLeftRadius = 8f;
+            _settingsButton.style.borderBottomRightRadius = 8f;
+            _settingsButton.style.marginBottom = 12f;
             _settingsButton.clicked += () => SettingsRequested?.Invoke();
             _root.Add(_settingsButton);
 
             _langToggleButton = new Button { name = "main-menu-lang-toggle" };
-            _langToggleButton.style.width = 100f;
-            _langToggleButton.style.height = 40f;
-            _langToggleButton.style.marginTop = 20f;
+            _langToggleButton.style.width = 140f;
+            _langToggleButton.style.height = 38f;
+            _langToggleButton.style.fontSize = 15f;
+            _langToggleButton.style.unityFontStyleAndWeight = UnityEngine.FontStyle.Bold;
+            _langToggleButton.style.color = UnityEngine.Color.white;
+            _langToggleButton.style.backgroundColor = new UnityEngine.Color(0.12f, 0.16f, 0.22f, 1f);
+            _langToggleButton.style.borderTopLeftRadius = 6f;
+            _langToggleButton.style.borderTopRightRadius = 6f;
+            _langToggleButton.style.borderBottomLeftRadius = 6f;
+            _langToggleButton.style.borderBottomRightRadius = 6f;
+            _langToggleButton.style.marginTop = 16f;
             _langToggleButton.clicked += () => LanguageToggleRequested?.Invoke();
             _root.Add(_langToggleButton);
         }

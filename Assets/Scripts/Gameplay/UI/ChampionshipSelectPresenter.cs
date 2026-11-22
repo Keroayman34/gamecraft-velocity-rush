@@ -95,8 +95,15 @@ namespace VelocityRush.Gameplay
 
                 int capturedIndex = i;
                 _champSelectButtons[i] = new Button { name = "champ-select-" + i };
-                _champSelectButtons[i].style.width = 120f;
-                _champSelectButtons[i].style.height = 35f;
+                _champSelectButtons[i].style.width = 130f;
+                _champSelectButtons[i].style.height = 36f;
+                _champSelectButtons[i].style.fontSize = 15f;
+                _champSelectButtons[i].style.unityFontStyleAndWeight = UnityEngine.FontStyle.Bold;
+                _champSelectButtons[i].style.color = UnityEngine.Color.white;
+                _champSelectButtons[i].style.borderTopLeftRadius = 6f;
+                _champSelectButtons[i].style.borderTopRightRadius = 6f;
+                _champSelectButtons[i].style.borderBottomLeftRadius = 6f;
+                _champSelectButtons[i].style.borderBottomRightRadius = 6f;
                 _champSelectButtons[i].style.marginTop = 8f;
                 _champSelectButtons[i].clicked += () =>
                 {
@@ -112,8 +119,16 @@ namespace VelocityRush.Gameplay
             }
 
             _backButton = new Button { name = "champ-back" };
-            _backButton.style.width = 120f;
+            _backButton.style.width = 130f;
             _backButton.style.height = 40f;
+            _backButton.style.fontSize = 16f;
+            _backButton.style.unityFontStyleAndWeight = UnityEngine.FontStyle.Bold;
+            _backButton.style.color = UnityEngine.Color.white;
+            _backButton.style.backgroundColor = new UnityEngine.Color(0.216f, 0.255f, 0.318f, 1f);
+            _backButton.style.borderTopLeftRadius = 6f;
+            _backButton.style.borderTopRightRadius = 6f;
+            _backButton.style.borderBottomLeftRadius = 6f;
+            _backButton.style.borderBottomRightRadius = 6f;
             _backButton.style.marginTop = 20f;
             _backButton.clicked += () => BackRequested?.Invoke();
             _root.Add(_backButton);
@@ -147,6 +162,7 @@ namespace VelocityRush.Gameplay
                     _champStatusLabels[i].text = LocalizationService.Tr("champ.unlocked");
                     _champStatusLabels[i].style.color = new UnityEngine.Color(0.3f, 0.9f, 0.3f);
                     _champSelectButtons[i].text = LocalizationService.Tr("menu.play");
+                    _champSelectButtons[i].style.backgroundColor = new UnityEngine.Color(0.145f, 0.388f, 0.922f, 1f);
                     _champSelectButtons[i].SetEnabled(true);
                 }
                 else
@@ -154,6 +170,7 @@ namespace VelocityRush.Gameplay
                     _champStatusLabels[i].text = LocalizationService.Tr("champ.locked");
                     _champStatusLabels[i].style.color = new UnityEngine.Color(0.9f, 0.3f, 0.3f);
                     _champSelectButtons[i].text = LocalizationService.Tr("champ.locked");
+                    _champSelectButtons[i].style.backgroundColor = new UnityEngine.Color(0.216f, 0.255f, 0.318f, 0.6f);
                     _champSelectButtons[i].SetEnabled(false);
                 }
 

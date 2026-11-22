@@ -54,7 +54,6 @@ namespace VelocityRush.Tests.EditMode
             // C1: Rounds 1..5
             // C2: Rounds 1..5
             // C3: Rounds 1..5
-            HighwayDifficultyProfile prevProfile = default;
 
             for (int round = 1; round <= 5; round++)
             {

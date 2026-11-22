@@ -4,6 +4,22 @@ All notable project changes are recorded here.
 This changelog records documentation and process milestones; it does not pre-announce features that have not been implemented.
 
 ## [Unreleased]
+### Playability Hotfix: Visible UI Toolkit Rendering, Bootstrap Camera & Live Phase 12 Race Spawning (2026-11-22)
+- **UI Toolkit PanelSettings & Bootstrap Fallback Camera (`VelocityRush.Gameplay.App`):**
+  - Added `EnsurePanelSettings()` to `GameCompositionRoot` resolving `Assets/UI/Slice/SlicePanelSettings.asset` (with `Resources.Load` and ScriptableObject fallback) and assigning it to `UIDocument.panelSettings`.
+  - Added persistent `BootstrapFallbackCamera` GameObject (`#0B1020` solid dark navy clear, depth -10, cullingMask 0, `AudioListener` fallback), active across all menu states and cleanly disabling when an additive race camera is active.
+- **UI Styling & Full-Screen Sizing (`VelocityRush.Gameplay.UI`):**
+  - Explicitly configured `_shellRoot` and all screen root containers to `width: 100%`, `height: 100%`.
+  - Applied `#0B1020` dark arcade background canvas to menu screens and high-contrast bold buttons (Play: `#2563EB` blue, Garage/Upgrade: `#D97706` amber, Back/Settings: `#374151` slate) across `MainMenuPresenter`, `ChampionshipSelectPresenter`, and `EventSelectPresenter`.
+- **Phase 12 Live Systems Auto-Spawn in Active Races (`VelocityRush.Gameplay.App`):**
+  - Extended `FindActiveRaceComponents()` to resolve `TrackPath` from `RaceEventRuntime`, `RaceGridController`, or `EnvironmentSceneContext`.
+  - Auto-spawned and initialized `TrafficLaneManager`, `NearMissDetector`, and `RoadCoinManager` into active race scenes whenever missing, tuned with `HighwayDifficultyTable.Resolve(activeEventId)`.
+- **EditorBuildSettings Scene List (`ProjectSettings/EditorBuildSettings.asset`):**
+  - Added all 13 commercial scenes (`Bootstrap` + `Garage` + `ChampionshipCatalog` + all 10 environment configurations) to `EditorBuildSettings.asset` for seamless additive loading in Unity Editor Play Mode.
+- **Tests & Verification:**
+  - Added `BootstrapPlayabilityPlayModeTests` covering `UIDocument.panelSettings` assignment, menu rendering, fallback camera toggling, and Phase 12 highway systems auto-spawning.
+  - Clean C# compilation across all assemblies with **0 errors / 0 warnings**.
+
 ### Phase 12 — Stage 4: 15-Event Difficulty Matrix, Combined Stability & Phase 12 Closure (2026-11-22)
 - **15-Event Progressive Difficulty Matrix (`VelocityRush.Data`):**
   - Created `HighwayDifficultyProfile` immutable readonly struct with fail-closed validation (`TryValidate`) enforcing safe traffic density `[0.25, 0.85]`, positive speeds, positive coin spacing, positive coin values, non-negative near-miss credits, rival pace scale `[0.5, 1.5]`, and bounded rubber-banding `[0.85, 1.18]`.
